@@ -1,0 +1,17 @@
+{
+  "name": "melsou",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "check": "node --check worker/index.mjs && npm test && npm --prefix demo run check",
+    "test": "node --test worker/*.test.mjs",
+    "demo": "npm --prefix demo start",
+    "dev:worker": "npx wrangler dev --config wrangler.jsonc",
+    "deploy": "npx wrangler deploy --config wrangler.jsonc"
+  },
+  "dependencies": {
+    "pdf-lib": "1.17.1",
+    "qrcode": "1.5.4"
+  }
+}

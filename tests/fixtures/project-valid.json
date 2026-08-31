@@ -1,0 +1,9 @@
+{
+  "schema_version": 1,
+  "project_id": "prj_fixture_01",
+  "owner": {"type": "guest", "id": "guest_fixture_01"},
+  "album": {"size": "A5_PORTRAIT", "page_count": 12, "package_code": "MELODY"},
+  "template": {"template_id": "first-love", "version": 1},
+  "content_bindings": {"image_01": {"asset_id": "ast_fixture_01", "crop": {"x": 0.1, "y": 0.1, "zoom": 1.1}}},
+  "unplaced_content": [], "options": {"spotify_enabled": true, "voice_module": false, "twin_album": false}, "revision": 1
+}

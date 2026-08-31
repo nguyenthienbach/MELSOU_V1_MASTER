@@ -1,0 +1,4 @@
+{
+  "note": "Synthetic placeholder only. Generate a signed payload in tests with a test-only secret; never add a real SePay payload or signature.",
+  "provider_event_id": "evt_test_0001", "payment_reference": "MELM-2608-001", "amount_vnd": 159000, "currency": "VND", "signature": "TEST_SIGNATURE_ONLY"
+}

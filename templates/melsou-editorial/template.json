@@ -1,0 +1,5 @@
+{
+  "template_id":"melsou-editorial","version":1,"name":"Melsou Editorial","style":["editorial","modern"],"occasion":["general"],
+  "compatible":[{"album_size":"A5_LANDSCAPE","page_counts":[12,16,24]}],"print_profile":"TBD_PRINT_VENDOR","covers":{"front":["cover_title","cover_image"],"back":["spotify_qr_slot"]},
+  "spreads":[{"id":"spread_01","slots":[{"id":"image_01","type":"image","required":true,"frame":{"x":0.04,"y":0.08,"width":0.58,"height":0.72}},{"id":"headline_01","type":"text","required":true,"frame":{"x":0.68,"y":0.18,"width":0.24,"height":0.18}},{"id":"body_01","type":"text","required":false,"frame":{"x":0.68,"y":0.45,"width":0.22,"height":0.22}}]}],"locked_elements":["editorial_grid","safe_zone_overlay"]
+}

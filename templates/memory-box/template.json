@@ -1,0 +1,5 @@
+{
+  "template_id":"memory-box","version":1,"name":"Memory Box","style":["nostalgic","film"],"occasion":["memory"],
+  "compatible":[{"album_size":"A5_PORTRAIT","page_counts":[12,16,24]}],"print_profile":"TBD_PRINT_VENDOR","covers":{"front":["cover_title","cover_image"],"back":["spotify_qr_slot"]},
+  "spreads":[{"id":"spread_01","slots":[{"id":"image_01","type":"image","required":true,"frame":{"x":0.09,"y":0.11,"width":0.36,"height":0.54}},{"id":"image_02","type":"image","required":false,"frame":{"x":0.56,"y":0.19,"width":0.31,"height":0.43}},{"id":"date_01","type":"text","required":false,"frame":{"x":0.12,"y":0.76,"width":0.28,"height":0.07}}]}],"locked_elements":["film_frame","paper_texture","safe_zone_overlay"]
+}

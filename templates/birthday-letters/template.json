@@ -1,0 +1,5 @@
+{
+  "template_id":"birthday-letters","version":1,"name":"Birthday Letters","style":["warm","letter"],"occasion":["birthday"],
+  "compatible":[{"album_size":"A5_PORTRAIT","page_counts":[12,16,24]}],"print_profile":"TBD_PRINT_VENDOR","covers":{"front":["cover_title","cover_image"],"back":["spotify_qr_slot"]},
+  "spreads":[{"id":"spread_01","slots":[{"id":"image_01","type":"image","required":true,"frame":{"x":0.06,"y":0.12,"width":0.4,"height":0.58}},{"id":"letter_01","type":"text","required":true,"frame":{"x":0.55,"y":0.16,"width":0.34,"height":0.52}}]}],"locked_elements":["letter_paper","safe_zone_overlay"]
+}

@@ -1,0 +1,5 @@
+{
+  "template_id":"besties-archive","version":1,"name":"Besties Archive","style":["scrapbook","playful"],"occasion":["best_friend"],
+  "compatible":[{"album_size":"A5_PORTRAIT","page_counts":[12,16,24]}],"print_profile":"TBD_PRINT_VENDOR","covers":{"front":["cover_title","cover_image"],"back":["spotify_qr_slot"]},
+  "spreads":[{"id":"spread_01","slots":[{"id":"image_01","type":"image","required":true,"frame":{"x":0.06,"y":0.1,"width":0.25,"height":0.3}},{"id":"image_02","type":"image","required":true,"frame":{"x":0.36,"y":0.18,"width":0.27,"height":0.34}},{"id":"image_03","type":"image","required":false,"frame":{"x":0.67,"y":0.08,"width":0.24,"height":0.31}},{"id":"sticker_01","type":"sticker","required":false,"frame":{"x":0.42,"y":0.7,"width":0.12,"height":0.12}}]}],"locked_elements":["collage_background","safe_zone_overlay"]
+}

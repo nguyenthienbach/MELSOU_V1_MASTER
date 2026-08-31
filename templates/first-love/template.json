@@ -1,0 +1,7 @@
+{
+  "template_id": "first-love", "version": 1, "name": "First Love", "style": ["romantic", "minimal"], "occasion": ["anniversary", "couple"],
+  "compatible": [{"album_size": "A5_PORTRAIT", "page_counts": [12,16,24]}],
+  "print_profile": "TBD_PRINT_VENDOR", "covers": {"front": ["cover_title", "cover_image"], "back": ["spotify_qr_slot"]},
+  "spreads": [{"id": "spread_01", "slots": [{"id":"image_01","type":"image","required":true,"frame":{"x":0.06,"y":0.12,"width":0.58,"height":0.72}},{"id":"note_01","type":"text","required":false,"frame":{"x":0.7,"y":0.25,"width":0.22,"height":0.2}}]}],
+  "locked_elements": ["romantic_background", "safe_zone_overlay"]
+}

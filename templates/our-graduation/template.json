@@ -1,0 +1,7 @@
+{
+  "template_id": "our-graduation", "version": 1, "name": "Our Graduation", "style": ["scrapbook", "nostalgic"], "occasion": ["graduation"],
+  "compatible": [{"album_size":"A5_PORTRAIT","page_counts":[12,16,24]}], "print_profile":"TBD_PRINT_VENDOR",
+  "covers":{"front":["cover_title","cover_image"],"back":["spotify_qr_slot"]},
+  "spreads":[{"id":"spread_01","slots":[{"id":"image_01","type":"image","required":true,"frame":{"x":0.05,"y":0.08,"width":0.38,"height":0.65}},{"id":"image_02","type":"image","required":true,"frame":{"x":0.55,"y":0.2,"width":0.35,"height":0.55}},{"id":"caption_01","type":"text","required":false,"frame":{"x":0.12,"y":0.8,"width":0.7,"height":0.1}}]}],
+  "locked_elements":["polaroid_frames","tape","safe_zone_overlay"]
+}
