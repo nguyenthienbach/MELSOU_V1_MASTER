@@ -1,11 +1,15 @@
 # Melsou — shared Antigravity + Codex working agreement
 
-This folder is the single shared master:
+The Git worktree topology is:
 
-`C:\Users\Thien Bach\Documents\MELSOU_V1_MASTER`
+- `C:\Users\Thien Bach\Documents\MELSOU_V1_MASTER` — branch `main`; integration/master workspace only.
+- `C:\Users\Thien Bach\Documents\MELSOU_ANTIGRAVITY` — branch `antigravity-ui`; Antigravity development workspace.
+- `C:\Users\Thien Bach\Documents\MELSOU_CODEX` — branch `codex-backend`; Codex development workspace.
 
-Both agents must read `AGENTS.md`, this file, and the relevant documentation
-before changing anything. The product owner is the final decision-maker.
+Antigravity and Codex must not develop directly in the `main` integration/master
+workspace. Both agents must read `AGENTS.md`, this file, and the relevant
+documentation before changing anything in their assigned worktree. The product
+owner is the final decision-maker.
 
 ## 1. Ownership boundaries
 
@@ -87,8 +91,8 @@ mark it **BLOCKED** with the exact missing owner input; do not guess values.
 
 Before any large visual redesign or backend migration, create a Git commit on a
 separate branch once GitHub is connected. Until then, make a dated ZIP backup
-outside this master folder. Never delete the previous working version merely
-because a new one exists.
+outside the relevant development worktree. Never delete the previous working
+version merely because a new one exists.
 
 ## 7. Immediate current assignment
 
