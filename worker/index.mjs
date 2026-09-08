@@ -2,6 +2,7 @@ import { createQuote, DEFAULT_PRICING_RULES } from './quote.mjs';
 import { runPreflight } from './preflight.mjs';
 import { processOperations } from './operations.mjs';
 import { processRenderJobs } from './renderer.mjs';
+import { assertDraftAssetQuota, assertUploadSize, inspectUploadedImage, processAssetJobs } from './image-processing.mjs';
 
 const json = (body, status = 200) => new Response(JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store', 'X-Content-Type-Options': 'nosniff' } });
 const textEncoder = new TextEncoder();
@@ -12,16 +13,6 @@ const timeSafeEqual = (a, b) => {
   return result === 0;
 };
 
-const mimeFromBytes = (bytes) => {
-  if (bytes.length >= 3 && bytes[0] === 0xff && bytes[1] === 0xd8 && bytes[2] === 0xff) return 'image/jpeg';
-  if (bytes.length >= 8 && bytes.slice(0, 8).every((item, index) => item === [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a][index])) return 'image/png';
-  if (bytes.length >= 12 && String.fromCharCode(...bytes.slice(0, 4)) === 'RIFF' && String.fromCharCode(...bytes.slice(8, 12)) === 'WEBP') return 'image/webp';
-  if (bytes.length >= 12 && String.fromCharCode(...bytes.slice(4, 8)) === 'ftyp') {
-    const brand = String.fromCharCode(...bytes.slice(8, 12)).toLowerCase();
-    if (['heic', 'heix', 'hevc', 'hevx', 'mif1', 'msf1'].includes(brand)) return 'image/heic';
-  }
-  return null;
-};
 const sha256 = async (bytes) => [...new Uint8Array(await crypto.subtle.digest('SHA-256', bytes))].map((item) => item.toString(16).padStart(2, '0')).join('');
 const supabaseHeaders = (env) => ({ apikey: env.SUPABASE_SERVICE_ROLE_KEY, Authorization: `Bearer ${env.SUPABASE_SERVICE_ROLE_KEY}`, 'Content-Type': 'application/json' });
 const allowedTemplates = new Set(['first-love', 'our-graduation', 'besties-archive', 'somewhere-together', 'birthday-letters', 'quiet-moments', 'memory-box', 'melsou-editorial']);
@@ -141,32 +132,40 @@ async function handleProjectSave(request, env, projectId) {
   return json({ project: result });
 }
 
-async function handleAssetUpload(request, env, projectId) {
+async function handleAssetUpload(request, env, projectId, ctx) {
   const user = await authenticatedUser(request, env);
   if (!user) return json({ error: 'UNAUTHENTICATED' }, 401);
   if (!env.MELSOU_ASSETS) return json({ error: 'ASSET_STORAGE_NOT_CONFIGURED' }, 503);
+  if (!env.IMAGES) return json({ error: 'IMAGE_PROCESSOR_NOT_CONFIGURED' }, 503);
   const project = await editableProject(projectId, user.id, env);
   if (!project) return json({ error: 'PROJECT_NOT_FOUND' }, 404);
   const declaredLength = Number(request.headers.get('Content-Length') || 0);
   if (declaredLength > 8 * 1024 * 1024) return json({ error: 'ASSET_TOO_LARGE' }, 413);
   const bytes = await request.arrayBuffer();
-  if (!bytes.byteLength || bytes.byteLength > 8 * 1024 * 1024) return json({ error: 'ASSET_TOO_LARGE' }, 413);
-  const actualMime = mimeFromBytes(new Uint8Array(bytes.slice(0, 32)));
-  if (!actualMime) return json({ error: 'UNSUPPORTED_OR_SPOOFED_FILE' }, 415);
+  try { assertUploadSize(bytes.byteLength, declaredLength); }
+  catch (error) { return json({ error: error.code || 'ASSET_TOO_LARGE' }, 413); }
+  let decoded;
+  try { decoded = await inspectUploadedImage(bytes, env.IMAGES, request.headers.get('Content-Type')); }
+  catch (error) {
+    const code = error.code || 'IMAGE_DECODE_FAILED';
+    return json({ error: code }, code === 'IMAGE_DIMENSIONS_UNSAFE' ? 413 : code === 'IMAGE_PROCESSOR_NOT_CONFIGURED' ? 503 : 415);
+  }
   const quotaResponse = await fetch(`${env.SUPABASE_URL}/rest/v1/project_assets?project_id=eq.${projectId}&select=file_size`, { headers: supabaseHeaders(env) });
   if (!quotaResponse.ok) return json({ error: 'ASSET_QUOTA_CHECK_FAILED' }, 503);
   const existing = await quotaResponse.json();
-  const used = existing.reduce((total, item) => total + Number(item.file_size || 0), 0);
-  if (existing.length >= 40 || used + bytes.byteLength > 150 * 1024 * 1024) return json({ error: 'DRAFT_STORAGE_LIMIT_REACHED' }, 413);
+  try { assertDraftAssetQuota(existing, bytes.byteLength); }
+  catch (error) { return json({ error: error.code || 'DRAFT_STORAGE_LIMIT_REACHED' }, 413); }
   const assetId = crypto.randomUUID();
   const storageKey = `projects/${projectId}/assets/${assetId}/original`;
-  await env.MELSOU_ASSETS.put(storageKey, bytes, { httpMetadata: { contentType: actualMime, cacheControl: 'private, no-store' } });
+  await env.MELSOU_ASSETS.put(storageKey, bytes, { httpMetadata: { contentType: decoded.mimeType, cacheControl: 'private, no-store' } });
   const insert = await fetch(`${env.SUPABASE_URL}/rest/v1/project_assets`, {
     method: 'POST', headers: { ...supabaseHeaders(env), Prefer: 'return=representation' },
-    body: JSON.stringify({ id: assetId, project_id: projectId, storage_key: storageKey, mime_type: actualMime, file_size: bytes.byteLength, checksum: await sha256(bytes), status: 'ORIGINAL_ONLY' })
+    body: JSON.stringify({ id: assetId, project_id: projectId, storage_key: storageKey, mime_type: decoded.mimeType, file_size: bytes.byteLength, width_px: decoded.width, height_px: decoded.height, checksum: await sha256(bytes), status: 'ORIGINAL_ONLY', processing_state: 'PENDING', processing_retry_count: 0 })
   });
   if (!insert.ok) { await env.MELSOU_ASSETS.delete(storageKey); return json({ error: 'ASSET_METADATA_SAVE_FAILED' }, 503); }
-  return json({ asset: (await insert.json())[0] }, 201);
+  const asset = (await insert.json())[0];
+  ctx?.waitUntil?.(processAssetJobs(env, 1, assetId));
+  return json({ asset }, 201);
 }
 
 async function handleAssetDownload(request, env, assetId) {
@@ -181,6 +180,19 @@ async function handleAssetDownload(request, env, assetId) {
   return new Response(object.body, { headers: { 'Content-Type': asset.mime_type, 'Cache-Control': 'private, no-store', 'X-Content-Type-Options': 'nosniff' } });
 }
 
+async function handleAssetPreview(request, env, assetId) {
+  const user = await authenticatedUser(request, env);
+  if (!user) return json({ error: 'UNAUTHENTICATED' }, 401);
+  const response = await fetch(`${env.SUPABASE_URL}/rest/v1/project_assets?id=eq.${assetId}&select=id,preview_key,preview_mime_type,processing_state,project:projects!inner(owner_user_id)`, { headers: supabaseHeaders(env) });
+  if (!response.ok) return json({ error: 'ASSET_LOOKUP_FAILED' }, 503);
+  const [asset] = await response.json();
+  if (!asset || asset.project?.owner_user_id !== user.id) return json({ error: 'ASSET_NOT_FOUND' }, 404);
+  if (asset.processing_state !== 'READY' || !asset.preview_key) return json({ error: 'ASSET_PREVIEW_NOT_READY', processingState: asset.processing_state }, 409);
+  const object = await env.MELSOU_ASSETS.get(asset.preview_key);
+  if (!object) return json({ error: 'ASSET_PREVIEW_MISSING' }, 404);
+  return new Response(object.body, { headers: { 'Content-Type': asset.preview_mime_type || 'image/webp', 'Cache-Control': 'private, no-store', 'X-Content-Type-Options': 'nosniff' } });
+}
+
 async function handleCreateOrder(request, env) {
   const user = await authenticatedUser(request, env);
   if (!user) return json({ error: 'UNAUTHENTICATED' }, 401);
@@ -191,7 +203,7 @@ async function handleCreateOrder(request, env) {
   if (!project) return json({ error: 'PROJECT_NOT_FOUND' }, 404);
   const [pricing, assetResponse, profileResponse] = await Promise.all([
     activePricing(env),
-    fetch(`${env.SUPABASE_URL}/rest/v1/project_assets?project_id=eq.${input.projectId}&select=id,status`, { headers: supabaseHeaders(env) }),
+    fetch(`${env.SUPABASE_URL}/rest/v1/project_assets?project_id=eq.${input.projectId}&select=id,status,processing_state,normalized_key,normalized_mime_type,normalized_width_px,normalized_height_px`, { headers: supabaseHeaders(env) }),
     fetch(`${env.SUPABASE_URL}/rest/v1/print_profiles?production_ready=eq.true&select=production_ready,configuration&order=created_at.desc&limit=1`, { headers: supabaseHeaders(env) })
   ]);
   if (!pricing) return json({ error: 'ACTIVE_PRICING_UNAVAILABLE' }, 503);
@@ -332,7 +344,7 @@ async function handleSePay(request, env) {
 }
 
 export default {
-  async fetch(request, env) {
+  async fetch(request, env, ctx) {
     const url = new URL(request.url);
     if (url.pathname === '/api/health' && request.method === 'GET') return json({ ok: true, environment: env.APP_ENV || 'unknown' });
     if (url.pathname === '/api/public-config' && request.method === 'GET') return json({ supabaseUrl: env.SUPABASE_URL || null, supabaseAnonKey: env.SUPABASE_ANON_KEY || null, environment: env.APP_ENV || 'unknown', payment: { bankCode: env.SEPAY_BANK_CODE || null, accountNumber: env.SEPAY_BANK_ACCOUNT || null, accountName: env.SEPAY_ACCOUNT_NAME || null } });
@@ -350,12 +362,14 @@ export default {
     if (url.pathname === '/api/projects' && request.method === 'POST') return handleProjectCreate(request, env);
     if (projectSave && request.method === 'PUT') return handleProjectSave(request, env, projectSave[1]);
     const projectAssetUpload = url.pathname.match(/^\/api\/projects\/([0-9a-f-]{36})\/assets$/i);
-    if (projectAssetUpload && request.method === 'POST') return handleAssetUpload(request, env, projectAssetUpload[1]);
+    if (projectAssetUpload && request.method === 'POST') return handleAssetUpload(request, env, projectAssetUpload[1], ctx);
     const duoInvite = url.pathname.match(/^\/api\/projects\/([0-9a-f-]{36})\/duo-invitations$/i);
     if (duoInvite && request.method === 'POST') return handleDuoInvite(request, env, duoInvite[1]);
     if (url.pathname === '/api/duo-invitations/accept' && request.method === 'POST') return handleDuoAccept(request, env);
     const assetDownload = url.pathname.match(/^\/api\/assets\/([0-9a-f-]{36})$/i);
     if (assetDownload && request.method === 'GET') return handleAssetDownload(request, env, assetDownload[1]);
+    const assetPreview = url.pathname.match(/^\/api\/assets\/([0-9a-f-]{36})\/preview$/i);
+    if (assetPreview && request.method === 'GET') return handleAssetPreview(request, env, assetPreview[1]);
     if (url.pathname === '/api/orders' && request.method === 'POST') return handleCreateOrder(request, env);
     const tracking = url.pathname.match(/^\/api\/tracking\/([^/]+)$/i);
     if (tracking && request.method === 'GET') return handleTracking(env, decodeURIComponent(tracking[1]));
@@ -368,5 +382,5 @@ export default {
     if (url.pathname === '/api/sepay/webhook' && request.method === 'POST') return handleSePay(request, env);
     return json({ error: 'NOT_FOUND' }, 404);
   },
-  async scheduled(_event, env, ctx) { ctx.waitUntil(Promise.all([processOperations(env), processRenderJobs(env), expireInactiveGuestDrafts(env)])); }
+  async scheduled(_event, env, ctx) { ctx.waitUntil(Promise.all([processAssetJobs(env), processOperations(env), processRenderJobs(env), expireInactiveGuestDrafts(env)])); }
 };

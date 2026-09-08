@@ -12,6 +12,7 @@
   "r2_buckets": [
     { "binding": "MELSOU_ASSETS", "bucket_name": "melsou-hot-private", "preview_bucket_name": "melsou-hot-private-preview" }
   ],
+  "images": { "binding": "IMAGES" },
   "vars": {
     "APP_ENV": "production",
     "SEPAY_ALLOWED_CLOCK_SKEW_SECONDS": "300"

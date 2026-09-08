@@ -38,11 +38,14 @@ function wrappedLines(text, font, size, maxWidth) {
 }
 async function embeddedImage(pdf, asset, env) {
   if (!asset || !env.MELSOU_ASSETS) return null;
-  const object = await env.MELSOU_ASSETS.get(asset.storage_key); if (!object) throw new Error(`ASSET_OBJECT_MISSING:${asset.id}`);
+  if (asset.processing_state && asset.processing_state !== 'READY') throw new Error(`ASSET_PROCESSING_NOT_READY:${asset.id}`);
+  const storageKey = asset.normalized_key || asset.storage_key;
+  const mimeType = asset.normalized_mime_type || asset.mime_type;
+  const object = await env.MELSOU_ASSETS.get(storageKey); if (!object) throw new Error(`ASSET_OBJECT_MISSING:${asset.id}`);
   const bytes = await object.arrayBuffer();
-  if (asset.mime_type === 'image/jpeg') return pdf.embedJpg(bytes);
-  if (asset.mime_type === 'image/png') return pdf.embedPng(bytes);
-  throw new Error(`UNRENDERABLE_IMAGE_TYPE:${asset.mime_type}`);
+  if (mimeType === 'image/jpeg') return pdf.embedJpg(bytes);
+  if (mimeType === 'image/png') return pdf.embedPng(bytes);
+  throw new Error(`UNRENDERABLE_IMAGE_TYPE:${mimeType}`);
 }
 function framePoints(frame, geometry, spread) {
   const width = spread ? geometry.width * 2 + geometry.bleed * 2 : geometry.coverWidth + geometry.bleed * 2;
@@ -91,7 +94,7 @@ export async function renderOrder({ order, snapshot, profile, assets, env }) {
   const interiorPdf = await PDFDocument.create(); const interiorPages = await interiorPdf.copyPages(pdf, Array.from({ length: pdf.getPageCount() - 1 }, (_unused, index) => index + 1)); interiorPages.forEach((page) => interiorPdf.addPage(page));
   [coverPdf, interiorPdf].forEach((output) => { output.setTitle(`Melsou ${order.order_code}`); output.setCreator(rendererVersion); output.setProducer(rendererVersion); output.setSubject(profile.configuration.pdf_standard); });
   const [coverBytes, interiorBytes] = await Promise.all([coverPdf.save({ useObjectStreams: false }), interiorPdf.save({ useObjectStreams: false })]); const baseKey = `orders/${order.order_code}/${rendererVersion}`;
-  const manifest = { renderer_version: rendererVersion, order_code: order.order_code, snapshot_id: snapshot.id, template_id: snapshot.template_id, template_version: snapshot.template_version, print_profile_version: profile.version, color_profile: profile.configuration.color_profile, pdf_standard: profile.configuration.pdf_standard, cover_construction: profile.configuration.cover_construction, artifacts: { cover: `${baseKey}/cover_print.pdf`, interior: `${baseKey}/interior_spreads.pdf` }, assets: assets.map((asset) => ({ id: asset.id, checksum: asset.checksum, storage_key: asset.storage_key })) };
+  const manifest = { renderer_version: rendererVersion, order_code: order.order_code, snapshot_id: snapshot.id, template_id: snapshot.template_id, template_version: snapshot.template_version, print_profile_version: profile.version, color_profile: profile.configuration.color_profile, pdf_standard: profile.configuration.pdf_standard, cover_construction: profile.configuration.cover_construction, artifacts: { cover: `${baseKey}/cover_print.pdf`, interior: `${baseKey}/interior_spreads.pdf` }, assets: assets.map((asset) => ({ id: asset.id, original_checksum: asset.checksum, render_checksum: asset.normalized_checksum || asset.checksum, render_storage_key: asset.normalized_key || asset.storage_key })) };
   await Promise.all([
     env.MELSOU_ASSETS.put(`${baseKey}/cover_print.pdf`, coverBytes, { httpMetadata: { contentType: 'application/pdf', cacheControl: 'private, no-store' } }),
     env.MELSOU_ASSETS.put(`${baseKey}/interior_spreads.pdf`, interiorBytes, { httpMetadata: { contentType: 'application/pdf', cacheControl: 'private, no-store' } }),
@@ -110,7 +113,7 @@ export async function processRenderJobs(env) {
     const [order] = orderResponse.ok ? await orderResponse.json() : []; if (!order?.snapshot) throw new Error('ORDER_SNAPSHOT_MISSING');
     const [profileResponse, assetsResponse] = await Promise.all([
       fetch(`${env.SUPABASE_URL}/rest/v1/print_profiles?version=eq.${encodeURIComponent(order.snapshot.print_profile_version)}&production_ready=eq.true&select=version,configuration,production_ready&limit=1`, { headers: dbHeaders(env) }),
-      fetch(`${env.SUPABASE_URL}/rest/v1/project_assets?project_id=eq.${order.snapshot.project_id}&select=id,storage_key,mime_type,checksum,status`, { headers: dbHeaders(env) })
+      fetch(`${env.SUPABASE_URL}/rest/v1/project_assets?project_id=eq.${order.snapshot.project_id}&select=id,storage_key,mime_type,checksum,status,processing_state,normalized_key,normalized_mime_type,normalized_width_px,normalized_height_px,normalized_checksum`, { headers: dbHeaders(env) })
     ]);
     const [profile] = profileResponse.ok ? await profileResponse.json() : []; const assets = assetsResponse.ok ? await assetsResponse.json() : [];
     const artifacts = await renderOrder({ order, snapshot: order.snapshot, profile, assets, env });
