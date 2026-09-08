@@ -1,0 +1,1658 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>melsou — Gói tâm tình trong dáng hình thanh âm</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Dancing+Script:wght@600;700&family=Caveat:wght@600;700&family=Pacifico&family=Lora:ital,wght@0,400;0,500;0,600;1,400;1,500;1,600&family=Montserrat:ital,wght@0,300;0,400;0,500;0,600;0,700;0,800;1,400&family=Playfair+Display:ital,wght@0,600;0,700;1,400;1,600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="./styles.css">
+</head>
+<body onclick="handleGlobalClick(event)" onkeydown="handleGlobalKey(event)">
+
+<!-- TOP BAR -->
+<div class="topbar">
+  <span class="topbar-disclaimer-badge" id="i18nTopbarBadge">🎓 DỰ ÁN MÔN HỌC</span>
+  <span id="i18nTopbarPromo">
+    <span class="topbar-full-text" id="i18nTopbarPromoFull">✨ Tặng kèm mã QR nhạc Spotify &amp; Hộp quà Kraft cao cấp khi thiết kế album tại Melsou!</span>
+    <span class="topbar-short-text">✨ Tặng mã Spotify &amp; Hộp Kraft</span>
+  </span>
+  <a href="javascript:void(0)" onclick="openTemplateOnboardingModal()" id="i18nTopbarAction">Tạo ngay →</a>
+</div>
+
+<!-- HEADER -->
+<header>
+  <nav class="nav">
+    <a href="javascript:void(0)" class="logo" onclick="showPage('home')">
+      <span class="logo-main">melsou</span>
+      <span class="logo-sub">melody &amp; souvenir</span>
+    </a>
+    <ul class="nav-links">
+      <li><a href="javascript:void(0)" onclick="showPage('home')" id="navLinkAbout">About us</a></li>
+      <li><a href="javascript:void(0)" onclick="scrollToSection('values')" id="navLinkValues">Giá trị độc bản</a></li>
+      <li><a href="javascript:void(0)" onclick="scrollToSection('pricing')" id="navLinkPricing">Gói sản phẩm</a></li>
+      <li><a href="javascript:void(0)" onclick="showPage('templates')" id="navLinkTemplates">Thư viện Template</a></li>
+      <li><a href="javascript:void(0)" onclick="scrollToSection('reviews-section')" id="navLinkReviews">Đánh giá</a></li>
+      <li><a href="javascript:void(0)" onclick="scrollToSection('blog-section')" id="navLinkBlog">Góc kỷ niệm</a></li>
+      <li><a href="javascript:void(0)" onclick="showPage('tracking')" id="navLinkTracking">Tra cứu đơn hàng</a></li>
+    </ul>
+    <div class="nav-right">
+      <!-- LANGUAGE SWITCHER (VI/EN) -->
+      <div class="lang-switch-wrap">
+        <button class="lang-btn active" id="langViBtn" onclick="switchLanguage('vi')">VI</button>
+        <span class="lang-sep">/</span>
+        <button class="lang-btn" id="langEnBtn" onclick="switchLanguage('en')">EN</button>
+      </div>
+
+      <!-- SETTINGS BUTTON -->
+      <button class="icon-nav-btn" id="settingsNavBtn" onclick="openSettingsModal()" title="Cài đặt hệ thống">⚙️</button>
+
+      <div class="user-menu-wrapper">
+        <button class="auth-btn" id="headerAuthBtn" onclick="toggleUserDropdown(event)">👤 <span class="auth-btn-label" id="headerAuthBtnLabel">Đăng nhập / Đăng ký</span></button>
+        <div class="user-dropdown" id="userDropdownMenu">
+          <div style="font-size:12px;color:var(--gray);padding:4px 8px;border-bottom:1px solid var(--gray-l)">
+            <strong id="dropdownUserName" style="color:var(--dark);display:block">Tài khoản của bạn</strong>
+            <span id="dropdownUserEmail" style="font-size:11px">user@example.com</span>
+          </div>
+          <a href="javascript:void(0)" class="ud-item" onclick="openDraftsManagerModal()">📁 Bản thiết kế của bạn</a>
+          <a href="javascript:void(0)" class="ud-item" onclick="openOrdersManagerModal()">📦 Đơn hàng của bạn</a>
+          <a href="javascript:void(0)" class="ud-item ud-logout" onclick="performLogout(event)">🚪 Đăng xuất</a>
+        </div>
+      </div>
+      <button class="cart-btn" onclick="toggleCart()">
+        🛒 <span class="cart-btn-label">Giỏ hàng</span>
+        <span class="cart-badge" id="cartBadge">0</span>
+      </button>
+      <button class="cta-btn" onclick="openTemplateOnboardingModal()" id="navCtaBtn">🪄 Bắt đầu tạo album</button>
+      <button class="mobile-menu-btn" id="mobileMenuToggleBtn" onclick="toggleMobileNavMenu()" aria-label="Menu điều hướng" title="Mở menu">☰</button>
+    </div>
+  </nav>
+</header>
+
+<!-- MOBILE NAVIGATION DRAWER (<= 768px) -->
+<div class="mobile-nav-drawer" id="mobileNavDrawer">
+  <div class="mnd-header">
+    <div class="mnd-title">Menu Melsou</div>
+    <button class="mnd-close-btn" onclick="toggleMobileNavMenu()">✕</button>
+  </div>
+  <ul class="mnd-list">
+    <li><a href="javascript:void(0)" onclick="mobileNavGo('home')">🏠 Trang chủ (About us)</a></li>
+    <li><a href="javascript:void(0)" onclick="mobileNavScroll('values')">✨ Bốn giá trị độc bản</a></li>
+    <li><a href="javascript:void(0)" onclick="mobileNavScroll('pricing')">🏷️ Gói sản phẩm &amp; Bảng giá</a></li>
+    <li><a href="javascript:void(0)" onclick="mobileNavGo('templates')">🎨 Thư viện Template</a></li>
+    <li><a href="javascript:void(0)" onclick="mobileNavScroll('reviews-section')">💬 Trải nghiệm người dùng</a></li>
+    <li><a href="javascript:void(0)" onclick="mobileNavScroll('blog-section')">📖 Góc kỷ niệm &amp; Chuyện kể</a></li>
+    <li><a href="javascript:void(0)" onclick="mobileNavGo('tracking')">🔍 Tra cứu đơn hàng</a></li>
+  </ul>
+  <div class="mnd-cta">
+    <button class="btn-primary" style="width:100%;justify-content:center;padding:12px;font-size:14px" onclick="toggleMobileNavMenu();openTemplateOnboardingModal()">🪄 Bắt đầu tạo album</button>
+  </div>
+</div>
+
+<!-- ════════ PAGE: HOME ════════ -->
+<div id="page-home" class="page active">
+  <div class="hero">
+    <div>
+      <div class="hero-badge" id="heroEducationalBadge">📖 Album ảnh liền trang 180° kết hợp thanh âm</div>
+      <h1 class="hero-title" id="heroHeadlineText">Gói tâm tình <em class="hero-title-accent" id="heroTitleAccent">trong dáng hình thanh âm</em></h1>
+      <p class="hero-desc" id="heroSubheadlineText">Chiếc máy ảnh có thể giữ lại hình dáng khoảnh khắc, nhưng lại vô tình bỏ quên âm thanh. <strong>melsou</strong> hòa quyện <em>giai điệu (melody)</em> và <em>kỷ vật (souvenir)</em> để mỗi trang ảnh không chỉ đẹp, mà còn biết cất lời.</p>
+      <div class="hero-actions">
+        <button class="btn-primary" id="btnHeroStartStudio" onclick="openTemplateOnboardingModal()">🪄 Bắt đầu tạo album</button>
+        <button class="btn-outline" id="btnHeroFlipbook" onclick="openFlipbookModal()">📖 Xem lật trang 3D</button>
+      </div>
+      <div class="hero-trust">
+        <div class="trust-item" id="heroTrustOffgrid">🔒 Bảo mật vật lý off-grid</div>
+        <div class="trust-item" id="heroTrustLayflat">📖 Mở phẳng 180° liền trang</div>
+        <div class="trust-item" id="heroTrustSpotify">🎵 Mã QR nhạc Spotify</div>
+      </div>
+    </div>
+
+    <!-- 3D HERO AUTO-FLIPPING BOOK (SILENT) -->
+    <div class="hero-3d-wrapper">
+      <div class="hero-book-3d" id="heroAutoFlipBook" onclick="openFlipbookModal()" title="Bấm để mở lật sách 3D toàn màn hình">
+        <div class="pb-page left-page" id="heroLeftPage" style="padding:24px;background:linear-gradient(135deg,#1a1a2e,#0f3460);color:white;justify-content:space-between"></div>
+        <div class="layflat-spine"></div>
+        <div class="pb-page right-page" id="heroRightPage" style="padding:18px;background:var(--yellow-warm);display:flex;flex-direction:column;justify-content:space-between"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 4 VALUES -->
+  <section class="values-section" id="values">
+    <div class="values-header">
+      <h2 style="font-size:34px;font-weight:700;margin-bottom:10px" id="valSectionTitle">Bốn giá trị tạo nên trải nghiệm độc bản</h2>
+      <p style="color:var(--gray);font-size:15.5px" id="valSectionDesc">Khám phá cách Melsou kết nối hình ảnh và thanh âm vào từng trang sách.</p>
+    </div>
+    <div class="values-grid">
+      <div class="value-card" onclick="openValueStoryModal(0)" tabindex="0" role="button" aria-label="Xem chi tiết: Không gian sáng tạo tinh tế" onkeydown="if(event.key==='Enter'||event.key===' ')openValueStoryModal(0)">
+        <div class="value-icon red">🎨</div>
+        <h3 id="valCardTitle0">Không gian sáng tạo tinh tế</h3>
+        <p id="valCardDesc0">Một không gian tinh tế đã được mở ra sẵn, không cần đắn đo về bố cục. Melsou được sắp xếp nhẹ nhàng để nhường chỗ cho kỷ niệm của bạn tự do lên tiếng.</p>
+        <div class="value-card-more" id="valCardMore0">Khám phá câu chuyện →</div>
+      </div>
+      <div class="value-card" onclick="openValueStoryModal(1)" tabindex="0" role="button" aria-label="Xem chi tiết: Cá nhân hóa trong vài thao tác" onkeydown="if(event.key==='Enter'||event.key===' ')openValueStoryModal(1)">
+        <div class="value-icon green">⚡</div>
+        <h3 id="valCardTitle1">Cá nhân hóa trong vài thao tác</h3>
+        <p id="valCardDesc1">Tự tay gói ghém từng kỷ niệm và ngắm nhìn chúng thành hình qua góc nhìn lật trang 3D chân thực. Giữ trọn vẹn sự riêng tư cho những cảm xúc của bạn.</p>
+        <div class="value-card-more" id="valCardMore1">Khám phá câu chuyện →</div>
+      </div>
+      <div class="value-card" onclick="openValueStoryModal(2)" tabindex="0" role="button" aria-label="Xem chi tiết: Đánh thức ký ức đa giác quan" onkeydown="if(event.key==='Enter'||event.key===' ')openValueStoryModal(2)">
+        <div class="value-icon red">🎵</div>
+        <h3 id="valCardTitle2">Đánh thức ký ức đa giác quan</h3>
+        <p id="valCardDesc2">Kỷ niệm không nên chỉ nằm yên trên giấy. Ở Melsou, những rung động được giữ lại qua độ nhám mộc mạc của mặt giấy và thanh âm của người thương.</p>
+        <div class="value-card-more" id="valCardMore2">Khám phá câu chuyện →</div>
+      </div>
+      <div class="value-card" onclick="openValueStoryModal(3)" tabindex="0" role="button" aria-label="Xem chi tiết: Không gian riêng tư cho kỷ niệm" onkeydown="if(event.key==='Enter'||event.key===' ')openValueStoryModal(3)">
+        <div class="value-icon green">🔒</div>
+        <h3 id="valCardTitle3">Không gian riêng tư cho kỷ niệm</h3>
+        <p id="valCardDesc3">Mọi lời nhắn gửi và thanh âm được lưu giữ trực tiếp trên vi mạch vật lý. Không máy chủ đám mây, không rò rỉ dữ liệu, an toàn tuyệt đối.</p>
+        <div class="value-card-more" id="valCardMore3">Khám phá câu chuyện →</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 3 PRICING TIERS -->
+  <section class="pricing-section" id="pricing">
+    <div class="pricing-header">
+      <h2 style="font-size:34px;font-weight:700;margin-bottom:10px" id="pricingTitle">Gói sản phẩm</h2>
+      <p style="color:var(--gray);font-size:15.5px" id="pricingDesc">Combo luôn tiết kiệm hơn · Dưới 200k · Bao gồm phí in ấn và đóng gói chuẩn</p>
+    </div>
+    <div class="pricing-grid">
+      <!-- GÓI 1: MELODY -->
+      <div class="pricing-card">
+        <div class="pkg-label">GÓI 01 · MELM</div>
+        <div class="pkg-name">Melody</div>
+        <div class="pkg-price"><sup>₫</sup>119.000</div>
+        <div class="pkg-note">Album liền trang mở phẳng 180° + In mã QR nhạc Spotify</div>
+        <ul class="pkg-features">
+          <li class="yes">Album 12 trang Couche liền trang mở phẳng 180°</li>
+          <li class="yes">Bìa cứng bồi màng mờ lụa cao cấp</li>
+          <li class="yes">In mã QR nhạc Spotify &amp; Soundwave Code</li>
+          <li class="no">Module chip ghi âm giọng nói</li>
+        </ul>
+        <button class="pkg-btn pkg-btn-ol" onclick="selectPackage('melody', 119000)">Chọn gói này</button>
+      </div>
+
+      <!-- GÓI 2: VOICE -->
+      <div class="pricing-card">
+        <div class="pkg-label">GÓI 02 · MELV</div>
+        <div class="pkg-name">Voice</div>
+        <div class="pkg-price"><sup>₫</sup>159.000</div>
+        <div class="pkg-note">Album liền trang mở phẳng 180° + Module chip ghi âm giọng nói</div>
+        <ul class="pkg-features">
+          <li class="yes">Album 12 trang Couche liền trang mở phẳng 180°</li>
+          <li class="yes">Bìa cứng bồi màng mờ lụa cao cấp</li>
+          <li class="yes">Module chip ISD1820 + Loa + Pin thay được</li>
+          <li class="no">Mã QR nhạc Spotify</li>
+        </ul>
+        <button class="pkg-btn pkg-btn-ol" onclick="selectPackage('voice', 159000)">Chọn gói này</button>
+      </div>
+
+      <!-- GÓI 3: SIGNATURE COMBO (BEST CHOICE - HIGHLIGHTED) -->
+      <div class="pricing-card featured" style="border: 2.5px solid var(--red); box-shadow: 0 16px 40px rgba(168,35,35,0.18); transform: scale(1.02); position:relative">
+        <div class="pricing-card-header" style="display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:8px;flex-wrap:wrap">
+          <div class="pkg-label" style="color:var(--red); font-weight:800" style="margin:0">GÓI 03 · MELS</div>
+          <div class="pricing-badge-static" style="background:var(--red); color:white; font-size:11.5px; font-weight:800; padding:4px 10px; border-radius:100px; box-shadow: 0 2px 8px rgba(168,35,35,0.25); white-space:nowrap">✦ Được nhiều khách lựa chọn nhất</div>
+        </div>
+        <div class="pkg-name">Signature Combo</div>
+        <div class="pkg-price" style="color:var(--red)"><sup>₫</sup>199.000</div>
+        <div class="pkg-note" style="background:var(--yellow-warm); padding:6px 10px; border-radius:8px; font-weight:700; color:#854d0e; margin-bottom:12px">✨ Trọn bộ trải nghiệm hình ảnh + âm thanh</div>
+        <ul class="pkg-features">
+          <li class="yes">Album 12 trang Couche liền trang mở phẳng 180°</li>
+          <li class="yes">Bìa cứng bồi màng mờ lụa cao cấp</li>
+          <li class="yes">In mã QR nhạc Spotify &amp; Soundwave Code</li>
+          <li class="yes">Module chip ISD1820 + Loa + Pin thay được</li>
+          <li class="yes">Tặng kèm Hộp quà Kraft &amp; Sticker &amp; Washi tape</li>
+        </ul>
+        <button class="pkg-btn pkg-btn-fi" style="background:var(--red); color:white; font-weight:800" onclick="selectPackage('signature', 199000)">Chọn gói này</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- 🌟 REVIEWS & TESTIMONIALS (SIMULATED ACADEMIC CONCEPT) -->
+  <section id="reviews-section" style="padding:80px 32px;max-width:1400px;margin:0 auto">
+    <div style="text-align:center;margin-bottom:32px">
+      <div style="font-size:11px;font-weight:800;letter-spacing:1.8px;color:var(--red);text-transform:uppercase;margin-bottom:6px">TRẢI NGHIỆM TỪ NGƯỜI DÙNG THỰC TẾ</div>
+      <h2 style="font-size:32px;font-weight:700">Ý kiến từ người dùng trải nghiệm Melsou</h2>
+      <p style="color:var(--gray);font-size:15px;margin-top:6px">Cảm nhận chân thực từ những người dùng đã trực tiếp thiết kế và trải nghiệm album Melsou</p>
+      <div style="font-size:12px;color:var(--gray);margin-top:8px"><em>Melsou được phát triển trong khuôn khổ dự án môn học.</em></div>
+    </div>
+
+    <div class="customer-reviews-grid" id="customerReviewsGrid" style="display:grid;grid-template-columns:repeat(auto-fit, minmax(320px, 1fr));gap:24px">
+      <div style="background:white;border-radius:16px;padding:28px;border:1px solid var(--gray-l);box-shadow:var(--shadow-sm);display:flex;flex-direction:column;justify-content:space-between">
+        <div>
+          <div style="display:inline-block;font-size:11px;font-weight:700;color:var(--red);background:var(--red-light);padding:2px 8px;border-radius:4px;margin-bottom:12px">Chia sẻ từ người trải nghiệm</div>
+          <p style="font-size:14.5px;line-height:1.7;color:#374151;font-style:italic">"Lúc nhận album mở phẳng 180 độ cầm trên tay thực sự xúc động. Bấm nút chip ghi âm nghe được giọng ba dặn dò ngày tốt nghiệp, cảm giác ấm áp không từ nào tả hết. Đóng gói hộp Kraft cũng rất tỉ mỉ."</p>
+        </div>
+        <div style="display:flex;align-items:center;gap:12px;margin-top:20px;border-top:1px solid #f3f4f6;padding-top:16px">
+          <div style="width:42px;height:42px;border-radius:50%;background:#fbcfe8;display:flex;align-items:center;justify-content:center;font-weight:800;color:#9d174d">NH</div>
+          <div>
+            <strong style="display:block;font-size:14px;color:var(--dark)">Ngọc Hân</strong>
+            <span style="font-size:12px;color:var(--gray)">Gói Signature Combo · TP.HCM</span>
+          </div>
+        </div>
+      </div>
+
+      <div style="background:white;border-radius:16px;padding:28px;border:1px solid var(--gray-l);box-shadow:var(--shadow-sm);display:flex;flex-direction:column;justify-content:space-between">
+        <div>
+          <div style="display:inline-block;font-size:11px;font-weight:700;color:var(--red);background:var(--red-light);padding:2px 8px;border-radius:4px;margin-bottom:12px">Chia sẻ từ người trải nghiệm</div>
+          <p style="font-size:14.5px;line-height:1.7;color:#374151;font-style:italic">"Editor trên web dễ thao tác bất ngờ, kéo thả ảnh và sticker rất mượt. Quét mã Spotify quét một phát là ra ngay playlist của hai đứa. Một món quà kỷ niệm 2 năm yêu nhau quá đỗi trọn vẹn."</p>
+        </div>
+        <div style="display:flex;align-items:center;gap:12px;margin-top:20px;border-top:1px solid #f3f4f6;padding-top:16px">
+          <div style="width:42px;height:42px;border-radius:50%;background:#bae6fd;display:flex;align-items:center;justify-content:center;font-weight:800;color:#0369a1">TQ</div>
+          <div>
+            <strong style="display:block;font-size:14px;color:var(--dark)">Tuấn Quang &amp; Thảo My</strong>
+            <span style="font-size:12px;color:var(--gray)">Gói Melody · Hà Nội</span>
+          </div>
+        </div>
+      </div>
+
+      <div style="background:white;border-radius:16px;padding:28px;border:1px solid var(--gray-l);box-shadow:var(--shadow-sm);display:flex;flex-direction:column;justify-content:space-between">
+        <div>
+          <div style="display:inline-block;font-size:11px;font-weight:700;color:var(--red);background:var(--red-light);padding:2px 8px;border-radius:4px;margin-bottom:12px">Chia sẻ từ người trải nghiệm</div>
+          <p style="font-size:14.5px;line-height:1.7;color:#374151;font-style:italic">"Màu in trên giấy Couche 250gsm rất mịn màng, không bị lem hay bóng chói. Mấy bạn trong nhóm ai cũng khen cuốn photobook kỷ yếu này xinh hơn hẳn in ngoài tiệm photocopy."</p>
+        </div>
+        <div style="display:flex;align-items:center;gap:12px;margin-top:20px;border-top:1px solid #f3f4f6;padding-top:16px">
+          <div style="width:42px;height:42px;border-radius:50%;background:#fef08a;display:flex;align-items:center;justify-content:center;font-weight:800;color:#854d0e">ML</div>
+          <div>
+            <strong style="display:block;font-size:14px;color:var(--dark)">Minh Lan</strong>
+            <span style="font-size:12px;color:var(--gray)">Gói Voice · Đà Nẵng</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 📖 PUBLIC BLOG: GÓC KỶ NIỆM (FB09) -->
+  <section id="blog-section" style="padding:80px 32px;background:#fbf9f6;border-top:1px solid var(--gray-l)">
+    <div style="max-width:1400px;margin:0 auto">
+      <div style="text-align:center;margin-bottom:40px">
+        <div style="font-size:11px;font-weight:800;letter-spacing:1.8px;color:var(--red);text-transform:uppercase;margin-bottom:6px" id="i18nBlogBadge">GÓC KỶ NIỆM &amp; CHUYỆN KỂ</div>
+        <h2 style="font-size:32px;font-weight:700" id="i18nBlogHeading">Chuyện của Melsou</h2>
+        <p style="color:var(--gray);font-size:15px;margin-top:6px;max-width:680px;margin-left:auto;margin-right:auto" id="i18nBlogSubheading">Cảm hứng chế tác, bí quyết sắp xếp ảnh và những câu chuyện lưu giữ ký ức qua năm tháng</p>
+        <div style="display:flex;justify-content:center;gap:8px;flex-wrap:wrap;margin-top:16px">
+          <span class="sal-chip active" style="background:var(--red);color:white;border-color:var(--red)">Tất cả bài viết</span>
+          <span class="sal-chip">Chuyện tình yêu</span>
+          <span class="sal-chip">Kỷ yếu &amp; Thanh xuân</span>
+          <span class="sal-chip">Thủ công &amp; Chất liệu</span>
+        </div>
+      </div>
+
+      <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(320px, 1fr));gap:24px" id="publicBlogList">
+        <!-- Post 1 -->
+        <div style="background:white;border-radius:16px;overflow:hidden;border:1px solid var(--gray-l);box-shadow:var(--shadow-sm);cursor:pointer;transition:var(--transition)" onclick="openBlogPostModal(0)" onmouseenter="this.style.transform='translateY(-4px)'" onmouseleave="this.style.transform='none'">
+          <div style="height:200px;background:url('https://images.unsplash.com/photo-1517841905240-472988babdf9?w=600&auto=format&fit=crop&q=80') center/cover"></div>
+          <div style="padding:22px">
+            <span style="font-size:11px;font-weight:700;color:var(--red);text-transform:uppercase;letter-spacing:1px">Chuyện tình yêu · 28/08/2026</span>
+            <h3 style="font-size:18px;font-weight:700;margin:8px 0;color:var(--dark);line-height:1.4">Khi album ảnh không chỉ để ngắm mà còn biết cất lời</h3>
+            <p style="font-size:13px;color:#4b5563;line-height:1.6;margin-bottom:14px">Vì sao một bản nhạc hay lời nhắn gửi lại có sức mạnh đánh thức trọn vẹn ký ức sâu kín nhất của chúng ta?...</p>
+            <span style="font-size:12.5px;font-weight:700;color:var(--red)">Đọc tiếp câu chuyện →</span>
+          </div>
+        </div>
+
+        <!-- Post 2 -->
+        <div style="background:white;border-radius:16px;overflow:hidden;border:1px solid var(--gray-l);box-shadow:var(--shadow-sm);cursor:pointer;transition:var(--transition)" onclick="openBlogPostModal(1)" onmouseenter="this.style.transform='translateY(-4px)'" onmouseleave="this.style.transform='none'">
+          <div style="height:200px;background:url('https://images.unsplash.com/photo-1523240795612-9a054b0db644?w=600&auto=format&fit=crop&q=80') center/cover"></div>
+          <div style="padding:22px">
+            <span style="font-size:11px;font-weight:700;color:var(--green-d);text-transform:uppercase;letter-spacing:1px">Kỷ yếu &amp; Thanh xuân · 26/08/2026</span>
+            <h3 style="font-size:18px;font-weight:700;margin:8px 0;color:var(--dark);line-height:1.4">5 mẹo sắp xếp bố cục photobook mở phẳng 180° đẹp như tạp chí</h3>
+            <p style="font-size:13px;color:#4b5563;line-height:1.6;margin-bottom:14px">Tận dụng khoảng trắng, phối hợp ảnh góc rộng và ảnh chân dung cận cảnh để album thanh xuân luôn thoáng đãng...</p>
+            <span style="font-size:12.5px;font-weight:700;color:var(--red)">Đọc tiếp câu chuyện →</span>
+          </div>
+        </div>
+        <!-- Post 3 -->
+        <div style="background:white;border-radius:16px;overflow:hidden;border:1px solid var(--gray-l);box-shadow:var(--shadow-sm);cursor:pointer;transition:var(--transition)" onclick="openBlogPostModal(2)" onmouseenter="this.style.transform='translateY(-4px)'" onmouseleave="this.style.transform='none'">
+          <div style="height:200px;background:url('https://images.unsplash.com/photo-1513519245088-0e12902e5a38?w=600&auto=format&fit=crop&q=80') center/cover"></div>
+          <div style="padding:22px">
+            <span style="font-size:11px;font-weight:700;color:#92400e;text-transform:uppercase;letter-spacing:1px">Thủ công &amp; Chất liệu · 24/08/2026</span>
+            <h3 style="font-size:18px;font-weight:700;margin:8px 0;color:var(--dark);line-height:1.4">Hành trình từ tờ giấy Couche 250gsm đến cuốn album thủ công</h3>
+            <p style="font-size:13px;color:#4b5563;line-height:1.6;margin-bottom:14px">Khám phá quy trình bồi bìa cứng lụa mờ, gấp nếp liền trang không đường may và nạp chip âm thanh tại xưởng Melsou...</p>
+            <span style="font-size:12.5px;font-weight:700;color:var(--red)">Đọc tiếp câu chuyện →</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+</div>
+
+<!-- ════════ PAGE: TEMPLATES ════════ -->
+<div id="page-templates" class="page">
+  <section style="padding:50px 32px 80px;max-width:1400px;margin:0 auto">
+    <div style="text-align:center;margin-bottom:32px">
+      <h2 style="font-size:34px;font-weight:700;margin-bottom:8px">Thư Viện Template Mẫu</h2>
+      <p style="color:var(--gray)">8 bộ mẫu nghệ thuật độc bản — Rê chuột để xem hoạt họa Bìa &amp; Ruột bên trong!</p>
+    </div>
+    <div class="templates-grid-art" id="templatesGridContainer"></div>
+  </section>
+</div>
+
+<!-- ════════ PAGE: CANVA STUDIO ════════ -->
+<div id="page-studio" class="page">
+  <div class="studio-container">
+
+    <!-- STUDIO STEPPER (FB17) -->
+    <div class="studio-stepper">
+      <div class="st-step-item" onclick="openTemplateOnboardingModal()" style="cursor:pointer">
+        <span class="st-step-num">1</span>
+        <span>Chọn gói &amp; mẫu</span>
+      </div>
+      <span class="st-step-arrow">➔</span>
+      <div class="st-step-item active">
+        <span class="st-step-num">2</span>
+        <span>Thiết kế album</span>
+      </div>
+      <span class="st-step-arrow">➔</span>
+      <div class="st-step-item" onclick="openFlipbookModal()" style="cursor:pointer">
+        <span class="st-step-num">3</span>
+        <span>Xem trước 3D</span>
+      </div>
+      <span class="st-step-arrow">➔</span>
+      <div class="st-step-item" onclick="handlePreflightOrAddToCart()" style="cursor:pointer">
+        <span class="st-step-num">4</span>
+        <span>Đặt in</span>
+      </div>
+    </div>
+
+    <!-- TOP TOOLBAR -->
+    <div class="studio-topbar">
+      <div class="st-left" style="display:flex;align-items:center;gap:8px">
+        <a href="javascript:void(0)" class="st-mobile-back-btn" onclick="showPage('home')" title="Quay lại trang chủ" aria-label="Quay lại">←</a>
+        <input type="text" class="st-album-title" id="studioAlbumTitleInput" value="FRIEND SHIP" oninput="updateLiveAlbumTitle(this.value)" title="Bấm để đổi tên album">
+        <span class="st-badge" id="studioPackageBadge">Gói Signature Combo · 199k</span>
+      </div>
+      <div class="st-center">
+        <div style="display:flex;align-items:center;gap:6px;margin-right:8px">
+          <button class="st-action-btn" id="btnStudioUndo" onclick="studioUndo()" disabled title="Hoàn tác (Ctrl+Z)">↶</button>
+          <button class="st-action-btn" id="btnStudioRedo" onclick="studioRedo()" disabled title="Làm lại (Ctrl+Y)">↷</button>
+        </div>
+        <button class="st-tab-btn active" id="btnModeEdit" onclick="switchStudioMode('edit')">✏️ Chế Độ Thiết Kế</button>
+        <button class="st-tab-btn" id="btnModeFlip" onclick="openFlipbookModal()">📖 Lật Trang 3D (Heyzine)</button>
+      </div>
+      <div class="st-right">
+        <span class="st-price-tag" id="studioLiveTotalPrice">199.000đ</span>
+        <button class="btn-primary" id="btnStudioAddToCart" style="padding:10px 20px;font-size:13.5px" onclick="handlePreflightOrAddToCart()">🛒 Thêm vào giỏ hàng</button>
+      </div>
+    </div>
+
+    <!-- MAIN BODY -->
+    <div class="studio-body">
+
+      <!-- CANVA SIDEBAR (BOTTOM SHEET ON MOBILE) -->
+      <div class="canva-sidebar collapsed" id="canvaSidebarEl">
+        <div class="canva-sidebar-drag-handle" onclick="toggleMobileSidebar()" title="Bấm để mở rộng / thu gọn thanh công cụ"></div>
+        <div class="canva-nav-tabs">
+          <button class="canva-nav-tab active" id="cNavTab0" onclick="switchCanvaTab(0)"><span>📐</span>Khổ &amp; Gói</button>
+          <button class="canva-nav-tab" id="cNavTab1" onclick="switchCanvaTab(1)"><span>🎨</span>Bố cục</button>
+          <button class="canva-nav-tab" id="cNavTab2" onclick="switchCanvaTab(2)"><span>📸</span>Ảnh</button>
+          <button class="canva-nav-tab" id="cNavTab3" onclick="switchCanvaTab(3)"><span>✨</span>Sticker</button>
+          <button class="canva-nav-tab" id="cNavTab4" onclick="switchCanvaTab(4)"><span>✒️</span>Lời nhắn</button>
+          <button class="canva-nav-tab" id="cNavTab5" onclick="switchCanvaTab(5)"><span>🎵</span>Âm thanh</button>
+        </div>
+
+        <!-- TAB 0: KHỔ & GÓI -->
+        <div class="canva-tab-content active" id="canvaTab0">
+          <div class="c-section-title">1. Chọn Gói Sản Phẩm</div>
+          <div style="display:flex;flex-direction:column;gap:8px;margin-bottom:20px" id="pkgCardSelectorGroup">
+            <div class="layout-card" id="pkgCardMelody" onclick="selectPackage('melody', 119000)" style="text-align:left;display:flex;justify-content:space-between;align-items:center">
+              <div><div style="font-weight:700">🎵 Gói Melody</div><div style="font-size:11px;color:var(--gray)">Album + QR Spotify</div></div>
+              <div style="font-weight:800;color:var(--red)">119k</div>
+            </div>
+            <div class="layout-card" id="pkgCardVoice" onclick="selectPackage('voice', 159000)" style="text-align:left;display:flex;justify-content:space-between;align-items:center">
+              <div><div style="font-weight:700">🎙️ Gói Voice</div><div style="font-size:11px;color:var(--gray)">Album + Chip ISD1820</div></div>
+              <div style="font-weight:800;color:var(--red)">159k</div>
+            </div>
+            <div class="layout-card active" id="pkgCardSignature" onclick="selectPackage('signature', 199000)" style="text-align:left;display:flex;justify-content:space-between;align-items:center;border:1.5px solid var(--red)">
+              <div><div style="font-weight:700;color:var(--red)">✦ Signature Combo</div><div style="font-size:11px;color:var(--gray)">Full: Spotify + Voice Chip + Quà</div></div>
+              <div style="font-weight:800;color:var(--red)">199k</div>
+            </div>
+          </div>
+
+          <div class="c-section-title">2. Khổ Album &amp; Kích Thước Thật</div>
+          <div class="layout-picker-grid" id="sizeCardSelectorGroup">
+            <div class="layout-card active" id="sizeCardA5" onclick="selectAlbumSize(0, 'A5 Đứng', 'ratio-portrait')">
+              <div class="layout-name">A5 Đứng</div>
+              <div style="font-size:11px;color:var(--gray)">15 × 21 cm · Chuẩn</div>
+            </div>
+            <div class="layout-card" id="sizeCardSquare" onclick="selectAlbumSize(20000, 'Khổ Vuông', 'ratio-square')">
+              <div class="layout-name">Khổ Vuông</div>
+              <div style="font-size:11px;color:var(--gray)">20 × 20 cm · +20k</div>
+            </div>
+            <div class="layout-card" id="sizeCardLandscape" onclick="selectAlbumSize(10000, 'A5 Ngang', 'ratio-landscape')">
+              <div class="layout-name">A5 Ngang</div>
+              <div style="font-size:11px;color:var(--gray)">21 × 15 cm · +10k</div>
+            </div>
+            <div class="layout-card" id="sizeCardMini" onclick="selectAlbumSize(-20000, 'A6 Mini', 'ratio-mini')">
+              <div class="layout-name">A6 Mini</div>
+              <div style="font-size:11px;color:var(--gray)">10 × 15 cm · -20k</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- TAB 1: BỐ CỤC -->
+        <div class="canva-tab-content" id="canvaTab1">
+          <div class="c-section-title">Thêm Trang Đôi Mở Rộng</div>
+          <button class="btn-tool-action" style="border-color:var(--red);background:var(--red-light);color:var(--red)" onclick="addNewSpreadToAlbum()">
+            ➕ Thêm 1 Trang Đôi Liền Kề (+15.000đ / 2 trang)
+          </button>
+
+          <div class="c-section-title" style="margin-top:16px">Khung Ảnh Canva (Canva Frames)</div>
+          <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;margin-bottom:10px">
+            <button class="btn-tool-action" style="margin-bottom:0;padding:8px 4px;font-size:11px" onclick="addCanvaImageFrame('polaroid', '')">
+              <span>🖼️ Polaroid</span>
+            </button>
+            <button class="btn-tool-action" style="margin-bottom:0;padding:8px 4px;font-size:11px" onclick="addCanvaImageFrame('clean', '')">
+              <span>🔲 Bo Tròn</span>
+            </button>
+            <button class="btn-tool-action" style="margin-bottom:0;padding:8px 4px;font-size:11px" onclick="addCanvaImageFrame('oval', '')">
+              <span>⭕ Khung Tròn</span>
+            </button>
+          </div>
+
+          <div class="c-section-title" style="margin-top:16px">Bố Cục Ảnh Mẫu (Preset Layouts)</div>
+          <div style="font-size:11.5px;color:var(--gray);margin-bottom:6px">Chèn khung mẫu &amp; tự động phân bổ ảnh:</div>
+          <div class="preset-layouts-grid">
+            <div class="preset-layout-card" onclick="applyPresetComposition('single-hero')">
+              <div class="plc-preview"><div class="plc-box" style="width:90%;height:85%"></div></div>
+              <div class="plc-label">1 Ảnh Lớn</div>
+            </div>
+            <div class="preset-layout-card" onclick="applyPresetComposition('duo-horizontal')">
+              <div class="plc-preview"><div class="plc-box" style="width:46%;height:85%"></div><div class="plc-box" style="width:46%;height:85%"></div></div>
+              <div class="plc-label">2 Ảnh Ngang</div>
+            </div>
+            <div class="preset-layout-card" onclick="applyPresetComposition('trio-collage')">
+              <div class="plc-preview"><div class="plc-box" style="width:48%;height:85%"></div><div style="width:46%;display:flex;flex-direction:column;gap:3px;height:85%"><div class="plc-box" style="width:100%;height:46%"></div><div class="plc-box" style="width:100%;height:46%"></div></div></div>
+              <div class="plc-label">3 Ảnh Phối</div>
+            </div>
+            <div class="preset-layout-card" onclick="applyPresetComposition('quad-grid')">
+              <div class="plc-preview" style="flex-wrap:wrap"><div class="plc-box" style="width:46%;height:44%"></div><div class="plc-box" style="width:46%;height:44%"></div><div class="plc-box" style="width:46%;height:44%"></div><div class="plc-box" style="width:46%;height:44%"></div></div>
+              <div class="plc-label">4 Ảnh Lưới</div>
+            </div>
+          </div>
+
+          <div class="c-section-title" style="margin-top:16px">Tiện Ích Sắp Xếp &amp; In Ấn</div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:10px">
+            <button class="btn-tool-action" style="margin-bottom:0;padding:8px 6px;font-size:11.5px" onclick="shuffleActiveSpreadPhotos()">
+              <span>🔀 Trộn Ảnh Nhanh</span>
+            </button>
+            <button class="btn-tool-action" style="margin-bottom:0;padding:8px 6px;font-size:11.5px" onclick="togglePrintSafeGuides()">
+              <span>📏 Vùng An Toàn In</span>
+            </button>
+          </div>
+
+          <div class="c-section-title" style="margin-top:16px">Văn Bản &amp; Lời Tựa</div>
+          <button class="btn-tool-action" onclick="addRealFreeformTextBox()">🔤 Thêm Hộp Văn Bản (Text Box)</button>
+        </div>
+
+        <!-- TAB 2: ẢNH -->
+        <div class="canva-tab-content" id="canvaTab2">
+          <div class="c-section-title">Tải Ảnh Của Bạn Lên</div>
+          <label class="btn-tool-action" style="cursor:pointer">
+            <input type="file" accept="image/*" multiple onchange="handleBulkPhotoUpload(event)" style="display:none">
+            <span>📸 Chọn ảnh từ máy tính (Kéo thả vào ô)</span>
+          </label>
+          <div class="c-section-title">Kho Ảnh Kỷ Niệm (Kéo thả vào ô)</div>
+          <div class="uploaded-gallery" id="userUploadedTray"></div>
+        </div>
+
+        <!-- TAB 3: THƯ VIỆN STICKER ĐA DẠNG & CUSTOM STICKER (FB12) -->
+        <div class="canva-tab-content" id="canvaTab3">
+          <div class="c-section-title">1. Sáng Tạo Sticker Riêng</div>
+          <div style="display:flex;flex-direction:column;gap:6px;margin-bottom:14px">
+            <button class="btn-tool-action" onclick="openCustomStickerModal()" style="background:#fff7ed;border-color:#fdba74;color:#c2410c;margin-bottom:0">
+              <span>✨ Cắt Sticker Từ Ảnh Của Bạn</span>
+            </button>
+            <label class="btn-tool-action" style="cursor:pointer;margin-bottom:0">
+              <input type="file" accept="image/png,image/svg+xml,image/*" onchange="handleCustomStickerUpload(event)" style="display:none">
+              <span>➕ Tải sticker PNG trong suốt từ máy</span>
+            </label>
+          </div>
+
+          <div class="c-section-title">2. Thư Viện Sticker Sáng Tạo</div>
+          <input type="text" class="form-input" id="stickerSearchInput" placeholder="🔍 Tìm kiếm sticker (hoa, tim, film, vintage...)" oninput="handleStickerSearch(this.value)" style="margin-bottom:10px;font-size:12.5px">
+
+          <div class="sticker-subtabs" id="stickerCategoryPills">
+            <button class="sticker-subtab-btn active" id="stkTabBtnAll" onclick="filterStickersByCategory('all')">Tất cả</button>
+            <button class="sticker-subtab-btn" id="stkTabBtn0" onclick="filterStickersByCategory(0)">❤️ Cảm Xúc</button>
+            <button class="sticker-subtab-btn" id="stkTabBtn1" onclick="filterStickersByCategory(1)">🌸 Hoa Khô</button>
+            <button class="sticker-subtab-btn" id="stkTabBtn2" onclick="filterStickersByCategory(2)">📸 Kỷ Niệm</button>
+            <button class="sticker-subtab-btn" id="stkTabBtn3" onclick="filterStickersByCategory(3)">🐱 Cute Icons</button>
+            <button class="sticker-subtab-btn" id="stkTabBtn4" onclick="filterStickersByCategory(4)">🔴 Sáp Niêm Phong</button>
+          </div>
+
+          <div id="userCustomStickersSection" style="display:none;margin-bottom:12px">
+            <div style="font-size:11px;font-weight:700;color:var(--gray);margin-bottom:6px">Sticker của bạn đã tạo:</div>
+            <div class="sticker-category-grid" id="userCustomStickersTray" style="margin-bottom:10px"></div>
+          </div>
+
+          <div class="sticker-category-grid" id="presetStickerTray"></div>
+        </div>
+
+        <!-- TAB 4: LỜI NHẮN & TÙY BIẾN ĐỐI TƯỢNG TẶNG -->
+        <div class="canva-tab-content" id="canvaTab4">
+          <div class="c-section-title">1. Lời Mở Đầu Bức Thư</div>
+          <input type="text" class="form-input" id="sidebarSalutationInput" value="Gửi người thương," oninput="handleSalutationInput(this.value)" style="margin-bottom:8px">
+
+          <div class="salutation-chips">
+            <span class="sal-chip" onclick="applyQuickSalutation('💌 Gửi người thương,')">💌 Gửi người thương</span>
+            <span class="sal-chip" onclick="applyQuickSalutation('👯 Gửi bạn thân mến,')">👯 Gửi bạn thân</span>
+            <span class="sal-chip" onclick="applyQuickSalutation('🎓 Gửi 12A3 của tôi,')">🎓 Gửi 12A3</span>
+            <span class="sal-chip" onclick="applyQuickSalutation('🏡 Gửi gia đình nhỏ,')">🏡 Gửi gia đình</span>
+            <span class="sal-chip" onclick="applyQuickSalutation('✨ Gửi tôi của tương lai,')">✨ Gửi tôi</span>
+          </div>
+
+          <div class="c-section-title">2. Chọn Font Chữ Viết Tay</div>
+          <select class="font-select" id="letterFontSelect" onchange="changeLetterFont(this.value)">
+            <option value="'Dancing Script', cursive">Dancing Script (Uốn Lượn Dễ Thương)</option>
+            <option value="'Caveat', cursive">Caveat (Chữ Tay Tự Nhiên)</option>
+            <option value="'Pacifico', cursive">Pacifico (Ngọt Ngào Đáng Yêu)</option>
+            <option value="'Lora', serif" selected>Lora (Thơ Mộng &amp; Cổ Điển)</option>
+            <option value="'Playfair Display', serif">Playfair Display (Sang Trọng)</option>
+            <option value="'Montserrat', sans-serif">Montserrat (Hiện Đại &amp; Thanh Thoát)</option>
+          </select>
+
+          <div class="c-section-title">3. Màu Mực Bút Máy</div>
+          <div class="color-picker-row">
+            <div class="color-dot active" style="background:#1A1A1A" onclick="changeInkColor('#1A1A1A', this)" title="Mực đen than"></div>
+            <div class="color-dot" style="background:#1e3a8a" onclick="changeInkColor('#1e3a8a', this)" title="Mực xanh Navy"></div>
+            <div class="color-dot" style="background:#A82323" onclick="changeInkColor('#A82323', this)" title="Mực đỏ melsou"></div>
+            <div class="color-dot" style="background:#78350f" onclick="changeInkColor('#78350f', this)" title="Mực nâu cà phê"></div>
+          </div>
+
+          <div class="c-section-title">4. Nội Dung Lời Nhắn</div>
+          <textarea class="form-input" id="sidebarLetterInput" style="min-height:100px;font-family:'Lora',serif;line-height:1.6;margin-bottom:12px" oninput="handleStudioLetterInput(this)">Snapshots of happiness that never fade. Cảm ơn cậu vì đã luôn ở bên, ngay cả những lúc tôi không biết mình cần được ở bên...</textarea>
+
+          <div class="c-section-title">5. Chữ Ký &amp; Địa Điểm / Ngày Tháng</div>
+          <input type="text" class="form-input" id="sidebarSignatureInput" value="— Sài Gòn, 2026 · melsou keepsake —" oninput="handleStudioSignatureInput(this)" placeholder="— Ký tên / Ngày tháng —">
+        </div>
+
+        <!-- TAB 5: ÂM THANH DỮ LIỆU ĐỘNG & TÌM BÀI HÁT (FB13) -->
+        <div class="canva-tab-content" id="canvaTab5">
+          <div id="audioTabSpotifySection">
+            <div class="c-section-title">1. Chọn Nhạc Spotify Cho Album</div>
+
+            <div style="background:white;border-radius:12px;padding:14px;border:1px solid var(--gray-l);margin-bottom:14px">
+              <!-- DYNAMIC SONG SEARCH INPUT -->
+              <label style="font-size:11.5px;font-weight:700;color:var(--gray);display:block;margin-bottom:4px">Tìm bài hát hoặc ca sĩ:</label>
+              <div style="position:relative">
+                <input type="text" class="form-input" id="spotifySearchInput" placeholder="Gõ tên bài hát (vd: Until I Found You, Perfect...)" oninput="handleSpotifySongSearch(this.value)" autocomplete="off">
+                <div id="spotifySearchSpinner" style="display:none;position:absolute;right:12px;top:10px;font-size:12px">⏳</div>
+              </div>
+
+              <!-- DYNAMIC SEARCH SUGGESTIONS DROPDOWN -->
+              <div id="spotifySearchResultsBox" style="display:none;margin-top:8px;border:1px solid var(--gray-l);border-radius:10px;background:white;max-height:220px;overflow-y:auto;box-shadow:0 4px 12px rgba(0,0,0,0.08)"></div>
+
+              <!-- CURRENTLY SELECTED SONG CARD -->
+              <div id="spotifySelectedSongCard" style="margin-top:12px;display:none;background:#f8fafc;border:1.5px solid #cbd5e1;border-radius:10px;padding:10px;align-items:center;gap:10px">
+                <img id="spotifySelectedArtwork" src="" style="width:48px;height:48px;border-radius:8px;object-fit:cover" alt="Song artwork">
+                <div style="flex:1;min-width:0">
+                  <div style="font-weight:700;font-size:13px;color:var(--dark);white-space:nowrap;overflow:hidden;text-overflow:ellipsis" id="spotifySelectedTitle"></div>
+                  <div style="font-size:11.5px;color:var(--gray);white-space:nowrap;overflow:hidden;text-overflow:ellipsis" id="spotifySelectedArtist"></div>
+                  <div style="font-size:10px;color:var(--spotify);font-weight:700;margin-top:2px">✓ Đã liên kết mã Spotify Soundwave</div>
+                </div>
+                <button onclick="removeSelectedSpotifySong()" style="background:none;border:none;color:#dc2626;font-size:16px;cursor:pointer" title="Gỡ bài hát">✕</button>
+              </div>
+
+              <!-- EMPTY STATE WHEN NO SONG IS SELECTED -->
+              <div id="spotifyEmptyPlaceholder" style="margin-top:12px;text-align:center;padding:16px;background:var(--bg);border-radius:10px;border:1px dashed var(--gray-l)">
+                <div style="font-size:24px;margin-bottom:4px">🎵</div>
+                <strong style="font-size:12.5px;color:var(--dark);display:block">Chưa có bài hát nào được chọn</strong>
+                <span style="font-size:11px;color:var(--gray)">Hãy gõ tên bài hát ở trên để tìm hoặc dán đường dẫn Spotify</span>
+              </div>
+
+              <!-- COLLAPSIBLE DIRECT URL OPTION -->
+              <details style="margin-top:12px;font-size:11.5px;color:var(--gray)">
+                <summary style="cursor:pointer;font-weight:600">Hoặc dán trực tiếp đường dẫn Spotify</summary>
+                <div style="margin-top:8px">
+                  <input type="text" class="form-input" id="spotifyLinkInput" placeholder="https://open.spotify.com/track/..." oninput="handleSpotifyLinkChange(this.value)" style="font-size:11.5px">
+                </div>
+              </details>
+
+              <!-- OFFICIAL SPOTIFY EMBED CONTAINER -->
+              <div id="spotifyEmbedHostContainer" style="margin-top:12px"></div>
+            </div>
+          </div>
+          <div id="audioTabSpotifyLocked" style="display:none;background:#f5f5f5;border-radius:12px;padding:12px;margin-bottom:14px;font-size:12px;color:var(--gray)">
+            🔒 Gói Voice không bao gồm Spotify. <a href="javascript:void(0)" onclick="selectPackage('signature', 199000)" style="color:var(--red);font-weight:700">Nâng cấp Signature Combo →</a>
+          </div>
+
+          <div id="audioTabVoiceSection">
+            <div class="c-section-title">2. Thu Âm Giọng Nói Thật (ISD1820)</div>
+            <div style="background:var(--bg);border-radius:12px;padding:14px;border:1px solid var(--gray-l)">
+
+              <div style="display:flex;align-items:flex-start;gap:8px;margin-bottom:12px;background:white;padding:8px 10px;border-radius:8px;border:1px solid var(--gray-l)">
+                <input type="checkbox" id="chkHomeRecord" class="cart-checkbox" onchange="toggleHomeRecordingMode(this.checked)" style="margin-top:2px">
+                <label for="chkHomeRecord" style="font-size:12px;color:var(--dark);line-height:1.4">
+                  <strong>Tôi muốn tự thu âm tại nhà sau khi nhận album</strong>
+                  <div style="font-size:10.5px;color:var(--gray);margin-top:2px">Xưởng sẽ gửi kèm chip ISD1820 và hướng dẫn tự nạp giọng nói.</div>
+                </label>
+              </div>
+
+              <div id="voiceRecorderControlsBox">
+                <div id="voiceRecTimer" style="font-size:14px;font-weight:800;color:var(--red);text-align:center;margin-bottom:8px">⏱️ Thời lượng: 00:00 / 00:30</div>
+                <div style="display:flex;gap:6px;flex-wrap:wrap">
+                  <button class="btn-primary" id="btnVoiceStart" style="flex:1;padding:8px;font-size:12px;justify-content:center" onclick="startVoiceRec()">🎙️ Thu Âm</button>
+                  <button class="btn-outline" id="btnVoicePause" style="flex:1;padding:8px;font-size:12px;justify-content:center;display:none" onclick="pauseVoiceRec()">⏸️ Tạm Dừng</button>
+                  <button class="btn-outline" id="btnVoiceResume" style="flex:1;padding:8px;font-size:12px;justify-content:center;display:none" onclick="resumeVoiceRec()">▶️ Tiếp Tục</button>
+                  <button class="btn-primary" id="btnVoiceFinish" style="flex:1;padding:8px;font-size:12px;justify-content:center;display:none;background:var(--green-d)" onclick="finishVoiceRec()">🔒 Chốt Lưu</button>
+                </div>
+                <div style="display:flex;gap:6px;margin-top:8px">
+                  <button class="btn-outline" style="flex:1;padding:8px;font-size:12px;justify-content:center" onclick="resetVoiceRec()">🔄 Thu Lại</button>
+                  <button class="btn-outline" style="flex:1;padding:8px;font-size:12px;justify-content:center" onclick="playRealRecordedVoice()">▶️ Nghe Thử</button>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div id="audioTabVoiceLocked" style="display:none;background:#f5f5f5;border-radius:12px;padding:12px;font-size:12px;color:var(--gray)">
+            🔒 Gói Melody không bao gồm Chip Voice. <a href="javascript:void(0)" onclick="selectPackage('signature', 259000)" style="color:var(--red);font-weight:700">Nâng cấp Signature Combo →</a>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- PHOTOBOOK PHYSICAL 3D STAGE -->
+      <div class="studio-stage" id="studioStageArea">
+
+        <div class="stage-toolbar">
+          <div class="spread-title-tag" id="currentSpreadIndicator">
+            📖 <span id="currentSpreadName">Bìa Trước</span>
+          </div>
+          <!-- Mobile Compact Controller (<768px) -->
+          <div class="mobile-page-controller" id="mobilePageController">
+            <button onclick="goToPrevSpread()" title="Trang trước" aria-label="Trang trước">‹</button>
+            <span class="mobile-page-label" id="mobileCurrentSpreadLabel">Bìa Trước</span>
+            <button onclick="goToNextSpread()" title="Trang sau" aria-label="Trang sau">›</button>
+          </div>
+          <div style="position:relative">
+            <button class="mobile-more-menu-btn" id="mobileMoreMenuBtn" onclick="toggleMobileStageMenu(event)" title="Thêm tùy chọn" aria-label="Tùy chọn">•••</button>
+            <div class="mobile-stage-menu-popup" id="mobileStageMenuPopup">
+              <button class="msm-item" onclick="togglePrintSafeGuides();closeMobileStageMenu()">📏 Vùng an toàn in</button>
+              <button class="msm-item" onclick="openFlipbookModal();closeMobileStageMenu()">🔍 Toàn màn hình 3D</button>
+              <button class="msm-item" onclick="exportCurrentDesignFile();closeMobileStageMenu()">⬇ Tải PDF album</button>
+              <button class="msm-item" onclick="studioUndo();closeMobileStageMenu()">↶ Hoàn tác</button>
+              <button class="msm-item" onclick="studioRedo();closeMobileStageMenu()">↷ Làm lại</button>
+            </div>
+          </div>
+          <!-- Desktop Toolbar Buttons (>768px) -->
+          <div class="mobile-stage-desktop-btns" style="display:flex;gap:8px;align-items:center">
+            <button class="fn-btn" id="btnToggleSafeGuidesStage" onclick="togglePrintSafeGuides()" title="Bật/tắt đường viền vùng an toàn in">📏 Vùng an toàn in</button>
+            <button class="fn-btn" onclick="goToPrevSpread()" id="btnToolbarPrev">← Trang trước</button>
+            <button class="fn-btn" onclick="goToNextSpread()" id="btnToolbarNext">Trang sau →</button>
+            <button class="fn-btn" style="background:var(--red);color:white;border-color:var(--red)" onclick="openFlipbookModal()" id="btnToolbar3D">🔍 Toàn màn hình 3D</button>
+          </div>
+        </div>
+
+        <div class="photobook-stage-wrapper">
+          <!-- Desktop Studio Spread Navigation Arrows -->
+
+
+          <div class="layflat-book" id="interactiveLayflatBook"
+               ondragover="handleSpreadDragOver(event)" ondrop="handleSpreadDrop(event)">
+
+            <div class="pb-page left-page" id="stageLeftPage"></div>
+            <div class="layflat-spine" id="stageSpine"></div>
+            <div class="pb-page right-page" id="stageRightPage"></div>
+
+            <!-- PRINT SAFE GUIDES OVERLAY (AN TOÀN IN ẤN) -->
+            <div class="print-safe-guides-layer" id="printSafeGuidesOverlay">
+
+              <div class="psg-spine-line"></div>
+            </div>
+
+            <!-- UNIFIED SPREAD OVERLAY FOR CROSS-PAGE CANVA DRAGGING -->
+            <div class="spread-freeform-overlay" id="spreadFreeformOverlay"></div>
+
+            <!-- SMART AUTO-DISMISS CANVA TOOLBAR -->
+            <div class="photo-floating-toolbar" id="photoCropToolbar">
+              <span style="font-size:11px">Zoom:</span>
+              <input type="range" class="pft-slider" min="0.6" max="2.4" step="0.05" value="1" id="photoZoomSlider" oninput="applyActivePhotoZoom(this.value)">
+              <button class="pft-btn" onclick="rotateActivePhoto()">🔄 Xoay 90°</button>
+              <button class="pft-btn" onclick="resetActivePhotoTransform()">🎯 Căn Giữa</button>
+              <label class="pft-btn" style="cursor:pointer">
+                <input type="file" accept="image/*" onchange="handleReplaceSpecificPhoto(event)" style="display:none">
+                <span>📷 Đổi Ảnh</span>
+              </label>
+            </div>
+
+          </div>
+        </div>
+
+        <!-- 🎧 FLOATING SPOTIFY OFFICIAL EMBED WIDGET (CHÍNH THỨC) -->
+        <div class="floating-spotify-official" id="studioFloatingSpotifyWidget" style="display:none">
+          <div style="display:flex;justify-content:space-between;align-items:center;padding:0 4px">
+            <span style="font-size:11px;font-weight:800;color:var(--spotify)">🟢 SPOTIFY OFFICIAL EMBED</span>
+            <button onclick="document.getElementById('studioFloatingSpotifyWidget').style.display='none'" style="background:none;border:none;color:#aaa;font-size:14px">✕</button>
+          </div>
+          <div id="floatingSpotifyEmbedHost"></div>
+        </div>
+
+        <!-- FILMSTRIP TRAY (SINGLE COVER ON 1ST & LAST + ADD SPREAD BUTTON) -->
+        <div class="canva-filmstrip" id="studioFilmstripTray"></div>
+
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ════════ PAGE: TRACKING (FB11: 4-STATE ARCHITECTURE) ════════ -->
+<div id="page-tracking" class="page">
+  <div style="max-width:720px;margin:50px auto;padding:0 24px">
+    <div style="background:white;border-radius:20px;padding:36px;box-shadow:var(--shadow-md);margin-bottom:28px;text-align:center">
+      <h2 style="font-size:28px;margin-bottom:8px">Tra cứu đơn hàng trực tiếp</h2>
+      <p style="color:var(--gray);font-size:14.5px">Nhập mã đơn hàng (ví dụ: MELS-2608-001) hoặc số điện thoại đặt in</p>
+      <div style="display:flex;gap:10px;margin-top:20px">
+        <input type="text" class="form-input" id="trackQueryInput" placeholder="Nhập mã đơn (vd: MELS-2608-001) hoặc SĐT..." style="flex:1;border-radius:100px" onkeydown="if(event.key==='Enter')performTrackingSearch()">
+        <button class="btn-primary" onclick="performTrackingSearch()">Tra cứu →</button>
+      </div>
+    </div>
+
+    <!-- STATE 1: INITIAL STATE -->
+    <div id="trackInitialBox" style="text-align:center;padding:40px 20px;background:white;border-radius:20px;box-shadow:var(--shadow-sm);border:1px dashed var(--gray-l)">
+      <div style="font-size:36px;margin-bottom:10px">📦</div>
+      <h3 style="font-size:17px;color:var(--dark);margin-bottom:6px">Kiểm tra tiến độ chế tác album</h3>
+      <p style="font-size:13px;color:var(--gray);max-width:440px;margin:0 auto">Bạn có thể theo dõi từng công đoạn từ lúc khớp lệnh thanh toán VietQR, in ấn bồi bìa, nạp chip thanh âm đến khi bàn giao bưu cục.</p>
+    </div>
+
+    <!-- STATE 2: LOADING STATE -->
+    <div id="trackLoadingBox" style="display:none;text-align:center;padding:50px 20px;background:white;border-radius:20px;box-shadow:var(--shadow-md)">
+      <div style="font-size:32px;animation:authSpin 1s linear infinite;display:inline-block">⏳</div>
+      <div style="font-size:15px;font-weight:700;color:var(--dark);margin-top:12px">Đang kết nối hệ thống xưởng in Melsou...</div>
+      <div style="font-size:12px;color:var(--gray);margin-top:4px">Vui lòng chờ trong giây lát</div>
+    </div>
+
+    <!-- STATE 3: RESULT STATE (DYNAMICALLY POPULATED) -->
+    <div id="trackResultBox" style="display:none;background:white;border-radius:20px;padding:32px;box-shadow:var(--shadow-md)">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;border-bottom:1px solid var(--gray-l);padding-bottom:16px;flex-wrap:wrap;gap:12px">
+        <div>
+          <div style="font-size:11px;color:var(--gray);font-weight:700;text-transform:uppercase;letter-spacing:1px">Chi tiết vận đơn</div>
+          <div style="font-size:20px;font-weight:800;color:var(--dark);margin-top:2px" id="trackOrderTitle">MELS-2608-001</div>
+        </div>
+        <div style="background:#dcfce7;color:#16a34a;font-weight:700;padding:6px 14px;border-radius:100px;font-size:12.5px" id="trackOrderStatusBadge">✅ Đã xác nhận đơn hàng</div>
+      </div>
+
+      <div id="trackOrderItemsList" style="margin-bottom:20px;background:var(--bg);border-radius:12px;padding:14px;font-size:13px"></div>
+
+      <div style="font-size:13.5px;font-weight:700;color:var(--dark);margin-bottom:12px">Tiến trình chế tác &amp; vận chuyển:</div>
+      <div style="padding-left:20px;border-left:2px solid var(--red);display:flex;flex-direction:column;gap:18px" id="trackTimelineContainer">
+        <div><div style="font-size:11px;color:var(--gray)">14:30 · Hôm nay</div><div style="font-size:13.5px;font-weight:700">Khớp lệnh VietQR MB Bank thành công (Mô phỏng)</div></div>
+        <div><div style="font-size:11px;color:var(--gray)">15:00 · Hôm nay</div><div style="font-size:13.5px;font-weight:700">Xưởng in Melsou tiếp nhận tệp thiết kế liền trang 180°</div></div>
+        <div><div style="font-size:11px;color:var(--gray)">Dự kiến</div><div style="font-size:13.5px;font-weight:700;color:var(--gray)">Đóng gói hộp quà Kraft &amp; bàn giao đơn vị vận chuyển</div></div>
+      </div>
+    </div>
+
+    <!-- STATE 4: NOT FOUND / EMPTY STATE -->
+    <div id="trackEmptyBox" style="display:none;text-align:center;padding:40px 20px;background:white;border-radius:20px;box-shadow:var(--shadow-md)">
+      <div style="font-size:36px;margin-bottom:8px">🔍</div>
+      <h3 style="font-size:17px;color:#dc2626;margin-bottom:6px">Không tìm thấy thông tin đơn hàng</h3>
+      <p style="font-size:13px;color:var(--gray);max-width:420px;margin:0 auto 16px">Chúng tôi không tìm thấy đơn hàng nào khớp với thông tin bạn vừa nhập. Vui lòng kiểm tra lại mã đơn hàng hoặc số điện thoại.</p>
+      <button class="btn-outline" onclick="resetTrackingSearch()" style="margin:0 auto">Thử lại</button>
+    </div>
+  </div>
+</div>
+
+<!-- ════════ 3D FULLSCREEN MODAL (PHYSICAL HEYZINE REALTIME) ════════ -->
+<div class="flipbook-modal" id="flipbook3DModal" onmousemove="handleFlipbookParallax(event)">
+  <div class="fbm-header">
+    <div class="fbm-title" id="fbmModalTitle">ALBUM 3D REALTIME · melsou Seamless Layflat 180°</div>
+    <div style="display:flex;align-items:center;gap:10px">
+      <button class="fbm-nav-btn" id="fbmSoundToggleBtn" onclick="toggleFlipSound()" title="Bật/Tắt âm thanh lật trang">🔊 Âm thanh</button>
+      <button class="fbm-close-btn" onclick="closeFlipbookModal()">✕</button>
+    </div>
+  </div>
+
+  <div class="fbm-viewport">
+    <div class="fbm-book" id="fbmBookContainer"
+         onmousedown="handleFbmMouseDown(event)" onmouseup="handleFbmMouseUp(event)"
+         ontouchstart="handleFbmTouchStart(event)" ontouchend="handleFbmTouchEnd(event)">
+
+      <div class="pb-page left-page" id="fbmLeftPage" onclick="fbmPrevPage()" title="Bấm hoặc vuốt để lật trang trước"></div>
+      <div class="layflat-spine" id="fbmSpine"></div>
+      <div class="pb-page right-page" id="fbmRightPage" onclick="fbmNextPage()" title="Bấm hoặc vuốt để lật trang sau"></div>
+      <div class="spread-freeform-overlay" id="fbmFreeformOverlay" style="position:absolute;inset:0;pointer-events:none;z-index:40"></div>
+
+      <div class="fbm-turn-leaf" id="fbmTurnLeaf"></div>
+    </div>
+  </div>
+
+  <div class="fbm-controls">
+    <button class="fbm-nav-btn" id="fbmPrevBtn" onclick="fbmPrevPage()">◀ Lật Trang Trước (←)</button>
+    <span id="fbmPageCounter" style="font-weight:700;font-size:13px">Bìa Trước (1 / 7)</span>
+    <button class="fbm-nav-btn" id="fbmNextBtn" onclick="fbmNextPage()">Lật Trang Sau (→) ▶</button>
+    <button class="fbm-nav-btn" id="btnExportDesign" style="background:var(--red);color:white;border-color:var(--red);font-weight:700" onclick="exportCurrentDesignFile()">⬇ Lưu về máy</button>
+  </div>
+</div>
+
+<!-- ════════ 📁 MODAL: QUẢN LÝ BẢN THIẾT KẾ ĐÃ LƯU (FB11 DYNAMIC) ════════ -->
+<div class="modal-backdrop" id="draftsManagerModal">
+  <div class="modal-box" style="max-width:680px">
+    <div style="display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid var(--gray-l);padding-bottom:12px">
+      <h3 style="font-size:20px">Bản thiết kế của bạn 📁</h3>
+      <button onclick="closeDraftsManagerModal()" style="background:none;border:none;font-size:20px">✕</button>
+    </div>
+
+    <div style="display:flex;flex-direction:column;gap:12px;margin-top:14px" id="savedDraftsList"></div>
+
+    <button class="btn-outline" style="width:100%;justify-content:center;margin-top:14px" onclick="openTemplateOnboardingModal();closeDraftsManagerModal()">➕ Tạo bản thiết kế mới</button>
+  </div>
+</div>
+
+<!-- ════════ 📦 MODAL: QUẢN LÝ ĐƠN HÀNG (FB11 DYNAMIC) ════════ -->
+<div class="modal-backdrop" id="ordersManagerModal">
+  <div class="modal-box" style="max-width:680px">
+    <div style="display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid var(--gray-l);padding-bottom:12px">
+      <h3 style="font-size:20px">Đơn hàng của bạn 📦</h3>
+      <button onclick="closeOrdersManagerModal()" style="background:none;border:none;font-size:20px">✕</button>
+    </div>
+
+    <div style="display:flex;flex-direction:column;gap:12px;margin-top:14px" id="ordersManagerList"></div>
+  </div>
+</div>
+
+<!-- ════════ ⚠️ MODAL: PREFLIGHT WARNING ════════ -->
+<div class="modal-backdrop" id="preflightModal">
+  <div class="modal-box" style="max-width:540px">
+    <div style="display:flex;align-items:center;gap:12px">
+      <div style="font-size:32px">⚠️</div>
+      <h3 style="font-size:19px;color:var(--dark)">Bản thảo chưa hoàn tất tùy chỉnh</h3>
+    </div>
+    <p style="font-size:13.5px;color:#555;line-height:1.6">
+      Bạn ơi, cuốn album của bạn vẫn còn một vài chi tiết chưa được tùy chỉnh theo ý riêng:
+    </p>
+    <div id="preflightMissingList" style="background:var(--red-light);border-radius:10px;padding:12px;display:flex;flex-direction:column;gap:6px;font-size:13px;color:var(--red);font-weight:600"></div>
+    <p style="font-size:13px;color:var(--gray)">Bạn có muốn quay lại hoàn thiện tiếp cho thật trọn vẹn, hay muốn tiếp tục đặt in ngay bây giờ?</p>
+    <div style="display:flex;gap:10px;margin-top:6px">
+      <button class="btn-outline" style="flex:1;justify-content:center" onclick="closePreflightModal()">✏️ Quay lại chỉnh tiếp</button>
+      <button class="btn-primary" style="flex:1;justify-content:center" onclick="proceedToCheckoutFromPreflight()">💳 Vẫn tiếp tục đặt in</button>
+    </div>
+  </div>
+</div>
+
+<!-- ════════ 🛒 SHOPEE STYLE CART DRAWER ════════ -->
+<div class="cart-overlay" id="cartOverlay" onclick="toggleCart()"></div>
+<div class="cart-drawer" id="cartDrawer">
+  <div class="cart-shopee-header">
+    <div style="display:flex;align-items:center;gap:10px">
+      <input type="checkbox" class="cart-checkbox" id="cartSelectAll" checked onchange="toggleSelectAllCart(this.checked)">
+      <h3 style="font-size:16px">Chọn tất cả</h3>
+    </div>
+    <button onclick="toggleCart()" style="background:none;border:none;font-size:20px">✕</button>
+  </div>
+  <div id="cartItemsList" style="flex:1;padding:16px;overflow-y:auto"></div>
+    <div style="padding:16px 20px;border-top:1px solid var(--gray-l);background:#fafafa">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
+      <span style="color:var(--gray)">Tổng thanh toán:</span>
+      <span style="font-size:22px;font-weight:800;color:var(--red)" id="cartTotalVal">0đ</span>
+    </div>
+    <button class="btn-primary" id="btnCartCheckout" style="width:100%;justify-content:center" onclick="openAuthOrCheckoutStep()">Tiến hành đặt hàng (0) →</button>
+  </div>
+      <div id="cartVoucherMsg" style="font-size:11.5px;margin-top:5px;display:none"></div>
+    </div>
+    <div id="cartDiscountRow" style="display:none;justify-content:space-between;align-items:center;margin-bottom:6px;font-size:13px;color:var(--red)">
+      <span>Ưu đãi áp dụng:</span>
+      <strong id="cartDiscountVal">-0đ</strong>
+    </div>
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
+      <span style="color:var(--gray)">Tổng thanh toán:</span>
+      <span style="font-size:22px;font-weight:800;color:var(--red)" id="cartTotalVal">0đ</span>
+    </div>
+    <button class="btn-primary" id="btnCartCheckout" style="width:100%;justify-content:center" onclick="openAuthOrCheckoutStep()">Tiến hành đặt hàng (0) →</button>
+  </div>
+</div>
+
+<!-- ════════ 🌟 MODAL: CÂU CHUYỆN GIÁ TRỊ ĐỘC BẢN (STORYTELLING PANEL) ════════ -->
+<div class="modal-backdrop" id="valueStoryModal" onclick="if(event.target===this)closeValueStoryModal()">
+  <div class="modal-box" style="max-width:620px;padding:32px 28px;border-radius:20px;position:relative">
+    <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:16px;border-bottom:1px solid var(--gray-l);padding-bottom:14px">
+      <div style="display:flex;align-items:center;gap:12px">
+        <div id="vsmIcon" style="width:48px;height:48px;border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:24px;background:var(--red-light)">🎨</div>
+        <div>
+          <span style="font-size:11px;font-weight:800;letter-spacing:1.5px;color:var(--red);text-transform:uppercase" id="vsmBadge">GIÁ TRỊ ĐỘC BẢN · 01/04</span>
+          <h3 id="vsmTitle" style="font-size:22px;color:var(--dark);margin-top:2px">Không gian sáng tạo tinh tế</h3>
+        </div>
+      </div>
+      <button onclick="closeValueStoryModal()" style="background:none;border:none;font-size:22px;cursor:pointer;color:var(--gray);padding:4px" aria-label="Đóng cửa sổ">✕</button>
+    </div>
+
+    <div style="display:flex;flex-direction:column;gap:16px;font-size:14px;line-height:1.75;color:#374151">
+      <div style="background:var(--bg);border-radius:12px;padding:16px 18px;border-left:3px solid var(--red)">
+        <strong style="display:block;color:var(--dark);font-size:14.5px;margin-bottom:4px">Trải nghiệm thực tế</strong>
+        <p id="vsmExperience" style="margin:0;color:#4b5563"></p>
+      </div>
+
+      <div>
+        <strong style="display:block;color:var(--dark);font-size:14.5px;margin-bottom:6px">Cách Melsou hiện thực hóa</strong>
+        <p id="vsmCraft" style="margin:0;color:#4b5563"></p>
+      </div>
+    </div>
+
+    <div style="display:flex;gap:12px;margin-top:24px;justify-content:flex-end">
+      <button class="btn-outline" onclick="closeValueStoryModal()">Đóng</button>
+      <button class="btn-primary" onclick="closeValueStoryModal();openTemplateOnboardingModal()">🪄 Bắt đầu trải nghiệm ngay</button>
+    </div>
+  </div>
+</div>
+
+<!-- ════════ 🪄 MODAL: CHỌN TEMPLATE KHỞI ĐẦU ════════ -->
+<div class="modal-backdrop" id="templateOnboardingModal">
+  <div class="modal-box" style="max-width:800px">
+    <div style="display:flex;justify-content:space-between;align-items:center">
+      <h3 style="font-size:22px">Chọn mẫu thiết kế mở đầu 🎨</h3>
+      <button onclick="closeTemplateOnboardingModal()" style="background:none;border:none;font-size:20px">✕</button>
+    </div>
+    <p style="color:var(--gray);font-size:13.5px">Chọn 1 trong 8 phong cách nghệ thuật để nạp ngay bố cục và bắt đầu tùy biến:</p>
+    <div class="tmpl-modal-responsive-grid" id="onboardingTmplGrid"></div>
+  </div>
+</div>
+
+<!-- ════════ 👤 MODAL: ĐĂNG NHẬP / ĐĂNG KÝ (FB22) ════════ -->
+<div class="modal-backdrop" id="authModal" onclick="if(event.target===this)closeAuthModal()">
+  <div class="modal-box auth-modal-box" style="max-width:440px;width:100%;max-height:90vh;overflow-y:auto;text-align:center;padding:28px 24px;border-radius:16px;box-shadow:0 16px 40px rgba(0,0,0,0.18);position:relative">
+    <button onclick="closeAuthModal()" style="position:absolute;top:14px;right:14px;background:none;border:none;font-size:22px;cursor:pointer;color:var(--gray);line-height:1;padding:6px;z-index:10" title="Đóng">✕</button>
+
+    <div style="font-family:'Pacifico',cursive;font-size:28px;color:var(--red);margin-bottom:2px">melsou</div>
+    <div style="font-size:10px;font-weight:800;letter-spacing:1.8px;color:var(--gray);margin-bottom:16px">MELODY &amp; SOUVENIR</div>
+
+    <h3 style="font-size:20px;color:var(--dark);margin-bottom:4px" id="authModalHeading">Tài khoản Melsou</h3>
+    <p style="font-size:12.5px;color:var(--gray);margin-bottom:16px" id="authModalSubheading">Đăng nhập để lưu trữ bản thiết kế và theo dõi đơn in ấn</p>
+
+    <!-- TABS: CHỈ CÓ 2 TAB CHÍNH: ĐĂNG NHẬP | ĐĂNG KÝ (FB22) -->
+    <div class="auth-tabs" id="authMainTabs">
+      <button class="auth-tab-btn active" id="authTabBtnLogin" onclick="switchAuthTab('login')">Đăng nhập</button>
+      <button class="auth-tab-btn" id="authTabBtnRegister" onclick="switchAuthTab('register')">Đăng ký</button>
+    </div>
+
+    <!-- ERROR STATE CONTAINER -->
+    <div id="authModalErrorBox" style="display:none;background:#fef2f2;border:1px solid #fecaca;border-radius:10px;padding:10px 14px;margin-bottom:14px;align-items:center;gap:10px;text-align:left">
+      <span style="font-size:16px">⚠️</span>
+      <div style="font-size:12px;color:#dc2626;font-weight:600" id="authModalErrorMessage">Không thể đăng nhập. Vui lòng thử lại.</div>
+    </div>
+
+    <!-- TAB 1: LOGIN FORM -->
+    <div class="auth-form-panel active" id="authPanelLogin">
+      <div>
+        <label style="font-size:12px;font-weight:700;color:var(--gray);display:block;margin-bottom:4px">Email tài khoản</label>
+        <input type="email" class="form-input" id="loginEmailInput" placeholder="name@example.com" autocomplete="email">
+      </div>
+      <div>
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">
+          <label style="font-size:12px;font-weight:700;color:var(--gray)">Mật khẩu</label>
+          <a href="javascript:void(0)" onclick="switchAuthTab('forgot')" style="font-size:11.5px;color:var(--red);text-decoration:none;font-weight:600">Quên mật khẩu?</a>
+        </div>
+        <input type="password" class="form-input" id="loginPasswordInput" placeholder="Nhập mật khẩu của bạn" autocomplete="current-password">
+      </div>
+      <button class="btn-primary" style="width:100%;justify-content:center;padding:11px;font-size:13.5px;font-weight:700;margin-top:4px" onclick="handleNativeLoginSubmit()">
+        Đăng nhập
+      </button>
+
+      <div class="auth-divider" style="margin:16px 0 12px">hoặc tiếp tục với</div>
+      <button id="googleSignInBtn" class="btn-outline" style="width:100%;justify-content:center;gap:10px;padding:9px 14px;border:1px solid #d1d5db;border-radius:10px;background:#ffffff;color:#4b5563;font-size:12.5px;font-weight:600;box-shadow:none;transition:all 0.2s ease;cursor:pointer" onclick="startGoogleSignIn()">
+        <svg width="16" height="16" viewBox="0 0 24 24" style="flex-shrink:0"><path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/><path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/><path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z"/><path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"/></svg>
+        <span id="googleSignInBtnText">Tiếp tục với Google (Tùy chọn)</span>
+        <span id="googleSignInSpinner" style="display:none;width:12px;height:12px;border:2px solid #ccc;border-top-color:#4285F4;border-radius:50%;animation:authSpin 0.8s linear infinite;margin-left:4px"></span>
+      </button>
+    </div>
+
+    <!-- TAB 2: REGISTER FORM -->
+    <div class="auth-form-panel" id="authPanelRegister">
+      <div>
+        <label style="font-size:12px;font-weight:700;color:var(--gray);display:block;margin-bottom:4px">Email đăng ký</label>
+        <input type="email" class="form-input" id="regEmailInput" placeholder="name@example.com" autocomplete="email">
+      </div>
+      <div>
+        <label style="font-size:12px;font-weight:700;color:var(--gray);display:block;margin-bottom:4px">Mật khẩu (tối thiểu 6 ký tự)</label>
+        <input type="password" class="form-input" id="regPasswordInput" placeholder="Tạo mật khẩu an toàn" autocomplete="new-password">
+      </div>
+      <div>
+        <label style="font-size:12px;font-weight:700;color:var(--gray);display:block;margin-bottom:4px">Xác nhận mật khẩu</label>
+        <input type="password" class="form-input" id="regConfirmPasswordInput" placeholder="Nhập lại mật khẩu" autocomplete="new-password">
+      </div>
+      <button class="btn-primary" style="width:100%;justify-content:center;padding:11px;font-size:13.5px;font-weight:700;margin-top:4px" onclick="handleNativeRegisterSubmit()">
+        Tạo tài khoản Melsou
+      </button>
+
+      <div class="auth-divider" style="margin:16px 0 12px">hoặc tiếp tục với</div>
+      <button id="googleSignUpBtn" class="btn-outline" style="width:100%;justify-content:center;gap:10px;padding:9px 14px;border:1px solid #d1d5db;border-radius:10px;background:#ffffff;color:#4b5563;font-size:12.5px;font-weight:600;box-shadow:none;transition:all 0.2s ease;cursor:pointer" onclick="startGoogleSignIn()">
+        <svg width="16" height="16" viewBox="0 0 24 24" style="flex-shrink:0"><path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/><path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/><path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z"/><path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"/></svg>
+        <span>Tiếp tục với Google (Tùy chọn)</span>
+      </button>
+    </div>
+
+    <!-- SUB-FLOW 3: FORGOT PASSWORD SCREEN (FB22) -->
+    <div class="auth-form-panel" id="authPanelForgot">
+      <div style="text-align:left;margin-bottom:8px">
+        <h4 style="font-size:16px;color:var(--dark);margin-bottom:4px">Quên mật khẩu</h4>
+        <p style="font-size:12.5px;color:var(--gray);margin-bottom:12px">Nhập email tài khoản của bạn để nhận liên kết đặt lại mật khẩu từ hệ thống.</p>
+      </div>
+      <div>
+        <label style="font-size:12px;font-weight:700;color:var(--gray);display:block;margin-bottom:4px">Email đã đăng ký</label>
+        <input type="email" class="form-input" id="forgotEmailInput" placeholder="name@example.com" autocomplete="email">
+      </div>
+      <button class="btn-primary" style="width:100%;justify-content:center;padding:11px;font-size:13.5px;font-weight:700;margin-top:4px" onclick="handleForgotPasswordSubmit()">
+        Gửi liên kết đặt lại mật khẩu
+      </button>
+      <div style="margin-top:14px;text-align:center">
+        <a href="javascript:void(0)" onclick="switchAuthTab('login')" style="font-size:12.5px;color:var(--red);text-decoration:none;font-weight:700">← Quay lại đăng nhập</a>
+      </div>
+    </div>
+
+    <div style="font-size:11px;color:var(--gray);line-height:1.5;margin-top:16px">
+      Bằng việc tiếp tục, bạn đồng ý với <a href="javascript:void(0)" onclick="openPrivacyPolicyModal()" style="color:var(--red);font-weight:700">Chính sách bảo mật</a> và <a href="javascript:void(0)" onclick="openWarrantyPolicyModal()" style="color:var(--red);font-weight:700">Điều khoản</a> của Melsou.
+    </div>
+  </div>
+</div>
+
+<!-- ════════ ⚙️ MODAL: CÀI ĐẶT HỆ THỐNG (FB10 ARCHITECTURE) ════════ -->
+<div class="modal-backdrop" id="settingsModal" onclick="if(event.target===this)closeSettingsModal()">
+  <div class="modal-box" style="max-width:600px;max-height:85vh;padding:28px 24px;border-radius:18px;overflow-y:auto">
+    <div style="display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid var(--gray-l);padding-bottom:12px;margin-bottom:16px">
+      <div>
+        <h3 style="font-size:20px;color:var(--dark)">⚙️ Cài đặt hệ thống</h3>
+        <span style="font-size:11.5px;color:var(--gray)">Tùy chỉnh giao diện, bảo mật tài khoản và quyền riêng tư</span>
+      </div>
+      <button onclick="closeSettingsModal()" style="background:none;border:none;font-size:20px;cursor:pointer;color:var(--gray)">✕</button>
+    </div>
+
+    <div style="display:flex;flex-direction:column;gap:20px;font-size:13px">
+
+      <!-- NHÓM A: GIAO DIỆN (THEME & SOUND) -->
+      <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:12px;padding:16px">
+        <div style="font-size:11px;font-weight:800;letter-spacing:1px;color:var(--red);text-transform:uppercase;margin-bottom:12px">
+          A. GIAO DIỆN &amp; HIỆU ỨNG
+        </div>
+
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
+          <div>
+            <strong style="display:block;color:var(--dark)">Chế độ hiển thị (Sáng / Tối)</strong>
+            <span style="font-size:11.5px;color:var(--gray)">Lựa chọn tone màu chuẩn giấy trắng hoặc nền tối</span>
+          </div>
+          <select class="form-input" id="settingsThemeSelect" style="width:140px;padding:6px 10px;font-size:12px" onchange="changeTheme(this.value)">
+            <option value="light">☀️ Giao diện Sáng</option>
+            <option value="dark">🌙 Giao diện Tối</option>
+            <option value="warm">🕯️ Tone Giấy Ấm</option>
+          </select>
+        </div>
+
+        <div style="display:flex;justify-content:space-between;align-items:center;border-top:1px dashed #e2e8f0;padding-top:12px">
+          <div>
+            <strong style="display:block;color:var(--dark)">Âm thanh lật sách 3D (Web Audio)</strong>
+            <span style="font-size:11.5px;color:var(--gray)">Phát tiếng sột soạt giấy khi lật trang</span>
+          </div>
+          <input type="checkbox" id="settingsSoundToggle" checked class="cart-checkbox" onchange="toggleFlipSound(this.checked)">
+        </div>
+      </div>
+
+      <!-- NHÓM B: TÀI KHOẢN & BẢO MẬT -->
+      <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:12px;padding:16px">
+        <div style="font-size:11px;font-weight:800;letter-spacing:1px;color:var(--red);text-transform:uppercase;margin-bottom:12px">
+          B. TÀI KHOẢN &amp; BẢO MẬT
+        </div>
+
+        <!-- Update Profile -->
+        <div style="margin-bottom:14px">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
+            <strong style="color:var(--dark)">Thông tin cá nhân</strong>
+            <span style="font-size:10.5px;color:#d97706;background:#fef3c7;padding:2px 8px;border-radius:4px;font-weight:700">Chờ Codex kết nối API</span>
+          </div>
+          <div style="display:flex;gap:8px">
+            <input type="text" class="form-input" id="settingsProfileNameInput" placeholder="Tên hiển thị..." style="font-size:12px;flex:1">
+            <button class="btn-outline" style="padding:6px 12px;font-size:11.5px;white-space:nowrap" onclick="saveSettingsProfile()">Cập nhật</button>
+          </div>
+        </div>
+
+        <!-- Change Password -->
+        <div style="margin-bottom:14px;border-top:1px dashed #e2e8f0;padding-top:12px">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
+            <strong style="color:var(--dark)">Đổi mật khẩu</strong>
+            <span style="font-size:10.5px;color:#d97706;background:#fef3c7;padding:2px 8px;border-radius:4px;font-weight:700">Chờ Codex kết nối API</span>
+          </div>
+          <div style="display:flex;gap:8px">
+            <input type="password" class="form-input" id="settingsNewPasswordInput" placeholder="Mật khẩu mới (tối thiểu 6 ký tự)..." style="font-size:12px;flex:1">
+            <button class="btn-outline" style="padding:6px 12px;font-size:11.5px;white-space:nowrap" onclick="saveSettingsPassword()">Lưu mật khẩu</button>
+          </div>
+        </div>
+
+        <!-- 2FA -->
+        <div style="display:flex;justify-content:space-between;align-items:center;border-top:1px dashed #e2e8f0;padding-top:12px">
+          <div>
+            <strong style="display:block;color:var(--dark)">Xác thực hai yếu tố (2FA)</strong>
+            <span style="font-size:11.5px;color:var(--gray)">Bảo vệ tài khoản bằng mã xác nhận khi đăng nhập</span>
+          </div>
+          <div style="display:flex;align-items:center;gap:6px">
+            <span style="font-size:11px;color:#6b7280" id="settings2faStatus">Đang tắt</span>
+            <button class="btn-outline" style="padding:4px 10px;font-size:11.5px" onclick="toggleSettings2FA()">Kích hoạt</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- NHÓM C: THÔNG BÁO (NOTIFICATIONS) -->
+      <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:12px;padding:16px">
+        <div style="font-size:11px;font-weight:800;letter-spacing:1px;color:var(--red);text-transform:uppercase;margin-bottom:12px">
+          C. CÀI ĐẶT THÔNG BÁO
+        </div>
+
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+          <div>
+            <strong style="display:block;color:var(--dark)">Thông báo trình duyệt (Push Notifications)</strong>
+            <span style="font-size:11.5px;color:var(--gray)">Nhận cập nhật tiến độ in ấn và giao hàng theo thời gian thực</span>
+          </div>
+          <input type="checkbox" id="settingsPushToggle" class="cart-checkbox" onchange="togglePushNotification(this.checked)">
+        </div>
+
+        <div style="display:flex;justify-content:space-between;align-items:center;border-top:1px dashed #e2e8f0;padding-top:12px">
+          <div>
+            <strong style="display:block;color:var(--dark)">Thông báo qua Email</strong>
+            <span style="font-size:11.5px;color:var(--gray)">Gửi biên lai đặt in và mã theo dõi bưu cục vào hòm thư</span>
+          </div>
+          <input type="checkbox" id="settingsEmailToggle" checked class="cart-checkbox" onchange="toggleEmailNotification(this.checked)">
+        </div>
+      </div>
+
+      <!-- NHÓM D: QUYỀN RIÊNG TƯ (HARDWARE & BROWSER PERMISSIONS) -->
+      <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:12px;padding:16px">
+        <div style="font-size:11px;font-weight:800;letter-spacing:1px;color:var(--red);text-transform:uppercase;margin-bottom:12px">
+          D. QUYỀN RIÊNG TƯ &amp; THIẾT BỊ
+        </div>
+
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+          <div>
+            <strong style="display:block;color:var(--dark)">Quyền truy cập Microphone</strong>
+            <span style="font-size:11.5px;color:var(--gray)">Sử dụng để thu âm trực tiếp vào module chip ISD1820</span>
+          </div>
+          <span style="font-size:11px;font-weight:700;color:var(--green-d);background:#dcfce7;padding:3px 8px;border-radius:6px">Khi cần dùng</span>
+        </div>
+
+        <div style="display:flex;justify-content:space-between;align-items:center;border-top:1px dashed #e2e8f0;padding-top:12px;margin-bottom:12px">
+          <div>
+            <strong style="display:block;color:var(--dark)">Quyền truy cập Camera / Thư viện ảnh</strong>
+            <span style="font-size:11.5px;color:var(--gray)">Tải ảnh từ điện thoại/máy tính lên trang sách</span>
+          </div>
+          <span style="font-size:11px;font-weight:700;color:var(--green-d);background:#dcfce7;padding:3px 8px;border-radius:6px">Khi cần dùng</span>
+        </div>
+
+        <div style="display:flex;justify-content:space-between;align-items:center;border-top:1px dashed #e2e8f0;padding-top:12px">
+          <div>
+            <strong style="display:block;color:var(--dark)">Dữ liệu Vị trí (Geolocation)</strong>
+            <span style="font-size:11.5px;color:var(--gray)">Melsou không theo dõi tọa độ GPS; loại bỏ EXIF địa lý để bảo vệ riêng tư</span>
+          </div>
+          <span style="font-size:11px;font-weight:700;color:#6b7280;background:#e5e7eb;padding:3px 8px;border-radius:6px">Không thu thập</span>
+        </div>
+      </div>
+
+      <!-- LOCAL STORAGE & ACADEMIC INFO -->
+      <div style="border-top:1px solid #e2e8f0;padding-top:14px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px">
+        <div>
+          <strong style="display:block;color:var(--dark);font-size:12px">Bộ nhớ nháp trên thiết bị này</strong>
+          <span style="font-size:11px;color:var(--gray)">Xóa dữ liệu lưu tạm nếu muốn đặt lại trang sách về mặc định</span>
+        </div>
+        <button class="btn-outline" style="color:#dc2626;border-color:#fca5a5;padding:5px 12px;font-size:11.5px" onclick="clearStudioLocalCache()">🗑️ Xóa bản thảo cục bộ</button>
+      </div>
+
+    </div>
+
+    <div style="display:flex;justify-content:flex-end;margin-top:20px;border-top:1px solid var(--gray-l);padding-top:14px">
+      <button class="btn-primary" onclick="closeSettingsModal()">Đóng cài đặt</button>
+    </div>
+  </div>
+</div>
+
+<!-- ════════ ✨ MODAL: CUSTOM STICKER CREATOR (FB12) ════════ -->
+<div class="modal-backdrop" id="customStickerModal" onclick="if(event.target===this)closeCustomStickerModal()">
+  <div class="modal-box" style="max-width:580px;padding:28px 24px;border-radius:18px">
+    <div style="display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid var(--gray-l);padding-bottom:12px;margin-bottom:16px">
+      <h3 style="font-size:19px;color:var(--dark)">✨ Tự tạo Sticker từ ảnh của bạn</h3>
+      <button onclick="closeCustomStickerModal()" style="background:none;border:none;font-size:20px;cursor:pointer;color:var(--gray)">✕</button>
+    </div>
+
+    <p style="font-size:13px;color:var(--gray);margin-bottom:14px">Chọn ảnh và khuôn cắt để tạo nhãn dán die-cut xinh xắn chèn vào trang album:</p>
+
+    <!-- SOURCE IMAGE SELECTOR -->
+    <div style="display:flex;gap:10px;margin-bottom:14px">
+      <label class="btn-outline" style="flex:1;justify-content:center;cursor:pointer;font-size:12.5px">
+        <input type="file" accept="image/*" onchange="handleStickerToolFileSelect(event)" style="display:none">
+        📂 Tải ảnh từ thiết bị
+      </label>
+      <button class="btn-outline" style="flex:1;justify-content:center;font-size:12.5px" onclick="useRecentPhotoForSticker()">🖼️ Lấy ảnh từ album</button>
+    </div>
+
+    <!-- SHAPE PICKER -->
+    <div style="margin-bottom:14px">
+      <label style="font-size:12px;font-weight:700;color:var(--gray);display:block;margin-bottom:6px">Chọn hình dáng khuôn cắt:</label>
+      <div style="display:flex;gap:8px" id="stickerShapeSelectors">
+        <button class="btn-outline active" id="shapeBtnCircle" onclick="selectStickerCutShape('circle')" style="padding:6px 12px;font-size:12px">⭕ Hình tròn</button>
+        <button class="btn-outline" id="shapeBtnRounded" onclick="selectStickerCutShape('rounded')" style="padding:6px 12px;font-size:12px">🔲 Bo góc</button>
+        <button class="btn-outline" id="shapeBtnHeart" onclick="selectStickerCutShape('heart')" style="padding:6px 12px;font-size:12px">❤️ Trái tim</button>
+        <button class="btn-outline" id="shapeBtnPolaroid" onclick="selectStickerCutShape('stamp')" style="padding:6px 12px;font-size:12px">🏷️ Tem thư</button>
+      </div>
+    </div>
+
+    <!-- CANVAS PREVIEW -->
+    <div style="background:#f8fafc;border:1.5px dashed var(--gray-l);border-radius:12px;padding:16px;text-align:center;position:relative">
+      <canvas id="customStickerCanvas" width="260" height="260" style="max-width:100%;height:auto;background:transparent;border-radius:8px;box-shadow:0 4px 14px rgba(0,0,0,0.08)"></canvas>
+      <div id="stickerCanvasPlaceholder" style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;font-size:12.5px;color:var(--gray)">
+        <span>🖼️ Chưa chọn ảnh</span>
+        <span style="font-size:11px;margin-top:2px">Bấm nút trên để nạp ảnh xem trước khuôn cắt</span>
+      </div>
+    </div>
+
+    <div style="display:flex;justify-content:flex-end;gap:10px;margin-top:20px">
+      <button class="btn-outline" onclick="closeCustomStickerModal()">Hủy</button>
+      <button class="btn-primary" id="btnSaveCustomSticker" onclick="saveAndApplyCustomSticker()" disabled>✨ Tạo &amp; Chèn vào Album</button>
+    </div>
+  </div>
+</div>
+
+<!-- ════════ ✍️ MODAL: OWNER BLOG ADMIN (FB09) ════════ -->
+<div class="modal-backdrop" id="blogAdminModal" onclick="if(event.target===this)closeBlogAdminModal()">
+  <div class="modal-box" style="max-width:640px;padding:28px 24px;border-radius:18px">
+    <div style="display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid var(--gray-l);padding-bottom:12px;margin-bottom:16px">
+      <h3 style="font-size:19px;color:var(--dark)">✍️ Soạn bài viết Blog (Quản trị viên)</h3>
+      <button onclick="closeBlogAdminModal()" style="background:none;border:none;font-size:20px;cursor:pointer;color:var(--gray)">✕</button>
+    </div>
+
+    <div style="background:#fffbeb;border:1px solid #fef3c7;border-radius:10px;padding:10px 14px;font-size:12px;color:#92400e;margin-bottom:14px">
+      ℹ️ <em>Chế độ Quản trị viên (OWNER). Bài viết được lưu nháp cục bộ và kết nối API quản lý bài viết do Codex phụ trách.</em>
+    </div>
+
+    <div style="display:flex;flex-direction:column;gap:12px;text-align:left">
+      <div>
+        <label style="font-size:12px;font-weight:700;color:var(--gray);display:block;margin-bottom:4px">Tiêu đề bài viết *</label>
+        <input type="text" class="form-input" id="blogInputTitle" placeholder="Ví dụ: Nghệ thuật chọn ảnh cưới cho album 180°...">
+      </div>
+      <div style="display:flex;gap:10px">
+        <div style="flex:1">
+          <label style="font-size:12px;font-weight:700;color:var(--gray);display:block;margin-bottom:4px">Chuyên mục</label>
+          <select class="form-input" id="blogInputCategory">
+            <option value="Chuyện tình yêu">Chuyện tình yêu</option>
+            <option value="Kỷ yếu &amp; Thanh xuân">Kỷ yếu &amp; Thanh xuân</option>
+            <option value="Thủ công &amp; Chất liệu">Thủ công &amp; Chất liệu</option>
+            <option value="Bí quyết thiết kế">Bí quyết thiết kế</option>
+          </select>
+        </div>
+        <div style="flex:1">
+          <label style="font-size:12px;font-weight:700;color:var(--gray);display:block;margin-bottom:4px">Đường dẫn ảnh bìa</label>
+          <input type="text" class="form-input" id="blogInputCover" placeholder="https://images.unsplash.com/...">
+        </div>
+      </div>
+      <div>
+        <label style="font-size:12px;font-weight:700;color:var(--gray);display:block;margin-bottom:4px">Nội dung bài viết *</label>
+        <textarea class="form-input" id="blogInputContent" style="min-height:120px;line-height:1.6" placeholder="Chia sẻ câu chuyện hoặc hướng dẫn của bạn..."></textarea>
+      </div>
+    </div>
+
+    <div style="display:flex;justify-content:flex-end;gap:10px;margin-top:20px">
+      <button class="btn-outline" onclick="closeBlogAdminModal()">Đóng</button>
+      <button class="btn-primary" onclick="saveNewBlogPost()">Đăng bài viết</button>
+    </div>
+  </div>
+</div>
+
+<!-- ════════ 📖 MODAL: CHI TIẾT BÀI VIẾT BLOG ════════ -->
+<div class="modal-backdrop" id="blogPostModal" onclick="if(event.target===this)closeBlogPostModal()">
+  <div class="modal-box" style="max-width:720px;max-height:85vh;padding:32px 28px;border-radius:20px;overflow-y:auto">
+    <div style="display:flex;justify-content:flex-end">
+      <button onclick="closeBlogPostModal()" style="background:none;border:none;font-size:22px;cursor:pointer;color:var(--gray)">✕</button>
+    </div>
+    <div id="blogPostModalContent"></div>
+  </div>
+</div>
+
+<!-- ════════ 📦 MODAL: CHECKOUT & SEPAY MB BANK (FB20: SIMULATION NOTICE) ════════ -->
+<div class="modal-backdrop" id="checkoutModal">
+  <div class="modal-box" style="max-width:560px">
+
+    <!-- STEP 1: SHIPPING & SIMULATION NOTICE -->
+    <div id="checkoutStep1">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;border-bottom:1px solid var(--gray-l);padding-bottom:10px">
+        <h3 style="font-size:20px;color:var(--dark)">Thông tin giao hàng 📦</h3>
+        <button onclick="closeCheckoutModal()" style="background:none;border:none;font-size:20px;cursor:pointer">✕</button>
+      </div>
+
+      <!-- FB20: SIMULATION BADGE -->
+      <div style="display:inline-block;background:#fee2e2;border:1px solid #fca5a5;color:var(--red);padding:4px 12px;border-radius:100px;font-size:11px;font-weight:800;letter-spacing:0.5px;margin-bottom:12px">
+        🧪 THANH TOÁN GIẢ LẬP · MÔ PHỎNG DỰ ÁN HỌC TẬP
+      </div>
+
+      <!-- FB20: CLEAR INFORMATION DISCLAIMER BOX -->
+      <div style="background:#fffbeb;border:1px solid #fef3c7;border-radius:12px;padding:12px 14px;margin-bottom:16px;font-size:12px;color:#92400e;line-height:1.55">
+        <strong>⚠️ Lưu ý quan trọng:</strong> Melsou là dự án giả định phục vụ cho mục đích học tập môn học. Trang này chỉ mô phỏng quy trình đặt hàng và thanh toán VietQR. <strong>Không có giao dịch thương mại thật</strong> và không bao giờ trừ tiền tài khoản ngân hàng của bạn.
+      </div>
+
+      <!-- CLEAN FORM INPUTS WITHOUT HARDCODED PERSONAL VALUES (FB11) -->
+      <div style="display:flex;flex-direction:column;gap:12px">
+        <div>
+          <label style="font-size:12px;font-weight:700;color:var(--gray);display:block;margin-bottom:4px">Họ và tên người nhận *</label>
+          <input type="text" class="form-input" id="shipName" placeholder="Ví dụ: Nguyễn Văn A">
+        </div>
+        <div>
+          <label style="font-size:12px;font-weight:700;color:var(--gray);display:block;margin-bottom:4px">Số điện thoại liên hệ *</label>
+          <input type="tel" class="form-input" id="shipPhone" placeholder="Ví dụ: 0901 234 567">
+        </div>
+        <div>
+          <label style="font-size:12px;font-weight:700;color:var(--gray);display:block;margin-bottom:4px">Địa chỉ nhận hàng chi tiết *</label>
+          <input type="text" class="form-input" id="shipAddress" placeholder="Số nhà, tên đường, Phường/Xã, Quận/Huyện, Tỉnh/Thành...">
+        </div>
+      </div>
+
+      <div style="background:var(--bg);border-radius:12px;padding:14px;margin:14px 0;display:flex;flex-direction:column;gap:6px">
+        <div style="display:flex;justify-content:space-between;font-size:13px"><span>Tiền album:</span><strong id="chkAlbumPrice">199.000đ</strong></div>
+        <div style="display:flex;justify-content:space-between;font-size:13px"><span>Phí ship tiêu chuẩn:</span><strong>30.000đ</strong></div>
+        <div style="display:flex;justify-content:space-between;font-size:15px;font-weight:800;color:var(--red);border-top:1px dashed var(--gray-l);padding-top:6px"><span>Tổng thanh toán:</span><span id="chkFinalPrice">229.000đ</span></div>
+      </div>
+
+      <div style="display:flex;align-items:flex-start;gap:8px;margin-bottom:16px">
+        <input type="checkbox" id="chkTermsAccept" checked class="cart-checkbox" style="margin-top:2px">
+        <label for="chkTermsAccept" style="font-size:12px;color:var(--gray);line-height:1.4">
+          Tôi đã đọc và hiểu rõ đây là quy trình mô phỏng học tập theo <a href="javascript:void(0)" onclick="openPrivacyPolicyModal()" style="color:var(--red);font-weight:700">Chính sách</a> của Melsou.
+        </label>
+      </div>
+
+      <button class="btn-primary" style="width:100%;justify-content:center" onclick="goToSepayVietQrStep()">Xác nhận đặt hàng (Mô phỏng VietQR) →</button>
+    </div>
+
+    <!-- STEP 2: VIETQR WITH WATERMARK (FB20) -->
+    <div id="checkoutStep2" style="display:none">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;border-bottom:1px solid var(--gray-l);padding-bottom:10px">
+        <h3 style="font-size:18px;color:var(--dark)">Quét mã VietQR để thanh toán 💳</h3>
+        <button onclick="closeCheckoutModal()" style="background:none;border:none;font-size:20px;cursor:pointer">✕</button>
+      </div>
+
+      <div style="text-align:center">
+        <!-- QR CODE WITH DEMO OVERLAY WATERMARK (FB20) -->
+        <div style="position:relative;background:white;padding:10px;border:1.5px solid var(--gray-l);border-radius:16px;display:inline-block;margin-bottom:10px;overflow:hidden">
+          <img id="vietQrImg" src="https://api.vietqr.io/image/970422-00931940512-compact2.jpg?amount=229000&addInfo=MELS2608001&accountName=MELSOU%20DEMO" style="width:220px;height:auto;border-radius:8px;display:block" alt="VietQR Mô Phỏng">
+        </div>
+
+        <div style="display:flex;flex-direction:column;gap:6px;text-align:left;max-width:360px;margin:0 auto;font-size:12.5px">
+          <div class="copy-pill"><span>Ngân hàng: <strong>MB (Quân Đội) · Demo</strong></span></div>
+          <div class="copy-pill"><span>Số TK: <strong>00931940512</strong></span><button class="copy-btn" onclick="copyToClipboard('00931940512')">Copy</button></div>
+          <div class="copy-pill"><span>Chủ TK: <strong>MELSOU VIETNAM</strong></span></div>
+          <div class="copy-pill"><span>Số tiền mô phỏng: <strong id="copyAmountText" style="color:var(--red)">229.000đ</strong></span><button class="copy-btn" onclick="copyToClipboard('229000')">Copy</button></div>
+          <div class="copy-pill"><span>Nội dung: <strong id="copyMemoText">MELS2608001</strong></span><button class="copy-btn" onclick="copyToClipboard('MELS2608001')">Copy</button></div>
+        </div>
+
+        <div style="margin-top:14px;background:var(--red-light);color:var(--red);padding:8px 12px;border-radius:8px;font-size:12px;font-weight:700">
+          ⏳ Hệ thống đang mô phỏng xác nhận chuyển khoản SePay...
+        </div>
+
+        <button class="btn-primary" style="width:100%;margin-top:12px;justify-content:center" onclick="simulateSuccessfulPayment()">✅ Tôi đã hoàn tất chuyển khoản</button>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- ════════ 📜 MODAL: CHÍNH SÁCH BẢO MẬT (20 ĐIỀU KHOẢN ĐẦY ĐỦ) ════════ -->
+<div class="modal-backdrop" id="privacyPolicyModal">
+  <div class="modal-box" style="max-width:820px;max-height:85vh">
+    <div style="display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid var(--gray-l);padding-bottom:14px">
+      <h3 style="font-size:20px;color:var(--dark)">Chính Sách Bảo Mật Melsou 📜</h3>
+      <button onclick="closePrivacyPolicyModal()" style="background:none;border:none;font-size:20px;cursor:pointer">✕</button>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:14px;font-size:13.5px;line-height:1.75;color:#333;overflow-y:auto;padding-right:10px">
+      <p style="color:var(--gray)"><strong>Ngày có hiệu lực:</strong> 27/08/2026 &nbsp;|&nbsp; <strong>Cập nhật lần cuối:</strong> 27/08/2026</p>
+
+      <p>Melsou (“<strong>Melsou</strong>”, “<strong>chúng tôi</strong>”) tôn trọng quyền riêng tư của khách hàng và cam kết xử lý thông tin cá nhân một cách minh bạch, có mục đích và phù hợp với hoạt động của dịch vụ.</p>
+
+      <p>Chính sách này giải thích Melsou thu thập thông tin nào, sử dụng thông tin đó như thế nào, khi nào thông tin có thể được chia sẻ với nhà cung cấp dịch vụ và những lựa chọn mà người dùng có đối với dữ liệu của mình.</p>
+
+      <p>Bằng việc truy cập hoặc sử dụng Melsou, bạn xác nhận rằng bạn đã đọc Chính sách bảo mật này.</p>
+
+      <h4 style="color:var(--red);margin-top:8px">1. Phạm vi áp dụng</h4>
+      <p>Chính sách này áp dụng đối với thông tin được xử lý khi bạn: truy cập website Melsou; tạo hoặc chỉnh sửa thiết kế/draft; sử dụng Melsou với tư cách khách mà chưa đăng nhập; đăng nhập hoặc kết nối tài khoản Google; đặt hàng và thanh toán; theo dõi trạng thái đơn hàng; tải lên hình ảnh, tệp hoặc nội dung; sử dụng các tính năng cộng tác được Melsou cung cấp; liên hệ với Melsou để được hỗ trợ.</p>
+
+      <h4 style="color:var(--red);margin-top:8px">2. Thông tin Melsou có thể thu thập</h4>
+      <p><strong>2.1. Thông tin tài khoản:</strong> Khi đăng nhập bằng Google, chúng tôi có thể nhận tên hiển thị, địa chỉ email, mã định danh tài khoản, ảnh đại diện. Melsou tuyệt đối không nhận mật khẩu Google của bạn.<br>
+      <strong>2.2. Thông tin của khách chưa đăng nhập:</strong> Melsou duy trì phiên làm việc bằng mã phiên, dữ liệu draft lưu cục bộ trên trình duyệt (Local Storage). Khi đăng nhập, draft sẽ được liên kết với tài khoản.<br>
+      <strong>2.3. Nội dung do bạn cung cấp:</strong> Hình ảnh, nội dung văn bản, thiết kế, tệp tải lên, thông tin tùy chỉnh sản phẩm phục vụ tạo sản phẩm và in ấn.<br>
+      <strong>2.4. Thông tin đặt hàng và giao hàng:</strong> Họ và tên, số điện thoại, email, địa chỉ nhận hàng, sản phẩm, số lượng, giá trị đơn hàng, mã đơn hàng, trạng thái giao nhận.<br>
+      <strong>2.5. Thông tin thanh toán:</strong> Dữ liệu đối soát giao dịch VietQR / SePay MB Bank. Melsou không yêu cầu bạn cung cấp mật khẩu ngân hàng hay mã PIN.<br>
+      <strong>2.6. Thông tin kỹ thuật:</strong> Địa chỉ IP, loại trình duyệt, loại thiết bị, hệ điều hành, thời gian truy cập, log chẩn đoán lỗi bảo vệ hệ thống.</p>
+
+      <h4 style="color:var(--red);margin-top:8px">3. Mục đích sử dụng thông tin</h4>
+      <p>Melsou sử dụng thông tin để: vận hành website; quản lý tài khoản; tự động lưu và khôi phục draft; lưu trữ nội dung và tạo tệp phục vụ sản xuất in ấn; tiếp nhận và xử lý đơn hàng; đối chiếu thanh toán; thực hiện giao hàng; tra cứu đơn hàng; hỗ trợ khách hàng; phòng chống gian lận và duy trì an toàn hệ thống.</p>
+
+      <h4 style="color:var(--red);margin-top:8px">4. Draft và dữ liệu lưu trên thiết bị</h4>
+      <p>Melsou lưu bản draft cục bộ trên trình duyệt để tự động lưu tiến trình, tiếp tục chỉnh sửa khi rớt mạng và khôi phục sau khi tải lại trang.</p>
+
+      <h4 style="color:var(--red);margin-top:8px">5. Đăng nhập bằng Google</h4>
+      <p>Melsou sử dụng Google OAuth chuẩn xác thực. Melsou chỉ nhận thông tin và quyền được cấp trong quá trình đăng nhập và không có quyền truy cập mật khẩu của bạn.</p>
+
+      <h4 style="color:var(--red);margin-top:8px">6. Cộng tác</h4>
+      <p>Khi sử dụng chức năng cộng tác cùng thiết kế, dữ liệu phiên làm việc được đồng bộ để hạn chế xung đột chỉnh sửa.</p>
+
+      <h4 style="color:var(--red);margin-top:8px">7. Tệp sản xuất</h4>
+      <p>Khi đơn hàng được xác nhận, hệ thống tạo tệp sản xuất độc lập dựa trên thiết kế đã xác nhận để phục vụ xưởng in ấn chính xác.</p>
+
+      <h4 style="color:var(--red);margin-top:8px">8. Chia sẻ thông tin với nhà cung cấp dịch vụ</h4>
+      <p>Melsou chỉ chia sẻ thông tin cần thiết với các đối tác hạ tầng: lưu trữ Cloudflare/Cloud, Google OAuth, cổng đối soát SePay/Ngân hàng MB, và đơn vị giao vận. Melsou <strong>không bao giờ bán thông tin cá nhân của khách hàng</strong> cho bên thứ ba.</p>
+
+      <h4 style="color:var(--red);margin-top:8px">9. Google Drive và Google Sheets</h4>
+      <p>Melsou có thể lưu trữ dự phòng tệp sản xuất trên Google Drive và quản lý báo cáo vận hành trên Google Sheets với quyền truy cập nội bộ được phân quyền nghiêm ngặt.</p>
+
+      <h4 style="color:var(--red);margin-top:8px">10. Theo dõi đơn hàng và quyền riêng tư</h4>
+      <p>Trang tra cứu đơn hàng công khai chỉ hiển thị tiến độ xử lý và tên viết tắt, không để lộ địa chỉ chi tiết hoặc thông tin thanh toán nhạy cảm.</p>
+
+      <h4 style="color:var(--red);margin-top:8px">11. Cookie và công nghệ tương tự</h4>
+      <p>Melsou sử dụng LocalStorage và cookie thiết yếu để duy trì phiên đăng nhập và giỏ hàng của bạn.</p>
+
+      <h4 style="color:var(--red);margin-top:8px">12. Bảo mật dữ liệu</h4>
+      <p>Áp dụng mã hóa HTTPS, kiểm soát phân quyền, và tường lửa bảo vệ hạ tầng để ngăn chặn truy cập trái phép.</p>
+
+      <h4 style="color:var(--red);margin-top:8px">13. Thời gian lưu trữ dữ liệu</h4>
+      <p>Melsou lưu trữ dữ liệu trong thời gian hợp lý để phục vụ đơn hàng, bảo hành và đối soát kế toán. Dữ liệu hình ảnh sẽ được xử lý lưu trữ an toàn.</p>
+
+      <h4 style="color:var(--red);margin-top:8px">14. Quyền của người dùng</h4>
+      <p>Bạn có quyền truy cập, yêu cầu chỉnh sửa thông tin, yêu cầu xóa dữ liệu cá nhân hoặc rút lại sự đồng ý bất kỳ lúc nào.</p>
+
+      <h4 style="color:var(--red);margin-top:8px">15. Xóa tài khoản và dữ liệu</h4>
+      <p>Khách hàng có thể liên hệ Melsou để yêu cầu xóa tài khoản và dữ liệu cá nhân theo quy định.</p>
+
+      <h4 style="color:var(--red);margin-top:8px">16. Chuyển và lưu trữ dữ liệu quốc tế</h4>
+      <p>Dữ liệu hạ tầng đám mây tuân thủ đầy đủ các quy định an toàn dữ liệu xuyên biên giới.</p>
+
+      <h4 style="color:var(--red);margin-top:8px">17. Quyền riêng tư của trẻ em</h4>
+      <p>Melsou không chủ ý thu thập dữ liệu cá nhân của trẻ em khi chưa có sự đồng ý hợp lệ của người giám hộ.</p>
+
+      <h4 style="color:var(--red);margin-top:8px">18. Liên kết và dịch vụ bên thứ ba</h4>
+      <p>Các liên kết ngoài (Spotify, Google) chịu sự điều chỉnh theo chính sách riêng của các nền tảng đó.</p>
+
+      <h4 style="color:var(--red);margin-top:8px">19. Thay đổi chính sách bảo mật</h4>
+      <p>Melsou có thể cập nhật chính sách này khi có thay đổi nghiệp vụ hoặc yêu cầu pháp luật và cập nhật ngày hiệu lực công khai.</p>
+
+      <h4 style="color:var(--red);margin-top:8px">20. Thông tin liên hệ</h4>
+      <p><strong>Melsou — Melody &amp; Souvenir</strong><br>
+      Hotline: <strong>0931.940.512</strong><br>
+      Email hỗ trợ: <strong>support@melsou.vn</strong><br>
+      Địa chỉ xưởng chế tác: TP. Hồ Chí Minh</p>
+    </div>
+    <div style="border-top:1px solid var(--gray-l);padding-top:12px;display:flex;justify-content:flex-end">
+      <button class="btn-primary" onclick="closePrivacyPolicyModal()">Tôi Đã Đọc &amp; Đồng Ý</button>
+    </div>
+  </div>
+</div>
+
+<!-- ════════ 🔄 MODAL: CHÍNH SÁCH BẢO HÀNH, ĐỔI TRẢ VÀ HOÀN TIỀN (19 ĐIỀU KHOẢN ĐẦY ĐỦ) ════════ -->
+<div class="modal-backdrop" id="warrantyPolicyModal">
+  <div class="modal-box" style="max-width:820px;max-height:85vh">
+    <div style="display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid var(--gray-l);padding-bottom:14px">
+      <h3 style="font-size:20px;color:var(--dark)">Chính Sách Bảo Hành, Đổi Trả &amp; Hoàn Tiền 🛡️</h3>
+      <button onclick="closeWarrantyPolicyModal()" style="background:none;border:none;font-size:20px;cursor:pointer">✕</button>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:14px;font-size:13.5px;line-height:1.75;color:#333;overflow-y:auto;padding-right:10px">
+      <p style="color:var(--gray)"><strong>Ngày có hiệu lực:</strong> 27/08/2026 &nbsp;|&nbsp; <strong>Cập nhật lần cuối:</strong> 27/08/2026</p>
+
+      <p>Melsou mong muốn sản phẩm khách hàng nhận được phản ánh chính xác nhất có thể thiết kế đã xác nhận khi đặt hàng. Do phần lớn sản phẩm của Melsou được <strong>sản xuất theo yêu cầu và cá nhân hóa theo thiết kế của từng khách hàng</strong>, chính sách đổi trả có một số quy định đặc thù dưới đây.</p>
+
+      <h4 style="color:var(--red);margin-top:8px">1. Phạm vi áp dụng</h4>
+      <p>Chính sách áp dụng đối với sản phẩm đặt mua trực tiếp qua Melsou. Tùy từng trường hợp, phương án xử lý bao gồm: khắc phục sản phẩm; <strong>sản xuất lại mới 100%</strong>; đổi sản phẩm; gửi bổ sung bộ phận thiếu; hoặc hoàn tiền tương ứng.</p>
+
+      <h4 style="color:var(--red);margin-top:8px">2. Thời hạn yêu cầu hỗ trợ</h4>
+      <p>Khách hàng vui lòng kiểm tra sản phẩm ngay sau khi nhận hàng và gửi yêu cầu tới Melsou trong vòng <strong>07 ngày kể từ ngày đơn hàng được giao thành công</strong>.</p>
+
+      <h4 style="color:var(--red);margin-top:8px">3. Các trường hợp được hỗ trợ</h4>
+      <p>Melsou bảo hành, sản xuất lại hoặc hoàn tiền khi có lỗi thuộc trách nhiệm xưởng:<br>
+      • <strong>3.1. Sản phẩm không đúng đơn hàng:</strong> Sai loại gói, sai kích thước, thiếu trang, giao nhầm mẫu.<br>
+      • <strong>3.2. Sản xuất sai thiết kế đã xác nhận:</strong> Thiếu thành phần, sai lệch bố cục do in ấn, nội dung khác biệt đáng kể so với bản duyệt in.<br>
+      • <strong>3.3. Lỗi in hoặc lỗi sản xuất:</strong> Nhòe màu, bong tróc nứt màng lụa, lỗi vi mạch chip âm thanh ISD1820, lỗi gãy gáy mở phẳng 180°.<br>
+      • <strong>3.4. Hư hỏng trong vận chuyển:</strong> Bị móp méo, rách ướt hộp do đơn vị vận chuyển (quý khách nên giữ lại bao bì).</p>
+
+      <h4 style="color:var(--red);margin-top:8px">4. Sản phẩm cá nhân hóa</h4>
+      <p>Sản phẩm được in riêng theo thiết kế của bạn. Melsou sử dụng phiên bản đã xác nhận làm chuẩn sản xuất. Melsou thông thường <strong>không hỗ trợ đổi trả chỉ vì khách hàng đổi ý sau khi sản phẩm đã được đưa vào sản xuất</strong>.</p>
+
+      <h4 style="color:var(--red);margin-top:8px">5. Các trường hợp không thuộc phạm vi đổi trả</h4>
+      <p>Melsou từ chối đổi trả nếu sản phẩm in đúng thiết kế nhưng do khách hàng: nhập sai lời nhắn, viết sai chính tả, tải nhầm ảnh mờ, chọn nhầm kích thước hoặc thay đổi ý định sau khi xưởng đã bấm in.</p>
+
+      <h4 style="color:var(--red);margin-top:8px">6. Chất lượng hình ảnh do khách hàng cung cấp</h4>
+      <p>Độ nét của photobook phụ thuộc vào độ phân giải ảnh gốc của bạn. Ảnh chụp thiếu sáng, bị nén mạnh trên mạng xã hội có thể giảm độ nét so với ảnh gốc.</p>
+
+      <h4 style="color:var(--red);margin-top:8px">7. Sai khác màu sắc</h4>
+      <p>Màu sắc hiển thị trên màn hình phát quang (RGB) có thể có độ lệch tự nhiên khoảng 5–10% so với mực in trên giấy Couche cao cấp (CMYK). Sai lệch màu nghiêm trọng do lỗi máy in sẽ được xưởng in lại ngay.</p>
+
+      <h4 style="color:var(--red);margin-top:8px">8. Hao mòn và sử dụng không đúng cách</h4>
+      <p>Chính sách không áp dụng với hư hỏng phát sinh sau khi nhận do va đập rơi vỡ, để vào nước làm cháy vi mạch pin loa hoặc tự ý can thiệp phần cứng.</p>
+
+      <h4 style="color:var(--red);margin-top:8px">9. Cách gửi yêu cầu đổi trả / bảo hành</h4>
+      <p>Quý khách vui lòng cung cấp: (1) Mã đơn hàng; (2) Số điện thoại đặt hàng; (3) Video mở hộp (unboxing) và hình ảnh thể hiện rõ lỗi.<br>
+      Gửi về Hotline/Zalo: <strong>0931.940.512</strong> hoặc Email: <strong>support@melsou.vn</strong>.</p>
+
+      <h4 style="color:var(--red);margin-top:8px">10. Xử lý yêu cầu</h4>
+      <p>Melsou phản hồi phương án xử lý trong vòng <strong>24 giờ làm việc</strong> kể từ khi tiếp nhận đầy đủ thông tin xác minh.</p>
+
+      <h4 style="color:var(--red);margin-top:8px">11. Sản xuất lại</h4>
+      <p>Khi được chấp thuận sản xuất lại: <strong>Khách hàng không phải trả thêm bất kỳ chi phí nào</strong>, Melsou chịu 100% phí sản xuất mới và phí vận chuyển giao tận tay bạn.</p>
+
+      <h4 style="color:var(--red);margin-top:8px">12. Hoàn tiền</h4>
+      <p>Nếu phương án sản xuất lại không khả thi, Melsou sẽ hoàn tiền qua tài khoản ngân hàng của bạn trong vòng 1–3 ngày làm việc.</p>
+
+      <h4 style="color:var(--red);margin-top:8px">13. Quy định gửi trả sản phẩm</h4>
+      <p>Do tính chất cá nhân hóa, bạn không cần tự ý gửi hàng về trước khi có hướng dẫn cụ thể từ bộ phận CSKH Melsou.</p>
+
+      <h4 style="color:var(--red);margin-top:8px">14. Hủy hoặc thay đổi đơn hàng</h4>
+      <p>Nếu đơn hàng <strong>chưa đưa vào máy in</strong>, Melsou hỗ trợ chỉnh sửa miễn phí. Khi đơn hàng đã vào quy trình in nhiệt/bồi bìa, không thể hủy đơn.</p>
+
+      <h4 style="color:var(--red);margin-top:8px">15. Đơn hàng giao không thành công</h4>
+      <p>Đơn vị vận chuyển hỗ trợ giao tối đa 3 lần. Nếu sai địa chỉ do khách hàng, phí ship lần sau có thể do khách chi trả.</p>
+
+      <h4 style="color:var(--red);margin-top:8px">16. Trường hợp thất lạc đơn hàng</h4>
+      <p>Nếu đơn hàng bị thất lạc do vận chuyển, Melsou sẽ <strong>sản xuất gấp lại album mới và giao hỏa tốc</strong> cho bạn.</p>
+
+      <h4 style="color:var(--red);margin-top:8px">17. Chống lạm dụng chính sách</h4>
+      <p>Melsou có quyền từ chối các yêu cầu có dấu hiệu cố ý làm hư hại sản phẩm hoặc gian lận.</p>
+
+      <h4 style="color:var(--red);margin-top:8px">18. Quyền của người tiêu dùng</h4>
+      <p>Chính sách luôn bảo đảm đầy đủ các quyền lợi chính đáng của người tiêu dùng theo quy định của pháp luật Việt Nam.</p>
+
+      <h4 style="color:var(--red);margin-top:8px">19. Thông tin liên hệ</h4>
+      <p><strong>Melsou Keepsake Studio TP.HCM</strong><br>
+      Hotline: <strong>0931.940.512</strong> (Zalo 24/7)<br>
+      Email tiếp nhận: <strong>support@melsou.vn</strong></p>
+    </div>
+    <div style="border-top:1px solid var(--gray-l);padding-top:12px;display:flex;justify-content:flex-end">
+      <button class="btn-primary" onclick="closeWarrantyPolicyModal()">Đã Hiểu</button>
+    </div>
+  </div>
+</div>
+
+
+<!-- ════════ 🦶 FOOTER ════════ -->
+<footer>
+  <div class="footer-grid">
+    <div class="footer-col">
+      <div style="font-family:'Pacifico',cursive;font-size:24px;color:var(--red);margin-bottom:4px">melsou</div>
+      <div style="font-size:10px;letter-spacing:2px;color:#888;margin-bottom:14px">MELODY &amp; SOUVENIR</div>
+      <p style="font-size:13.5px;line-height:1.7;color:#888;max-width:320px">Gói tâm tình trong dáng hình thanh âm. Nơi giai điệu gặp gỡ kỷ niệm, và mỗi trang ảnh biết cất lời.</p>
+
+      <!-- SOCIAL CHANNELS (FB44 / FOOTER ENHANCEMENT) -->
+      <div class="footer-social-block" style="margin-top:20px">
+        <div style="font-size:11px;font-weight:800;letter-spacing:1.5px;color:var(--dark);text-transform:uppercase;margin-bottom:10px" id="footerSocialHeading">KẾT NỐI VỚI MELSOU</div>
+        <div class="footer-social-links" style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+          <!-- Email -->
+          <a href="mailto:contact@melsou.vn" class="social-icon-btn" title="Email: contact@melsou.vn" aria-label="Email Melsou">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"></path><polyline points="22,6 12,13 2,6"></polyline></svg>
+          </a>
+          <!-- Facebook -->
+          <a href="https://facebook.com/melsou.vn" target="_blank" rel="noopener noreferrer" class="social-icon-btn" title="Facebook Melsou" aria-label="Facebook Melsou">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/></svg>
+          </a>
+          <!-- TikTok -->
+          <a href="https://tiktok.com/@melsou.vn" target="_blank" rel="noopener noreferrer" class="social-icon-btn" title="TikTok Melsou" aria-label="TikTok Melsou">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M12.525.02c1.31-.02 2.61-.01 3.91-.02.08 1.53.63 3.09 1.75 4.17 1.12 1.11 2.7 1.62 4.24 1.79v4.03c-1.44-.05-2.89-.35-4.2-.97-.57-.26-1.1-.59-1.62-1.01-.01 2.92.01 5.84-.02 8.75-.08 1.4-.54 2.79-1.35 3.94-1.31 1.92-3.58 3.17-5.91 3.21-1.43.08-2.86-.31-4.08-1.03-2.02-1.19-3.44-3.37-3.65-5.71-.02-.5-.03-1-.01-1.49.18-1.9 1.12-3.72 2.58-4.96 1.66-1.44 3.98-2.13 6.15-1.72.02 1.48-.04 2.96-.04 4.44-.99-.32-2.15-.23-3.02.37-.63.41-1.11 1.04-1.36 1.75-.21.51-.24 1.07-.14 1.61.24 1.64 1.82 3.02 3.5 2.87 1.12-.01 2.19-.66 2.77-1.61.19-.33.4-.67.41-1.06.1-1.79.06-3.57.07-5.36.01-4.03-.01-8.05.02-12.07z"/></svg>
+          </a>
+          <!-- Instagram -->
+          <a href="https://instagram.com/melsou.vn" target="_blank" rel="noopener noreferrer" class="social-icon-btn" title="Instagram Melsou" aria-label="Instagram Melsou">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="2" width="20" height="20" rx="5" ry="5"></rect><path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z"></path><line x1="17.5" y1="6.5" x2="17.51" y2="6.5"></line></svg>
+          </a>
+          <!-- Threads -->
+          <a href="https://threads.net/@melsou.vn" target="_blank" rel="noopener noreferrer" class="social-icon-btn" title="Threads Melsou" aria-label="Threads Melsou">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M12.186 24h-.007c-3.581-.024-6.334-1.205-8.184-3.509C2.26 18.301 1.5 15.358 1.5 11.728c0-3.699.822-6.68 2.443-8.86C5.787.828 8.566 0 12.203 0h.015c3.388 0 6.096.793 8.05 2.357 1.944 1.556 3.067 3.843 3.339 6.796l-3.087.279c-.218-2.265-1.037-3.978-2.433-5.093-1.428-1.14-3.483-1.719-6.107-1.719-2.916 0-5.11.666-6.52 1.98C3.896 6.068 3.19 8.529 3.19 11.728c0 3.14.654 5.564 1.944 7.206 1.401 1.782 3.518 2.698 6.292 2.719 3.007.021 5.37-.847 6.832-2.448.966-1.057 1.536-2.427 1.716-4.108H12.18v-2.73h9.814c.057.447.086.915.086 1.403 0 2.473-.788 4.673-2.342 6.539C17.75 22.709 15.26 23.976 12.186 24zm.447-11.455c-1.397 0-2.492.355-3.255 1.055-.747.686-1.127 1.637-1.127 2.827 0 1.157.378 2.083 1.124 2.753.753.676 1.83 1.019 3.204 1.019 1.467 0 2.585-.369 3.324-1.096.721-.71 1.096-1.677 1.117-2.873v-.087c-.021-1.185-.399-2.14-1.124-2.842-.741-.717-1.859-1.08-3.324-1.08z"/></svg>
+          </a>
+        </div>
+      </div>
+    </div>
+    <div class="footer-col">
+      <h4>Sản Phẩm</h4>
+      <ul>
+        <li><a href="javascript:void(0)" onclick="selectPackage('melody', 159000)">Gói Melody</a></li>
+        <li><a href="javascript:void(0)" onclick="selectPackage('voice', 219000)">Gói Voice</a></li>
+        <li><a href="javascript:void(0)" onclick="selectPackage('signature', 259000)">Gói Signature</a></li>
+        <li><a href="javascript:void(0)" onclick="showPage('templates')">Thư viện Template</a></li>
+      </ul>
+    </div>
+    <div class="footer-col">
+      <h4>Hỗ Trợ</h4>
+      <ul>
+        <li><a href="javascript:void(0)" onclick="showPage('tracking')">Tra cứu đơn hàng</a></li>
+        <li><a href="javascript:void(0)" onclick="openWarrantyPolicyModal()">Chính sách bảo hành</a></li>
+        <li><a href="javascript:void(0)" onclick="openPrivacyPolicyModal()">Chính sách bảo mật</a></li>
+        <li><a href="tel:0931940512" id="footerLinkContactPhone">Liên hệ xưởng (0931.940.512)</a></li>
+      </ul>
+    </div>
+    <div class="footer-col">
+      <h4>Thương Hiệu</h4>
+      <ul>
+        <li><a href="javascript:void(0)" onclick="showPage('home')">About us</a></li>
+        <li><a href="javascript:void(0)" onclick="scrollToSection('values')">Giá trị cốt lõi</a></li>
+        <li><a href="javascript:void(0)">Xưởng in TP.HCM</a></li>
+      </ul>
+    </div>
+  </div>
+  <div class="footer-bottom">
+    <div>© 2026 melsou · Xưởng chế tác tại TP.HCM · Bảo hành 1–1 trong 7 ngày</div>
+  </div>
+</footer>
+
+<!-- BACK TO TOP BUTTON (FB08) -->
+<button class="back-to-top-btn" id="backToTopBtn" onclick="scrollToTop()" title="Về đầu trang">↑</button>
+
+<!-- ════════ 🌟 STUDIO ONBOARDING COACH MARK (FB18) ════════ -->
+<div class="modal-backdrop" id="studioOnboardingModal">
+  <div class="modal-box" style="max-width:520px;padding:32px 28px;border-radius:20px;text-align:center">
+    <div style="font-size:44px;margin-bottom:12px" id="somStepIcon">🪄</div>
+    <div style="font-size:11px;font-weight:800;letter-spacing:1.5px;color:var(--red);text-transform:uppercase" id="somStepBadge">HƯỚNG DẪN STUDIO · 01/03</div>
+    <h3 style="font-size:22px;color:var(--dark);margin:8px 0 10px" id="somStepTitle">Thanh công cụ sáng tạo bên trái</h3>
+    <p style="font-size:13.5px;color:#4b5563;line-height:1.65;margin-bottom:24px" id="somStepDesc">Tại đây bạn có thể thêm trang đôi, tải ảnh kỷ niệm, dán sticker trang trí, viết lời nhắn tặng và chọn bài hát Spotify cho album.</p>
+    <div style="display:flex;justify-content:space-between;align-items:center">
+      <button class="btn-outline" onclick="skipStudioOnboarding()">Bỏ qua hướng dẫn</button>
+      <button class="btn-primary" id="somNextBtn" onclick="nextStudioOnboardingStep()">Tiếp tục (1/3) →</button>
+    </div>
+  </div>
+</div>
+
+<!-- SPEED DIAL WIDGET -->
+<div class="speed-dial-widget">
+  <div class="speed-dial-menu" id="speedDialMenu">
+    <a href="javascript:void(0)" class="sdm-item" onclick="openCustomerChat()"><span>💬</span> Chat trực tiếp</a>
+    <a href="https://zalo.me" target="_blank" class="sdm-item"><span>🔵</span> Nhắn Zalo</a>
+    <a href="tel:0931940512" class="sdm-item"><span>📞</span> Hotline: 0931.940.512</a>
+  </div>
+  <button class="sd-main-btn" onclick="toggleSpeedDial()" title="Tư vấn hỗ trợ">💬</button>
+</div>
+
+<!-- 🌟 MELSOU CONTEXT MENU (CANVA-STYLE RIGHT-CLICK & MORE) 🌟 -->
+<div id="melsouContextMenu" class="melsou-context-menu"></div>
+
+<script src="./app.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="./auth-client.js"></script>
+</body>
+</html>
