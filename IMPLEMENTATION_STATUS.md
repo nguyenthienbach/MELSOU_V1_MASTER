@@ -8,6 +8,7 @@
 - Server-side quote algorithm with deterministic VND integer arithmetic.
 - Authenticated project save endpoint using expected revision and an atomic database increment; concurrent stale saves receive a conflict instead of overwriting newer work.
 - Private R2 upload/download endpoints with project authorization, magic-byte image allowlist, per-file/draft limits, opaque storage keys and checksum capture.
+- Private R2 image-processing pipeline with decoder-backed validation, bounded retry state, metadata-free WebP Studio previews, metadata-free PNG render derivatives, deterministic object keys and renderer/preflight integration for JPEG, PNG, WebP and HEIC/HEIF inputs.
 - SePay webhook handler that validates raw body HMAC, timestamp replay window, transaction shape and configured bank account before invoking an idempotent database RPC.
 - Google-only sign-in at checkout, authenticated project creation/upload/sync and transactional order creation with immutable project snapshot, order-code sequence, authoritative quote, Twin shipments, a hard print-profile gate and OWNER-only prepress approval.
 - Server-side preflight for pinned template slots, asset availability/quality, Spotify URL and complete print profile; test-covered as a blocking production gate.
@@ -18,7 +19,6 @@
 
 ## Deliberately not represented as complete
 
-- Private R2 image-processing pipeline that produces raster display previews and converts HEIC/WebP originals into print-ready derivatives. The current renderer safely accepts JPEG/PNG originals and emits a private SVG prepress preview.
 - Production approval remains blocked until the vendor provides the required physical print profile and a real print sample is signed off. The renderer already produces separate deterministic cover/interior PDFs, a Spotify QR when selected, a private preview and an immutable manifest from the frozen snapshot.
 - Duo Sync invitation/realtime user interface and customer tracking history user interface.
 - Deployment to a user-owned Cloudflare account, real Supabase migration run, or SePay Test Mode verification.

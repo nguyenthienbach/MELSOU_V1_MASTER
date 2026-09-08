@@ -8,7 +8,7 @@ Apply all files in `supabase/migrations/` to the intended Supabase project in fi
 
 ## 2. Cloudflare Worker
 
-Create/deploy this Worker using `wrangler.jsonc`. Configure non-secret variables separately from secrets. Sensitive values belong in Cloudflare Secrets—not source control—using the names in `.dev.vars.example` and `.env.example`; include the internal render callback token. Cloudflare supports encrypted Worker secrets and static assets in one deployment. [Workers secrets](https://developers.cloudflare.com/workers/configuration/secrets/) and [static assets](https://developers.cloudflare.com/workers/static-assets/).
+Create/deploy this Worker using `wrangler.jsonc`. Enable the configured `IMAGES` binding so uploads can be decoder-validated and converted from private R2 originals into metadata-free preview/render derivatives; do not expose originals through a public transformation URL. Configure non-secret variables separately from secrets. Sensitive values belong in Cloudflare Secrets—not source control—using the names in `.dev.vars.example` and `.env.example`; include the internal render callback token. Cloudflare supports encrypted Worker secrets and static assets in one deployment. [Workers secrets](https://developers.cloudflare.com/workers/configuration/secrets/), [Images binding](https://developers.cloudflare.com/images/optimization/binding/) and [static assets](https://developers.cloudflare.com/workers/static-assets/).
 
 ## 3. SePay
 
@@ -20,4 +20,4 @@ Configure private Cloudflare R2 for upload originals/previews, Google OAuth, and
 
 ## 5. Go-live gates
 
-Run real Google login, SePay test mode, HMAC forged/replay/duplicate/mismatch tests, R2 authorization tests, order and prepress-owner authorization checks, and an actual print sample with approved vendor profile. Keep production in preview/demo mode until every gate passes.
+Run real Google login, SePay test mode, HMAC forged/replay/duplicate/mismatch tests, R2 authorization tests, a remote Images-binding decode/EXIF/orientation check with representative JPEG/PNG/WebP/HEIC files, order and prepress-owner authorization checks, and an actual print sample with approved vendor profile. Keep production in preview/demo mode until every gate passes.
