@@ -2,6 +2,14 @@
 
 This log prevents accidental overlap. Add the newest entry at the top.
 
+## IN PROGRESS — Codex — FB90 private asset preflight binding
+
+- **When / agent:** 2026-09-10 — Codex
+- **Files reserved:** `demo/recovery_fb38/auth-client.js`, `COLLABORATION_LOG.md`
+- **Purpose:** Upload the first real FB90 customer image to private storage, persist its asset ID in the canonical document, and wait for its approved derivative before checkout.
+- **Protected contracts:** FB90 presentation, private asset validation, content preflight, server pricing, SePay, and golden checkpoints remain unchanged.
+- **Status:** IN PROGRESS
+
 ## DONE — Codex — decouple V1 checkout from tracking verification
 
 - **When / agent:** 2026-09-10 — Codex

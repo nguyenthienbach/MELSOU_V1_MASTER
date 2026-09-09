@@ -46,6 +46,25 @@
     }
     return body;
   };
+  const imageDataUri = (draft) => {
+    const candidates = [
+      ...(Array.isArray(draft?.userGallery) ? draft.userGallery : []),
+      ...(Array.isArray(draft?.spreads) ? draft.spreads.flatMap((spread) => [
+        spread?.coverImg,
+        spread?.backImg,
+        ...(Array.isArray(spread?.elements) ? spread.elements.filter((item) => item?.type === 'photo').map((item) => item.img) : [])
+      ]) : [])
+    ];
+    return candidates.find((value) => typeof value === 'string' && /^data:image\/(?:jpeg|png|webp|heic|heif);base64,/i.test(value)) || null;
+  };
+  const dataUriBody = (value) => {
+    const match = /^data:([^;,]+);base64,(.+)$/i.exec(value || '');
+    if (!match) throw new Error('INVALID_IMAGE_DATA');
+    const binary = atob(match[2]);
+    const bytes = new Uint8Array(binary.length);
+    for (let index = 0; index < binary.length; index += 1) bytes[index] = binary.charCodeAt(index);
+    return { body: bytes, mimeType: match[1].toLowerCase() };
+  };
   const showError = (message) => window.MelsouAuth?.setLoginState('error', message);
 
   function safeEditorPayload(value) {
@@ -67,17 +86,21 @@
 
   function projectDocument() {
     const draft = window.melsouGetActiveDraft?.() || {};
+    const bridge = readBridge();
     const requestedTemplate = templateByPackage[draft.package] || 'melsou-editorial';
     const pageCount = Math.min(24, Math.max(12, Array.isArray(draft.spreads) ? draft.spreads.length * 2 : 12));
     const pages = pageCount <= 12 ? 12 : pageCount <= 16 ? 16 : 24;
     const sizeByClass = { 'ratio-portrait': 'A5_PORTRAIT', 'ratio-square': 'SQUARE', 'ratio-landscape': 'A5_LANDSCAPE', compact: 'A6' };
     const size = sizeByClass[draft.sizeClass] || 'A5_PORTRAIT';
     const templateId = size === 'A5_LANDSCAPE' ? 'melsou-editorial' : (requestedTemplate === 'melsou-editorial' ? 'memory-box' : requestedTemplate);
+    const contentBindings = bridge.primaryAssetId ? { image_01: { asset_id: bridge.primaryAssetId } } : {};
+    if (templateId === 'melsou-editorial') contentBindings.headline_01 = { text: String(draft.title || 'Album chưa đặt tên').slice(0, 120) };
     return {
       schema_version: 1,
       template: { template_id: templateId, version: 1 },
       configuration: { size, pages },
       cover: { title: String(draft.title || 'Album chưa đặt tên').slice(0, 120), quote: String(draft.quote || '').slice(0, 500) },
+      content_bindings: contentBindings,
       // The Studio payload is namespaced so the locked V1 document remains valid
       // while the Antigravity UI is progressively migrated to template slots.
       editor_payload: safeEditorPayload(draft)
@@ -123,8 +146,40 @@
     return next;
   }
 
+  async function ensurePrimaryAsset(bridge) {
+    if (bridge.primaryAssetId) return bridge;
+    const source = imageDataUri(window.melsouGetActiveDraft?.() || {});
+    if (!source) return bridge;
+    const upload = dataUriBody(source);
+    const path = bridge.ownership === 'account' ? `/projects/${bridge.projectId}/assets` : `/guest/projects/${bridge.projectId}/assets`;
+    const response = await fetch(`${apiBase}${path}`, { method: 'POST', credentials: 'include', headers: { 'Content-Type': upload.mimeType }, body: upload.body });
+    const result = await response.json().catch(() => ({}));
+    if (!response.ok || !result.asset?.id) {
+      const error = new Error(result.error || `ASSET_UPLOAD_FAILED (${response.status})`);
+      error.code = result.error || 'ASSET_UPLOAD_FAILED';
+      throw error;
+    }
+    const next = { ...bridge, primaryAssetId: result.asset.id };
+    writeBridge(next);
+    return next;
+  }
+
+  async function waitForPrimaryAsset(bridge) {
+    if (!bridge.primaryAssetId) throw Object.assign(new Error('MISSING_REQUIRED_SLOT:image_01'), { code: 'MISSING_REQUIRED_SLOT:image_01' });
+    const path = bridge.ownership === 'account' ? `/assets/${bridge.primaryAssetId}/preview` : `/guest/assets/${bridge.primaryAssetId}/preview`;
+    for (let attempt = 0; attempt < 10; attempt += 1) {
+      const response = await fetch(`${apiBase}${path}`, { credentials: 'include' });
+      if (response.ok) { await response.body?.cancel(); return; }
+      const result = await response.json().catch(() => ({}));
+      if (response.status !== 409 || result.error !== 'ASSET_PROCESSING_NOT_READY') throw Object.assign(new Error(result.error || 'ASSET_PROCESSING_FAILED'), { code: result.error || 'ASSET_PROCESSING_FAILED' });
+      await new Promise((resolve) => setTimeout(resolve, 400));
+    }
+    throw Object.assign(new Error('ASSET_PROCESSING_NOT_READY'), { code: 'ASSET_PROCESSING_NOT_READY' });
+  }
+
   async function persistDraft() {
-    const bridge = await ensureGuestProject();
+    let bridge = await ensureGuestProject();
+    bridge = await ensurePrimaryAsset(bridge);
     const token = nativeUser ? null : await sessionToken().catch(() => null);
     const authenticated = Boolean((nativeUser || token) && bridge.ownership === 'account');
     const path = authenticated ? `/projects/${bridge.projectId}` : `/guest/projects/${bridge.projectId}`;
@@ -160,7 +215,7 @@
     });
     const claimed = Array.isArray(result.projects) ? result.projects.find((project) => project.id === bridge.projectId) : null;
     if (!claimed) throw new Error('Không thể chuyển bản thiết kế vào tài khoản. Bản nháp trên máy vẫn được giữ nguyên; hãy thử lại.');
-    const next = { projectId: claimed.id, revision: claimed.revision, ownership: 'account' };
+    const next = { ...bridge, projectId: claimed.id, revision: claimed.revision, ownership: 'account' };
     writeBridge(next);
     return next;
   }
@@ -257,6 +312,7 @@
   window.codexCreateOrder = async function codexCreateOrder({ customer }) {
     if (!nativeUser && !(await sessionToken().catch(() => null))) throw new Error('UNAUTHENTICATED');
     const project = await persistDraft();
+    await waitForPrimaryAsset(readBridge());
     const configuration = checkoutConfiguration();
     const orderResult = await api('/orders', {
       method: 'POST',
