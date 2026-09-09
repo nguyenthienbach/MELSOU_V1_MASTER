@@ -2,6 +2,16 @@
 
 This log prevents accidental overlap. Add the newest entry at the top.
 
+## DONE — Codex — production native-auth runtime compatibility
+
+- **When / agent:** 2026-09-10 — Codex
+- **Files reserved:** `worker/native-auth.mjs`, `worker/native-auth.test.mjs`, `BACKEND_INTEGRATION_CONTRACT.md`, `COLLABORATION_LOG.md`
+- **Purpose:** Use Cloudflare Workers' supported PBKDF2 iteration ceiling so real native registration/login can execute.
+- **Protected contracts:** Unique password salts, PBKDF2-HMAC-SHA-256, session security, rate limiting, FB90 UI, and Supabase authorization remain unchanged.
+- **Checks:** `npm test` — 71/71 passed; production register returned 201 and production login returned 200 through `melsou.vercel.app`.
+- **Deployment:** Cloudflare Worker production version `2dfea710-2bee-40ed-8455-0aa0ccf7fc6a`.
+- **Status:** DONE
+
 ## DONE — Codex — Vercel API proxy
 
 - **When / agent:** 2026-09-10 — Codex

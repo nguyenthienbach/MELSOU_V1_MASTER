@@ -1,6 +1,6 @@
 import { ContractError } from './backend-contracts.mjs';
 
-export const PASSWORD_ITERATIONS = 310000;
+export const PASSWORD_ITERATIONS = 100000;
 const encoder = new TextEncoder();
 
 export function normalizeUsername(value) {

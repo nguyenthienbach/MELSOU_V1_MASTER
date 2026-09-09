@@ -53,7 +53,7 @@ derive account state from localStorage.
 Usernames are 3–32 normalized lowercase ASCII characters using letters,
 numbers, `.`, `_` or `-`. Passwords are 12–128 characters with at least one
 letter and number. The Worker derives a PBKDF2-HMAC-SHA-256 verifier with a
-unique salt and 310,000 iterations; plaintext passwords and raw session tokens
+unique salt and 100,000 iterations (the Cloudflare Workers runtime maximum); plaintext passwords and raw session tokens
 are never stored. Username change requires the current password and has a
 30-day cooldown.
 
