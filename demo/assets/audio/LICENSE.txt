@@ -1,0 +1,6 @@
+﻿Asset: page-flip.mp3
+Description: Realistic book page flip / paper turning sound effect.
+Duration: ~0.55s
+Source: Freesound ID 151220 by OwlStorm / Pixabay Sound Effects (Clean page turn)
+License: Creative Commons 0 (CC0) / Pixabay Content License
+Permitted usage: Commercial and non-commercial use, free to adapt and distribute without attribution required.
