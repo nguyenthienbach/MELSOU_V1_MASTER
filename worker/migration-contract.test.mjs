@@ -62,3 +62,11 @@ test('Product Owner auth and voice migration is private, version-safe and servic
   assert.doesNotMatch(sql, /grant select on public\.voice_assets,public\.order_voice_selections to authenticated/);
   assert.doesNotMatch(sql, /password_plaintext|raw_session_token/);
 });
+
+test('new orders receive SePay-compatible payment codes without changing legacy references', async () => {
+  const sql = await migrationSql();
+  assert.match(sql, /new\.payment_code\s*:=\s*'mel'\s*\|\|\s*v_yymm\s*\|\|\s*lpad\(v_sequence::text,\s*4,\s*'0'\)/);
+  assert.match(sql, /before insert on public\.orders/);
+  assert.match(sql, /payment_code_sequence_exhausted/);
+  assert.doesNotMatch(sql, /update\s+public\.orders\s+set\s+payment_code/);
+});

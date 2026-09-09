@@ -10,6 +10,13 @@
     "not_found_handling": "single-page-application"
   },
   "images": { "binding": "IMAGES" },
+  "ratelimits": [
+    {
+      "name": "API_RATE_LIMITER",
+      "namespace_id": "1001",
+      "simple": { "limit": 20, "period": 60 }
+    }
+  ],
   "vars": {
     "APP_ENV": "production",
     "SEPAY_ALLOWED_CLOCK_SKEW_SECONDS": "300",

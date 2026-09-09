@@ -2,6 +2,25 @@
 
 This log prevents accidental overlap. Add the newest entry at the top.
 
+## DONE — Codex — Vercel API proxy
+
+- **When / agent:** 2026-09-10 — Codex
+- **Files reserved:** `demo/recovery_fb38/vercel.json`, `COLLABORATION_LOG.md`
+- **Purpose:** Route FB90 same-origin `/api/*` requests to the production Cloudflare Worker when hosted on Vercel.
+- **Protected contracts:** FB90 HTML/CSS/JavaScript and all golden checkpoints remain unchanged.
+- **Checks:** JSON structure, exact rewrite source/destination, and `auth-client.js` syntax passed; no FB90 presentation file changed.
+- **Status:** DONE
+
+## DONE — Codex — SePay-compatible payment references
+
+- **When / agent:** 2026-09-10 — Codex
+- **Files reserved:** `supabase/migrations/202609100005_sepay_payment_code.sql`, `worker/migration-contract.test.mjs`, `COLLABORATION_LOG.md`
+- **Purpose:** Generate `MEL` + eight-digit payment codes for new orders while retaining legacy lookup compatibility.
+- **Protected contracts:** HMAC and amount validation, immutable payment expectations, existing order codes, and FB90 UI remain unchanged.
+- **Result:** Production migration applied; a new order received a `MEL` + eight-digit payment code and remained `AWAITING_PAYMENT`. Legacy payment references remain queryable unchanged.
+- **Checks:** `npm test` — 71/71 passed; live Supabase order creation and format verification passed.
+- **Status:** DONE
+
 ## PARTIAL — Codex — FB90 real backend integration path
 
 - **When / agent:** started 2026-09-10 — Codex
