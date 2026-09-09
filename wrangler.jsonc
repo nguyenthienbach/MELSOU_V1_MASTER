@@ -4,19 +4,17 @@
   "main": "worker/index.mjs",
   "compatibility_date": "2026-08-26",
   "assets": {
-    "directory": "./demo",
+    "directory": "./demo/recovery_fb38",
     "binding": "ASSETS",
     "run_worker_first": ["/api/*"],
     "not_found_handling": "single-page-application"
   },
-  "r2_buckets": [
-    { "binding": "MELSOU_ASSETS", "bucket_name": "melsou-hot-private", "preview_bucket_name": "melsou-hot-private-preview" }
-  ],
   "images": { "binding": "IMAGES" },
   "vars": {
     "APP_ENV": "production",
     "SEPAY_ALLOWED_CLOCK_SKEW_SECONDS": "300",
-    "VOICE_MAX_BYTES": "5242880"
+    "VOICE_MAX_BYTES": "5242880",
+    "SUPABASE_STORAGE_BUCKET": "melsou-assets"
   },
   "triggers": { "crons": ["17,47 * * * *"] }
 }

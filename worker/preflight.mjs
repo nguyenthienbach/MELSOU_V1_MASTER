@@ -13,7 +13,7 @@ const printReady = (profile) => profile && profile.production_ready === true && 
 const validSpotifyUrl = (value) => { try { const url = new URL(value); return url.protocol === 'https:' && ['open.spotify.com', 'spotify.com'].includes(url.hostname); } catch { return false; } };
 const positivePixelDimension = (value) => Number.isInteger(Number(value)) && Number(value) > 0;
 
-export function runPreflight({ document, assets = [], printProfile = null }) {
+export function runPreflight({ document, assets = [], printProfile = null, requirePrintProfile = true }) {
   const blocking = []; const warnings = [];
   if (!document || typeof document !== 'object') return { status: 'BLOCKING_ERROR', blocking: ['PROJECT_DOCUMENT_INVALID'], warnings };
   const templateId = document.template?.template_id || document.template_id;
@@ -37,6 +37,6 @@ export function runPreflight({ document, assets = [], printProfile = null }) {
     } else if (typeof binding.text !== 'string' || !binding.text.trim()) blocking.push(`MISSING_CONTENT:${slot}`);
   }
   if (document.options?.spotify_enabled && !validSpotifyUrl(document.options?.spotify_url || document.spotify_url || '')) blocking.push('INVALID_SPOTIFY_URL');
-  if (!printReady(printProfile)) blocking.push('TBD_PRINT_VENDOR');
+  if (requirePrintProfile && !printReady(printProfile)) blocking.push('TBD_PRINT_VENDOR');
   return { status: blocking.length ? 'BLOCKING_ERROR' : warnings.length ? 'WARNING' : 'PASS', blocking, warnings };
 }

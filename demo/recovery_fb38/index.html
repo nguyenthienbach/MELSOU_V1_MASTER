@@ -1003,7 +1003,7 @@
         <input type="text" class="form-input" id="regUsernameInput" placeholder="Chọn tên tài khoản..." autocomplete="username">
       </div>
       <div style="text-align:left;margin-bottom:12px">
-        <label style="font-size:12px;font-weight:700;color:var(--gray);display:block;margin-bottom:4px" id="lblRegPassword">Mật khẩu (tối thiểu 6 ký tự)</label>
+        <label style="font-size:12px;font-weight:700;color:var(--gray);display:block;margin-bottom:4px" id="lblRegPassword">Mật khẩu (ít nhất 12 ký tự, gồm chữ và số)</label>
         <div style="position:relative">
           <input type="password" class="form-input" id="regPasswordInput" placeholder="Tạo mật khẩu an toàn..." autocomplete="new-password" style="padding-right:38px">
           <button type="button" class="pwd-toggle-btn" onclick="togglePasswordVisibility('regPasswordInput', this)" style="position:absolute;right:10px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;font-size:15px;color:var(--gray)" title="Hiện/ẩn mật khẩu">👁️</button>
@@ -1372,7 +1372,7 @@
         </label>
       </div>
 
-      <button class="btn-primary" style="width:100%;justify-content:center" onclick="goToSepayVietQrStep()">Xác nhận đặt hàng (Mô phỏng VietQR) →</button>
+      <button class="btn-primary" style="width:100%;justify-content:center" onclick="goToSepayVietQrStep()">Xác nhận đặt hàng →</button>
     </div>
 
     <!-- STEP 2: VIETQR WITH WATERMARK (FB20) -->
@@ -1389,18 +1389,18 @@
         </div>
 
         <div style="display:flex;flex-direction:column;gap:6px;text-align:left;max-width:360px;margin:0 auto;font-size:12.5px">
-          <div class="copy-pill"><span>Ngân hàng: <strong>MB (Quân Đội) · Chuyển khoản VietQR</strong></span></div>
-          <div class="copy-pill"><span>Số TK: <strong>00931940512</strong></span><button class="copy-btn" onclick="copyToClipboard('00931940512')">Copy</button></div>
-          <div class="copy-pill"><span>Chủ TK: <strong>MELSOU VIETNAM</strong></span></div>
+          <div class="copy-pill"><span>Ngân hàng: <strong id="paymentBankName">--</strong></span></div>
+          <div class="copy-pill"><span>Số TK: <strong id="paymentBankAccount">--</strong></span><button class="copy-btn" onclick="copyToClipboard(document.getElementById('paymentBankAccount').textContent)">Copy</button></div>
+          <div class="copy-pill"><span>Chủ TK: <strong id="paymentAccountName">--</strong></span></div>
           <div class="copy-pill"><span>Số tiền thanh toán: <strong id="copyAmountText" style="color:var(--red)">--</strong></span><button class="copy-btn" onclick="copyToClipboard(document.getElementById('copyAmountText').textContent)">Copy</button></div>
           <div class="copy-pill"><span>Nội dung chuyển khoản: <strong id="copyMemoText">--</strong></span><button class="copy-btn" onclick="copyToClipboard(document.getElementById('copyMemoText').textContent)">Copy</button></div>
         </div>
 
         <div style="margin-top:14px;background:var(--red-light);color:var(--red);padding:8px 12px;border-radius:8px;font-size:12px;font-weight:700">
-          ⏳ Hệ thống đang mô phỏng xác nhận chuyển khoản SePay...
+          ⏳ Đang chờ webhook SePay xác nhận chuyển khoản...
         </div>
 
-        <button class="btn-primary" style="width:100%;margin-top:12px;justify-content:center" onclick="simulateSuccessfulPayment()">✅ Tôi đã hoàn tất chuyển khoản</button>
+        <button class="btn-primary" style="width:100%;margin-top:12px;justify-content:center" onclick="simulateSuccessfulPayment()">Kiểm tra trạng thái thanh toán</button>
       </div>
     </div>
 

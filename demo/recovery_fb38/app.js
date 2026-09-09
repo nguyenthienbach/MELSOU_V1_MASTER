@@ -350,6 +350,16 @@ function autoSaveToLocalStorage() {
 // Explicit, narrow integration surface for the authentication/persistence bridge.
 // `let ALBUM_DATA` is not a window property, so do not access it indirectly.
 window.melsouGetActiveDraft = () => ALBUM_DATA;
+window.melsouApplyCanonicalDraft = (draft) => {
+  if (!draft || !Array.isArray(draft.spreads)) return false;
+  ALBUM_DATA = Object.assign(getFreshAlbumData(), draft);
+  ALBUM_DATA.spreads.forEach(s => normalizeElementsToSafeArea(s));
+  ALBUM_DATA.extraSpreadsCount = ALBUM_DATA.spreads.filter(s => s.isCustomAdded).length;
+  localStorage.setItem('melsou_active_draft', JSON.stringify(ALBUM_DATA));
+  if (typeof renderStudioWorkspace === 'function') renderStudioWorkspace();
+  if (typeof updateCartBadge === 'function') updateCartBadge();
+  return true;
+};
 
 function loadFromLocalStorage() {
   try {
@@ -590,17 +600,10 @@ function handleUsernameLoginSubmit() {
   }
 
   // Contract hook for Codex backend
-  if (typeof window.codexHandleUsernameLogin === 'function') {
-    window.codexHandleUsernameLogin({ username, password });
+  if (typeof window.codexHandleNativeLogin === 'function') {
+    window.codexHandleNativeLogin({ username, password }).catch(() => {});
   } else {
-    // Polite contract fallback: emulate session locally so PO can verify guest-first checkout continuity
-    currentUser = { loggedIn: true, isGuest: false, name: username, username: username, email: '' };
-    updateHeaderUserUI();
-    closeAuthModal();
-    showToast(currentAppLanguage === 'en' ? `Welcome, ${username}!` : `Chào mừng bạn, ${username}!`);
-    if (ALBUM_DATA.cart && ALBUM_DATA.cart.length > 0) {
-      openCheckoutModal();
-    }
+    window.codexOnAuthError(currentAppLanguage === 'en' ? 'Backend authentication is unavailable.' : 'Backend xác thực chưa sẵn sàng.');
   }
 }
 
@@ -631,9 +634,9 @@ function handleUsernameRegisterSubmit() {
     if (errorMsg) errorMsg.textContent = currentAppLanguage === 'en' ? 'Username contains invalid characters (letters, numbers, underscores and dots only)' : 'Tên tài khoản chỉ được chứa chữ cái, số, dấu gạch dưới hoặc dấu chấm';
     return;
   }
-  if (password.length < 6) {
+  if (password.length < 12 || !/[A-Za-z]/.test(password) || !/\d/.test(password)) {
     if (errorBox) errorBox.style.display = 'flex';
-    if (errorMsg) errorMsg.textContent = currentAppLanguage === 'en' ? 'Password must be at least 6 characters' : 'Mật khẩu phải có tối thiểu 6 ký tự';
+    if (errorMsg) errorMsg.textContent = currentAppLanguage === 'en' ? 'Password must be at least 12 characters and contain a letter and a number' : 'Mật khẩu phải có ít nhất 12 ký tự, gồm chữ và số';
     return;
   }
   if (password !== confirmPassword) {
@@ -643,17 +646,10 @@ function handleUsernameRegisterSubmit() {
   }
 
   // Contract hook for Codex backend
-  if (typeof window.codexHandleUsernameRegister === 'function') {
-    window.codexHandleUsernameRegister({ username, password });
+  if (typeof window.codexHandleNativeRegister === 'function') {
+    window.codexHandleNativeRegister({ username, password }).catch(() => {});
   } else {
-    // Polite contract fallback: emulate session locally so PO can verify guest-first checkout continuity
-    currentUser = { loggedIn: true, isGuest: false, name: username, username: username, email: '' };
-    updateHeaderUserUI();
-    closeAuthModal();
-    showToast(currentAppLanguage === 'en' ? `Account created! Welcome, ${username}` : `Tạo tài khoản thành công! Chào mừng ${username}`);
-    if (ALBUM_DATA.cart && ALBUM_DATA.cart.length > 0) {
-      openCheckoutModal();
-    }
+    window.codexOnAuthError(currentAppLanguage === 'en' ? 'Backend authentication is unavailable.' : 'Backend xác thực chưa sẵn sàng.');
   }
 }
 
@@ -5372,7 +5368,7 @@ function toggleCart() {
 
 // ── CHECKOUT & SEPAY MB BANK (GUEST-FIRST WITH AUTH GATE) ──
 function openAuthOrCheckoutStep() {
-  if (!currentUser || currentUser.isGuest) {
+  if (!currentUser || !currentUser.loggedIn || currentUser.isGuest) {
     showToast(currentAppLanguage === 'en' ? 'Please log in or create an account to proceed with your order' : 'Vui lòng đăng nhập hoặc tạo tài khoản để tiếp tục thanh toán an toàn');
     openAuthModal('login');
     return;
@@ -5404,7 +5400,7 @@ function openCheckoutModal() {
 
 function closeCheckoutModal() { document.getElementById('checkoutModal').classList.remove('open'); }
 
-function goToSepayVietQrStep() {
+async function goToSepayVietQrStep() {
   const name = document.getElementById('shipName').value.trim();
   const phone = document.getElementById('shipPhone').value.trim();
   const address = document.getElementById('shipAddress').value.trim();
@@ -5419,88 +5415,43 @@ function goToSepayVietQrStep() {
     return;
   }
 
-  let totalCart = 0;
-  ALBUM_DATA.cart.forEach(i => { if (i.selected) totalCart += i.price * i.qty; });
-  if (totalCart === 0) totalCart = ALBUM_DATA.basePrice + ALBUM_DATA.sizeAdj + ((ALBUM_DATA.extraSpreadsCount || 0) * EXTRA_SPREAD_PRICE);
-
-  let discountAmt = 0;
-  if (appliedCartVoucher && appliedCartVoucher.discount) {
-    discountAmt = Math.min(totalCart, appliedCartVoucher.discount);
+  if (typeof window.codexCreateOrder !== 'function') return alert('Backend đặt hàng chưa sẵn sàng.');
+  try {
+    const result = await window.codexCreateOrder({ customer: { name, phone, address, email: currentUser?.email || '' } });
+    const payment = result.payment;
+    document.getElementById('vietQrImg').src = payment.qrImageUrl;
+    document.getElementById('copyAmountText').textContent = Number(payment.amount).toLocaleString('vi-VN') + 'đ';
+    document.getElementById('copyMemoText').textContent = payment.transferContent;
+    document.getElementById('paymentBankName').textContent = payment.bankCode;
+    document.getElementById('paymentBankAccount').textContent = payment.accountNumber;
+    document.getElementById('paymentAccountName').textContent = payment.accountName || '--';
+    document.getElementById('checkoutStep1').style.display = 'none';
+    document.getElementById('checkoutStep2').style.display = 'block';
+  } catch (error) {
+    const message = error.code === 'PRINT_PROFILE_NOT_READY' ? 'Chưa có cấu hình in được Product Owner duyệt.' : error.code === 'PAYMENT_NOT_CONFIGURED' ? 'SePay chưa được cấu hình.' : `Không thể tạo đơn: ${error.code || error.message}`;
+    showToast(message);
   }
-  const finalPrice = Math.max(0, totalCart - discountAmt) + 30000;
-  const orderCode = 'MELS' + Date.now().toString().slice(-7);
-
-  const qrUrl = `https://api.vietqr.io/image/970422-00931940512-compact2.jpg?amount=${finalPrice}&addInfo=${orderCode}&accountName=MELSOU%20VIETNAM`;
-  document.getElementById('vietQrImg').src = qrUrl;
-  document.getElementById('copyAmountText').textContent = finalPrice.toLocaleString('vi-VN') + 'đ';
-  document.getElementById('copyMemoText').textContent = orderCode;
-
-  // Contract hook for Codex backend
-  if (typeof window.codexCreateOrder === 'function') {
-    try {
-      window.codexCreateOrder({
-        orderCode,
-        customer: { name, phone, address, email: currentUser?.email || '' },
-        items: ALBUM_DATA.cart.filter(i => i.selected),
-        totalAmount: finalPrice,
-        voucher: appliedCartVoucher
-      });
-    } catch(e) {}
-  }
-
-  document.getElementById('checkoutStep1').style.display = 'none';
-  document.getElementById('checkoutStep2').style.display = 'block';
 }
 
 function copyToClipboard(text) {
   navigator.clipboard.writeText(text).then(() => showToast(`Đã sao chép: ${text}`));
 }
 
-function simulateSuccessfulPayment() {
-  const memoEl = document.getElementById('copyMemoText');
-  const code = (memoEl && memoEl.textContent !== '--') ? memoEl.textContent : ('MELS' + Date.now().toString().slice(-7));
-  const nameEl = document.getElementById('shipName');
-  const phoneEl = document.getElementById('shipPhone');
-  const addressEl = document.getElementById('shipAddress');
-
-  const confirmedOrder = {
-    orderCode: code,
-    customer: {
-      name: (nameEl ? nameEl.value.trim() : '') || (currentAppLanguage === 'en' ? 'Customer' : 'Khách hàng'),
-      phone: (phoneEl ? phoneEl.value.trim() : '') || '',
-      address: (addressEl ? addressEl.value.trim() : '') || '',
-      email: currentUser?.email || ''
-    },
-    items: ALBUM_DATA.cart ? ALBUM_DATA.cart.filter(i => i.selected) : [],
-    totalAmount: ALBUM_DATA.cart ? ALBUM_DATA.cart.reduce((s, i) => s + (i.selected ? i.price * i.qty : 0), 0) + 30000 : 0,
-    status: 'confirmed',
-    statusText: currentAppLanguage === 'en' ? '✅ Payment Verified' : '✅ Đã xác nhận thanh toán',
-    createdAt: new Date().toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' }) + ' · Hôm nay'
-  };
-
-  if (!window.MELSOU_CONFIRMED_ORDERS) window.MELSOU_CONFIRMED_ORDERS = [];
-  window.MELSOU_CONFIRMED_ORDERS.unshift(confirmedOrder);
-
-  if (typeof window.codexCheckPaymentStatus === 'function') {
-    try {
-      window.codexCheckPaymentStatus(confirmedOrder);
-    } catch(e) {}
-  }
-
-  showToast(currentAppLanguage === 'en' ? '✅ Payment verified! Melsou is preparing your bespoke album.' : '✅ Đã ghi nhận chuyển khoản thành công! Melsou đang chuyển sang chế độ chuẩn bị ấn phẩm.');
-
-  // Clean cart of selected items
-  ALBUM_DATA.cart = ALBUM_DATA.cart.filter(i => !i.selected);
-  autoSaveToLocalStorage();
-  updateCartBadge();
-
-  setTimeout(() => {
+async function simulateSuccessfulPayment() {
+  if (typeof window.codexCheckPaymentStatus !== 'function') return showToast('Backend thanh toán chưa sẵn sàng.');
+  try {
+    const order = await window.codexCheckPaymentStatus();
+    if (order.status !== 'PAID') return showToast('Chưa nhận được xác nhận thanh toán từ SePay.');
+    ALBUM_DATA.cart = ALBUM_DATA.cart.filter(i => !i.selected);
+    autoSaveToLocalStorage();
+    updateCartBadge();
+    showToast('✅ SePay đã xác nhận thanh toán.');
     closeCheckoutModal();
     showPage('tracking');
     const trackInput = document.getElementById('trackQueryInput');
-    if (trackInput) trackInput.value = code;
+    if (trackInput) trackInput.value = order.order_code || '';
     performTrackingSearch();
-  }, 1000);
+  } catch (error) { showToast(`Không thể kiểm tra thanh toán: ${error.code || error.message}`); }
 }
 
 // ── 🌟 STUDIO ONBOARDING COACH MARK ENGINE (FB18) ──

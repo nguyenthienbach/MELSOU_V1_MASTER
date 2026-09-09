@@ -250,12 +250,12 @@ proxy needs separately approved Spotify credentials and rate limiting.
 - Configure `AUTH_EMAIL_DELIVERY_URL`, `AUTH_EMAIL_DELIVERY_TOKEN` and
   `APP_BASE_URL` before enabling email link/recovery.
 - Configure `VOICE_MAX_DURATION_SECONDS` from the approved hardware workflow.
-- Bind private R2 as `MELSOU_ASSETS` and Images as `IMAGES`.
+- V1 currently uses the private Supabase Storage bucket `melsou-assets`; only the Worker service role accesses objects. Bind Images as `IMAGES` for validated, metadata-free image derivatives. The Worker keeps an internal R2-compatible object interface so storage can be changed later without changing browser contracts.
 - Configure an `API_RATE_LIMITER` Cloudflare Rate Limiting binding before
   production tracking is enabled.
 - Set `SEPAY_MODE=TEST` for course/demo verification or `LIVE` only after go-live
   approval; set bank fields and the HMAC webhook secret in server configuration.
-- Keep the print profile blocked at `TBD_PRINT_VENDOR` until actual vendor values
+- V1 checkout ends at confirmed payment/order and does not require a print-vendor profile. Any future print/prepress workflow must independently require approved vendor values.
   and a physical sample are approved.
 - Configure Drive/Sheets credentials for scheduled archive/reporting. Archive
   files use deterministic Drive `appProperties`; reporting writes the outbox ID

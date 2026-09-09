@@ -19,6 +19,8 @@
   let configPromise = null;
   let saveTimer = null;
   let saveInFlight = null;
+  let nativeUser = null;
+  let activeOrder = null;
 
   const readBridge = () => {
     try {
@@ -47,8 +49,8 @@
   const showError = (message) => window.MelsouAuth?.setLoginState('error', message);
 
   function safeEditorPayload(value) {
-    // Do not write a local binary/blob into Postgres JSON. The existing R2 asset
-    // pipeline remains the only long-term store for uploaded originals. Layout,
+    // Do not write a local binary/blob into Postgres JSON. Private Supabase Storage
+    // remains the only long-term store for uploaded originals. Layout,
     // typography, text, transforms and remote image URLs are retained here.
     if (typeof value === 'string') return value.startsWith('data:') ? null : value;
     if (Array.isArray(value)) return value.map(safeEditorPayload);
@@ -65,11 +67,16 @@
 
   function projectDocument() {
     const draft = window.melsouGetActiveDraft?.() || {};
-    const templateId = templateByPackage[draft.package] || 'melsou-editorial';
+    const requestedTemplate = templateByPackage[draft.package] || 'melsou-editorial';
+    const pageCount = Math.min(24, Math.max(12, Array.isArray(draft.spreads) ? draft.spreads.length * 2 : 12));
+    const pages = pageCount <= 12 ? 12 : pageCount <= 16 ? 16 : 24;
+    const sizeByClass = { 'ratio-portrait': 'A5_PORTRAIT', 'ratio-square': 'SQUARE', 'ratio-landscape': 'A5_LANDSCAPE', compact: 'A6' };
+    const size = sizeByClass[draft.sizeClass] || 'A5_PORTRAIT';
+    const templateId = size === 'A5_LANDSCAPE' ? 'melsou-editorial' : (requestedTemplate === 'melsou-editorial' ? 'memory-box' : requestedTemplate);
     return {
       schema_version: 1,
       template: { template_id: templateId, version: 1 },
-      configuration: { format: draft.sizeClass || 'ratio-portrait', pages: Array.isArray(draft.spreads) ? draft.spreads.length * 2 : 12 },
+      configuration: { size, pages },
       cover: { title: String(draft.title || 'Album chưa đặt tên').slice(0, 120), quote: String(draft.quote || '').slice(0, 500) },
       // The Studio payload is namespaced so the locked V1 document remains valid
       // while the Antigravity UI is progressively migrated to template slots.
@@ -118,8 +125,8 @@
 
   async function persistDraft() {
     const bridge = await ensureGuestProject();
-    const token = await sessionToken().catch(() => null);
-    const authenticated = Boolean(token && bridge.ownership === 'account');
+    const token = nativeUser ? null : await sessionToken().catch(() => null);
+    const authenticated = Boolean((nativeUser || token) && bridge.ownership === 'account');
     const path = authenticated ? `/projects/${bridge.projectId}` : `/guest/projects/${bridge.projectId}`;
     const result = await api(path, {
       method: 'PUT',
@@ -140,7 +147,7 @@
     }, 700);
   }
 
-  async function claimGuestDraft(session) {
+  async function claimGuestDraft(session = null) {
     const bridge = readBridge();
     // A returning authenticated visitor must not receive a new empty project
     // merely by opening the site. A guest project is created on an actual draft
@@ -149,7 +156,7 @@
     if (bridge.ownership === 'account') return bridge;
     await persistDraft();
     const result = await api('/guest/projects/claim', {
-      method: 'POST', headers: { Authorization: `Bearer ${session.access_token}` }, body: '{}'
+      method: 'POST', headers: session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : {}, body: '{}'
     });
     const claimed = Array.isArray(result.projects) ? result.projects.find((project) => project.id === bridge.projectId) : null;
     if (!claimed) throw new Error('Không thể chuyển bản thiết kế vào tài khoản. Bản nháp trên máy vẫn được giữ nguyên; hãy thử lại.');
@@ -169,7 +176,44 @@
     });
   }
 
+  async function restoreCanonicalProject(authenticated = false) {
+    const bridge = readBridge();
+    if (!bridge.projectId) return;
+    const path = authenticated ? `/projects/${bridge.projectId}` : '/guest/projects';
+    const result = await api(path);
+    const project = authenticated ? result.project : (result.projects || []).find((item) => item.id === bridge.projectId);
+    if (project?.document?.editor_payload) {
+      window.melsouApplyCanonicalDraft?.(project.document.editor_payload);
+      writeBridge({ ...bridge, revision: project.revision, ownership: authenticated ? 'account' : 'guest' });
+    }
+  }
+
+  async function applyNativeUser(user) {
+    nativeUser = user;
+    await claimGuestDraft();
+    await restoreCanonicalProject(true);
+    window.codexOnAuthSuccess?.({ id: user.id, username: user.username, name: user.username, email: user.email || '' });
+  }
+
+  async function nativeAuth(path, credentials) {
+    window.MelsouAuth?.setLoginState('authenticating');
+    try {
+      await ensureGuestProject();
+      await persistDraft();
+      const result = await api(path, { method: 'POST', body: JSON.stringify(credentials) });
+      await applyNativeUser(result.user);
+      return result.user;
+    } catch (error) {
+      window.codexOnAuthError?.(error.code === 'RATE_LIMIT_NOT_CONFIGURED' ? 'Máy chủ chưa cấu hình chống brute-force.' : (error.message || 'Không thể xác thực.'));
+      throw error;
+    }
+  }
+
   window.melsouOnDraftChanged = schedulePersist;
+  window.codexHandleNativeRegister = (credentials) => nativeAuth('/auth/native/register', credentials);
+  window.codexHandleNativeLogin = (credentials) => nativeAuth('/auth/native/login', credentials);
+  window.codexHandleUsernameRegister = window.codexHandleNativeRegister;
+  window.codexHandleUsernameLogin = window.codexHandleNativeLogin;
   window.codexHandleGoogleSignIn = async function codexHandleGoogleSignIn() {
     try {
       window.MelsouAuth?.setLoginState('authenticating');
@@ -188,11 +232,60 @@
     }
   };
   window.codexHandleLogout = async function codexHandleLogout() {
-    try { await (await loadClient()).auth.signOut(); } catch (error) { console.warn('[Melsou] sign-out request failed', error); }
+    try { await api('/auth/native/logout', { method: 'POST', body: '{}' }); } catch (error) { console.warn('[Melsou] native sign-out request failed', error); }
+    nativeUser = null;
+    try { await (await loadClient()).auth.signOut(); } catch { /* Google is optional. */ }
     clearBridge();
+  };
+  window.codexHandleForgotPassword = async ({ email }) => {
+    try {
+      const result = await api('/auth/recovery/request', { method: 'POST', body: JSON.stringify({ email }) });
+      window.MelsouAuth?.setLoginState('idle');
+      return result;
+    } catch (error) { window.codexOnAuthError?.(error.code === 'RECOVERY_EMAIL_REQUIRED' ? 'Tài khoản chưa liên kết email khôi phục.' : error.message); throw error; }
+  };
+  window.codexHandleLinkEmail = async ({ email }) => api('/account/email/link', { method: 'POST', body: JSON.stringify({ email }) });
+
+  function checkoutConfiguration() {
+    const draft = window.melsouGetActiveDraft?.() || {};
+    const packageCode = String(draft.package || 'signature').toUpperCase();
+    const sizeByClass = { 'ratio-portrait': 'A5_PORTRAIT', 'ratio-square': 'SQUARE', 'ratio-landscape': 'A5_LANDSCAPE', compact: 'A6' };
+    const rawPages = Array.isArray(draft.spreads) ? draft.spreads.length * 2 : 12;
+    return { packageCode, size: sizeByClass[draft.sizeClass] || 'A5_PORTRAIT', pages: rawPages <= 12 ? 12 : rawPages <= 16 ? 16 : 24, twin: false, shipments: 1 };
+  }
+
+  window.codexCreateOrder = async function codexCreateOrder({ customer }) {
+    if (!nativeUser && !(await sessionToken().catch(() => null))) throw new Error('UNAUTHENTICATED');
+    const project = await persistDraft();
+    const configuration = checkoutConfiguration();
+    const orderResult = await api('/orders', {
+      method: 'POST',
+      headers: { 'Idempotency-Key': `fb90:${project.id}:${project.revision}:${configuration.packageCode}:${configuration.size}:${configuration.pages}` },
+      body: JSON.stringify({ projectId: project.id, configuration, shipments: [{ recipient: customer.name, phone: customer.phone, address: customer.address }] })
+    });
+    const order = Array.isArray(orderResult.order) ? orderResult.order[0] : orderResult.order;
+    const paymentResult = await api(`/orders/${order.id}/payment`);
+    activeOrder = order;
+    return { order, payment: paymentResult.payment };
+  };
+  window.codexCheckPaymentStatus = async function codexCheckPaymentStatus() {
+    if (!activeOrder?.id) throw new Error('ORDER_NOT_CREATED');
+    const result = await api(`/orders/${activeOrder.id}`);
+    activeOrder = result.order;
+    return result.order;
   };
 
   (async () => {
+    try {
+      await restoreCanonicalProject(false);
+      const account = await api('/account');
+      if (account?.auth?.provider === 'NATIVE') {
+        await applyNativeUser({ id: account.profile?.user_id, username: account.auth.username, email: account.auth.email });
+        return;
+      }
+    } catch (error) {
+      if (error.status !== 401) console.info('[Melsou] native session unavailable:', error.message);
+    }
     try {
       const supabase = await loadClient();
       const { data, error } = await supabase.auth.getSession();

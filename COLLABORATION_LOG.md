@@ -2,6 +2,17 @@
 
 This log prevents accidental overlap. Add the newest entry at the top.
 
+## PARTIAL — Codex — FB90 real backend integration path
+
+- **When / agent:** started 2026-09-10 — Codex
+- **Files reserved:** `COLLABORATION_LOG.md`, `BACKEND_INTEGRATION_CONTRACT.md`, `PRODUCTION_SETUP.md`, `.env.example`, `.dev.vars.example`, `wrangler.jsonc`, `supabase/migrations/202609100001_supabase_storage.sql`, `worker/storage.mjs`, `worker/storage.test.mjs`, `worker/index.mjs`, `worker/routes.test.mjs`, `demo/recovery_fb38/auth-client.js`, and minimal integration-only changes in `demo/recovery_fb38/app.js` / `demo/recovery_fb38/index.html`.
+- **Purpose:** connect approved active FB90 to real native auth, canonical Supabase guest/account persistence, private Supabase Storage, authoritative checkout and non-simulated SePay state.
+- **Protected scope:** do not alter `demo/checkpoint_fb90_golden/`; preserve FB90 presentation/UX; no redesign; no fake auth/payment; backend remains price and order authority.
+- **Result:** active FB90 now calls real native auth/session APIs, restores and claims canonical guest drafts, creates authoritative backend orders without a print-vendor checkout dependency, renders server-issued SePay instructions, and only accepts webhook-confirmed `PAID` state. Private objects use the `melsou-assets` Supabase Storage bucket through a server-only adapter; golden FB90 is untouched.
+- **Checks:** 70/70 backend tests pass, active FB90 JavaScript syntax passes, and `git diff --check` passes.
+- **External gates:** Supabase Production verification passed through real image processing and `AWAITING_PAYMENT` order creation. SePay instructions/webhook confirmation require the configured TEST bank account and webhook secret; production auth also requires the Cloudflare rate-limit binding.
+- **Status:** PARTIAL — checkout/order creation passes; waiting only for owner-controlled SePay configuration to verify payment confirmation.
+
 ## DONE — Codex — Product Owner auth and web-voice source-of-truth update
 
 - **When / agent:** started 2026-09-08 — Codex

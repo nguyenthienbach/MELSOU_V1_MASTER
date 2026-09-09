@@ -5,6 +5,7 @@ import { processRenderJobs, templateCatalog, templateFor } from './renderer.mjs'
 import { assertDraftAssetQuota, assertUploadSize, inspectUploadedImage, processAssetJobs } from './image-processing.mjs';
 import { PASSWORD_ITERATIONS, assertPassword, derivePassword, normalizeOptionalEmail, normalizeUsername, randomSecret, verifyPassword } from './native-auth.mjs';
 import { inspectVoiceBytes, processVoiceCleanupJobs } from './voice.mjs';
+import { withPrivateStorage } from './storage.mjs';
 import {
   ContractError, assertCartConfiguration, assertCheckpointReason, assertIdempotencyKey, assertProjectDocument, assertUuid,
   buildPaymentInstructions, normalizeTrackingPhone, sanitizeAccountPatch, sanitizeAddress, sanitizeBlogPost, sanitizeShipments
@@ -708,28 +709,26 @@ async function handleCreateOrder(request, env) {
   } catch (error) { return contractFailure(error); }
   const paymentMode = String(env.SEPAY_MODE || (env.APP_ENV === 'production' ? '' : 'TEST')).toUpperCase();
   if (!['TEST', 'LIVE'].includes(paymentMode)) return json({ error: 'PAYMENT_MODE_NOT_CONFIGURED' }, 503);
-  const [pricing, assetResponse, profileResponse] = await Promise.all([
+  const [pricing, assetResponse] = await Promise.all([
     activePricing(env),
-    fetch(`${env.SUPABASE_URL}/rest/v1/project_assets?project_id=eq.${input.projectId}&select=id,status,processing_state,normalized_key,normalized_mime_type,normalized_width_px,normalized_height_px`, { headers: supabaseHeaders(env) }),
-    fetch(`${env.SUPABASE_URL}/rest/v1/print_profiles?production_ready=eq.true&select=production_ready,configuration&order=created_at.desc&limit=1`, { headers: supabaseHeaders(env) })
+    fetch(`${env.SUPABASE_URL}/rest/v1/project_assets?project_id=eq.${input.projectId}&select=id,status,processing_state,normalized_key,normalized_mime_type,normalized_width_px,normalized_height_px`, { headers: supabaseHeaders(env) })
   ]);
   if (!pricing) return json({ error: 'ACTIVE_PRICING_UNAVAILABLE' }, 503);
   let quote;
   try { quote = createQuote(input.configuration, pricing.rules); } catch { return json({ error: 'INVALID_QUOTE_CONFIGURATION' }, 400); }
   if (shipments.length !== quote.shipments) return json({ error: 'INVALID_SHIPMENTS' }, 400);
-  if (!assetResponse.ok || !profileResponse.ok) return json({ error: 'PREFLIGHT_LOOKUP_FAILED' }, 503);
-  const [assets, profiles] = await Promise.all([assetResponse.json(), profileResponse.json()]);
-  const preflight = runPreflight({ document: project.document, assets, printProfile: profiles[0] || null });
+  if (!assetResponse.ok) return json({ error: 'PREFLIGHT_LOOKUP_FAILED' }, 503);
+  const assets = await assetResponse.json();
+  const preflight = runPreflight({ document: project.document, assets, requirePrintProfile: false });
   if (preflight.status === 'BLOCKING_ERROR') return json({ error: 'PREFLIGHT_BLOCKING_ERROR', preflight }, 409);
   const response = await fetch(`${env.SUPABASE_URL}/rest/v1/rpc/melsou_create_order_v3`, {
     method: 'POST', headers: supabaseHeaders(env), body: JSON.stringify({ p_customer_id: user.id, p_project_id: input.projectId, p_package_code: quote.packageCode, p_quote: quote, p_shipments: shipments, p_preflight: preflight, p_idempotency_key: idempotencyKey, p_payment_mode: paymentMode })
   });
   if (!response.ok) {
     const details = await response.text();
-    if (details.includes('TBD_PRINT_VENDOR')) return json({ error: 'PRINT_PROFILE_NOT_READY' }, 409);
     if (details.includes('VOICE_SELECTION_REQUIRED')) return json({ error: 'VOICE_SELECTION_REQUIRED' }, 409);
     if (details.includes('VOICE_ASSET_NOT_READY')) return json({ error: 'VOICE_ASSET_NOT_READY' }, 409);
-    return json({ error: 'ORDER_CREATION_FAILED' }, 500);
+    return json({ error: 'ORDER_CREATION_FAILED', ...(env.APP_ENV === 'development' ? { diagnostic: details.slice(0, 500) } : {}) }, 500);
   }
   return json({ order: await response.json() }, 201);
 }
@@ -1022,6 +1021,7 @@ async function handleSePay(request, env) {
 
 export default {
   async fetch(request, env, ctx) {
+    env = withPrivateStorage(env);
     const url = new URL(request.url);
     if (url.pathname === '/api/health' && request.method === 'GET') return json({ ok: true, environment: env.APP_ENV || 'unknown' });
     if (url.pathname === '/api/auth/native/register' && request.method === 'POST') return handleNativeRegister(request, env);
@@ -1123,5 +1123,5 @@ export default {
     if (url.pathname === '/api/sepay/webhook' && request.method === 'POST') return handleSePay(request, env);
     return json({ error: 'NOT_FOUND' }, 404);
   },
-  async scheduled(_event, env, ctx) { ctx.waitUntil(Promise.all([processAssetJobs(env), processVoiceCleanupJobs(env), processOperations(env), processRenderJobs(env), expireInactiveGuestDrafts(env), cleanupExpiredAccountTrash(env)])); }
+  async scheduled(_event, env, ctx) { env = withPrivateStorage(env); ctx.waitUntil(Promise.all([processAssetJobs(env), processVoiceCleanupJobs(env), processOperations(env), processRenderJobs(env), expireInactiveGuestDrafts(env), cleanupExpiredAccountTrash(env)])); }
 };
