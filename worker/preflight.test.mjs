@@ -14,3 +14,10 @@ test('preflight rejects a locked template used with an incompatible size', () =>
   const result = runPreflight({ document: { template: { template_id: 'melsou-editorial' }, configuration: { size: 'A5_PORTRAIT', pages: 12 }, content_bindings: { image_01: { asset_id: 'a' }, headline_01: { text: 'A title' } } }, assets: [{ id: 'a', status: 'READY' }], printProfile: profile });
   assert.equal(result.status, 'BLOCKING_ERROR'); assert.ok(result.blocking.includes('TEMPLATE_CONFIGURATION_INCOMPATIBLE'));
 });
+test('preflight blocks pending processing and accepts a complete normalized derivative', () => {
+  const document = { template: { template_id: 'first-love' }, configuration: { size: 'A5_PORTRAIT', pages: 12 }, content_bindings: { image_01: { asset_id: 'a' } } };
+  const pending = runPreflight({ document, assets: [{ id: 'a', status: 'ORIGINAL_ONLY', processing_state: 'PENDING' }], printProfile: profile });
+  assert.ok(pending.blocking.includes('ASSET_PROCESSING_NOT_READY:image_01'));
+  const ready = runPreflight({ document, assets: [{ id: 'a', status: 'READY', processing_state: 'READY', normalized_key: 'private/normalized.png', normalized_mime_type: 'image/png', normalized_width_px: 2400, normalized_height_px: 1600 }], printProfile: profile });
+  assert.equal(ready.status, 'PASS');
+});
