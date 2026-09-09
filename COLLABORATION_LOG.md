@@ -2,6 +2,16 @@
 
 This log prevents accidental overlap. Add the newest entry at the top.
 
+## DONE — Codex — Vercel proxy native-session origin
+
+- **When / agent:** 2026-09-10 — Codex
+- **Files reserved:** `worker/index.mjs`, `worker/routes.test.mjs`, `wrangler.jsonc`, `COLLABORATION_LOG.md`
+- **Purpose:** Preserve CSRF origin enforcement while accepting authenticated writes proxied from the configured production Vercel origin.
+- **Protected contracts:** HttpOnly cookies, exact-origin validation, native session hashing, FB90 UI, and golden checkpoints remain unchanged.
+- **Checks:** Route regression passed; production Vercel register, cookie restore, authenticated account write, logout/login, and authenticated project API all returned success.
+- **Deployment:** Cloudflare Worker production version `a8f95292-ee91-4b72-90c7-085510f0cd19`.
+- **Status:** DONE
+
 ## DONE — Codex — production native-auth runtime compatibility
 
 - **When / agent:** 2026-09-10 — Codex
