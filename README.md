@@ -35,7 +35,7 @@ The print profile remains intentionally disabled until the vendor gives the real
 - Cloudflare R2 is private hot/working storage; Google Drive is archive; Google Sheets is reporting only.
 - Studio is guest-first. Account authentication is required only at checkout.
 - Canonical auth is unique `username + password`; email linking and Google OAuth are optional. Roles are `OWNER` and `CUSTOMER`.
-- Packages: Melody 159,000 VND, Voice 219,000 VND, Signature 259,000 VND.
+- Packages: Basic (`MELODY`) 119,000 VND, Premium (`VOICE`) 159,000 VND, Signature 199,000 VND.
 - Shipping is 30,000 VND per shipment. A Twin second copy is 75% of the configured first-copy price and may use two shipments.
 - SePay is the payment provider. Only an `OWNER` can approve prepress into production.
 - Duo Sync has at most two participants. Voice orders support a private web recording or an explicit record-at-home choice.

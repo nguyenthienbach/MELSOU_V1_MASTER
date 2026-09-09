@@ -41,7 +41,7 @@ test('database completion enforces idempotency, payment expiry and bounded retry
   assert.match(sql, /order_expectation_immutable/);
   assert.match(sql, /payment_expectation_immutable/);
   assert.match(sql, /invalid_order_status_transition/);
-  assert.doesNotMatch(sql, /"melody":119000|"signature":199000/);
+  assert.match(sql, /"melody":119000,"voice":159000,"signature":199000/);
 });
 
 test('Product Owner auth and voice migration is private, version-safe and service-only', async () => {

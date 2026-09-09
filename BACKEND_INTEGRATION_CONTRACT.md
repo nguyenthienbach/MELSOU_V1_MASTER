@@ -11,7 +11,7 @@ not override them. All browser calls use relative `/api/*` paths and
 
 - V1 remains guest-first. Canonical account auth is unique normalized
   `username + password`; email is optional and Google OAuth is additive.
-- Prices are server-owned: Melody 159,000; Voice 219,000; Signature 259,000 VND.
+- Prices are server-owned: Basic (`MELODY`) 119,000; Premium (`VOICE`) 159,000; Signature 199,000 VND.
 - Voice customers choose `RECORD_ON_WEB` (private recording upload) or
   `RECORD_AT_HOME` (no upload).
 - Project JSON contains normalized design data and asset IDs only. Never send a

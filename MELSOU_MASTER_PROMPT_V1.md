@@ -27,9 +27,9 @@ The primary customer journey is:
 - A guest can have multiple drafts. Drafts are retained for 14 days from last activity, recoverable on the same browser/device, and the newest one is marked as currently being edited. On Google login, claim all and only that guest session's drafts atomically and idempotently.
 - Account project deletion goes to trash for 30 days before lifecycle cleanup. Keep no more than 10 recent checkpoints per project. Checkpoint on Studio step change, Preview and before design lock.
 - Fixed V1 packages and starting prices:
-  - `MELODY`: **159,000 VND**
-  - `VOICE`: **219,000 VND**
-  - `SIGNATURE`: **259,000 VND**
+  - Basic / `MELODY`: **119,000 VND**
+  - Premium / `VOICE`: **159,000 VND**
+  - `SIGNATURE`: **199,000 VND**
   - Shipping: **30,000 VND per shipment**
   - Album Twin: second identical copy = **75% of the configured first-copy amount**
 - Prices must remain data/config driven, versioned and snapshotted onto the immutable order. Never trust client price arithmetic.

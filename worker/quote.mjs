@@ -1,4 +1,4 @@
-export const PACKAGE_PRICES = Object.freeze({ MELODY: 159000, VOICE: 219000, SIGNATURE: 259000 });
+export const PACKAGE_PRICES = Object.freeze({ MELODY: 119000, VOICE: 159000, SIGNATURE: 199000 });
 export const SIZE_MODIFIERS = Object.freeze({ A5_PORTRAIT: 0, SQUARE: 20000, A6: -20000, A5_LANDSCAPE: 10000 });
 export const PAGE_MODIFIERS = Object.freeze({ 12: 0, 16: 30000, 24: 60000 });
 export const SHIPPING_PER_SHIPMENT = 30000;

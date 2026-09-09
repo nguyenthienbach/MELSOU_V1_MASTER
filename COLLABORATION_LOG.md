@@ -2,6 +2,17 @@
 
 This log prevents accidental overlap. Add the newest entry at the top.
 
+## DONE — Codex — FB90 authoritative pricing alignment
+
+- **When / agent:** 2026-09-10 — Codex
+- **Files reserved:** `supabase/migrations/202609100006_fb90_pricing.sql`, `worker/quote.mjs`, `worker/quote.test.mjs`, `worker/routes.test.mjs`, `worker/migration-contract.test.mjs`, `COLLABORATION_LOG.md`
+- **Purpose:** Version FB90 package prices into canonical server pricing while preserving immutable existing order snapshots.
+- **Protected contracts:** Backend-calculated totals, 30,000 VND per shipment, 75% Twin pricing, SePay expectations, FB90 UI, and existing orders remain unchanged.
+- **Result:** Supabase pricing version 2 is active; existing order snapshots remain immutable. A new Signature order through production Vercel was created at 229,000 VND (`199,000 + 30,000`) with no extra charge.
+- **Checks:** `npm test` passed 72/72; production order creation returned 201 and `AWAITING_PAYMENT`.
+- **Deployment:** Cloudflare Worker production version `3e4bb5fd-cc42-4245-aa5c-129e39f486cd`.
+- **Status:** DONE
+
 ## DONE — Codex — Vercel proxy native-session origin
 
 - **When / agent:** 2026-09-10 — Codex

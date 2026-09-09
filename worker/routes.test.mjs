@@ -9,7 +9,7 @@ test('health endpoint is explicit about environment', async () => {
 test('quote endpoint uses server-side price arithmetic', async () => {
   const response = await worker.fetch(new Request('https://melsou.test/api/quote', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ packageCode: 'SIGNATURE', size: 'A5_PORTRAIT', pages: 12, twin: false, shipments: 1 }) }), {});
   assert.equal(response.status, 200);
-  assert.equal((await response.json()).quote.total, 289000);
+  assert.equal((await response.json()).quote.total, 229000);
 });
 test('quote endpoint rejects untrusted invalid configurations', async () => {
   const response = await worker.fetch(new Request('https://melsou.test/api/quote', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ packageCode: 'SIGNATURE', size: 'A5_PORTRAIT', pages: 12, twin: false, shipments: 2 }) }), {});

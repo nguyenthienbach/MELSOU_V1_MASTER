@@ -4,9 +4,9 @@ All price arithmetic occurs server-side in integer VND; client values are displa
 
 | Item | Locked V1 value |
 |---|---:|
-| Melody | 159,000 VND |
-| Voice | 219,000 VND |
-| Signature | 259,000 VND |
+| Basic (`MELODY`) | 119,000 VND |
+| Premium (`VOICE`) | 159,000 VND |
+| Signature | 199,000 VND |
 | A5 portrait | +0 |
 | Square | +20,000 |
 | A6 | -20,000 |
