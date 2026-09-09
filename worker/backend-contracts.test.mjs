@@ -56,7 +56,8 @@ test('tracking verification and SePay QR instructions are server-derived', () =>
 
 test('shipment snapshots require real bounded recipient data', () => {
   assert.deepEqual(sanitizeShipments([{ recipient: 'Customer', phone: '0912 345 678', address: 'Synthetic test address' }]), [{ recipient: 'Customer', phone: '0912 345 678', address: 'Synthetic test address' }]);
-  assert.throws(() => sanitizeShipments([{ recipient: '', phone: '123', address: '' }]), /INVALID_TRACKING_VERIFICATION|INVALID_SHIPMENTS/);
+  assert.throws(() => sanitizeShipments([{ recipient: '', phone: '123', address: '' }]), /INVALID_SHIPMENTS/);
+  assert.throws(() => sanitizeShipments([{ recipient: 'Customer', phone: 'call-me-0912345678', address: 'Synthetic test address' }]), /INVALID_SHIPMENTS/);
 });
 
 test('customer address input is bounded and cannot carry arbitrary fields', () => {

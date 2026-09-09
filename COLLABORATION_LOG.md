@@ -2,6 +2,16 @@
 
 This log prevents accidental overlap. Add the newest entry at the top.
 
+## DONE — Codex — decouple V1 checkout from tracking verification
+
+- **When / agent:** 2026-09-10 — Codex
+- **Files reserved:** `worker/backend-contracts.mjs`, `worker/backend-contracts.test.mjs`, `COLLABORATION_LOG.md`
+- **Purpose:** Validate the shipment contact independently without invoking the post-order tracking-verification contract during checkout.
+- **Protected contracts:** Real recipient/phone/address validation, server pricing, SePay expectations, FB90 UI, and public tracking verification remain enforced.
+- **Checks:** `npm test` passed 72/72; production Vercel checkout with a valid formatted delivery phone returned 201, 229,000 VND and `AWAITING_PAYMENT`.
+- **Deployment:** Cloudflare Worker production version `337ee0f1-6d08-4096-b388-3104fdf2084b`.
+- **Status:** DONE
+
 ## DONE — Codex — FB90 authoritative pricing alignment
 
 - **When / agent:** 2026-09-10 — Codex

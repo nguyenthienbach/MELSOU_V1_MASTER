@@ -161,14 +161,22 @@ export function normalizeTrackingPhone(value) {
   return digits;
 }
 
+function sanitizeShipmentPhone(value) {
+  const phone = String(value || '').trim();
+  const digits = phone.replace(/\D/g, '');
+  if (phone.length > 30 || !/^[0-9+().\s-]+$/.test(phone) || digits.length < 9 || digits.length > 15) {
+    throw new ContractError('INVALID_SHIPMENTS');
+  }
+  return phone;
+}
+
 export function sanitizeShipments(value) {
   if (!Array.isArray(value) || ![1, 2].includes(value.length)) throw new ContractError('INVALID_SHIPMENTS');
   return value.map((shipment) => {
     if (!shipment || typeof shipment !== 'object' || Array.isArray(shipment)) throw new ContractError('INVALID_SHIPMENTS');
     const recipient = String(shipment.recipient || '').trim();
-    const phone = String(shipment.phone || '').trim();
+    const phone = sanitizeShipmentPhone(shipment.phone);
     const address = String(shipment.address || '').trim();
-    normalizeTrackingPhone(phone);
     if (!recipient || recipient.length > 100 || address.length < 5 || address.length > 500 || phone.length > 30) throw new ContractError('INVALID_SHIPMENTS');
     return { recipient, phone, address };
   });
