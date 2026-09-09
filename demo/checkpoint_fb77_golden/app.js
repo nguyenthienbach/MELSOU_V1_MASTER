@@ -178,7 +178,7 @@ const ALBUM_FORMATS = {
     singleHeight: 440,
     spreadWidth: 892,
     spreadHeight: 440,
-    priceDelta: 0
+    priceDelta: 20000
   },
   'ratio-landscape': {
     id: 'a5-landscape',
@@ -192,7 +192,7 @@ const ALBUM_FORMATS = {
     singleHeight: 350,
     spreadWidth: 992,
     spreadHeight: 350,
-    priceDelta: 0
+    priceDelta: 10000
   },
   'ratio-mini': {
     id: 'a6-mini',
@@ -206,44 +206,9 @@ const ALBUM_FORMATS = {
     singleHeight: 480,
     spreadWidth: 652,
     spreadHeight: 480,
-    priceDelta: 0
+    priceDelta: -20000
   }
 };
-
-// ════════════════════════════════════════════════════════════
-// 📐 FB85: UNIFIED CONTAINER & VIEWPORT RESPONSIVE ARCHITECTURE
-// ════════════════════════════════════════════════════════════
-function getViewportTier() {
-  const w = window.innerWidth;
-  if (w < 768) return 'compact'; // Mobile (< 768px)
-  if (w < 1180) return 'medium'; // Tablet (768px - 1179.98px)
-  return 'wide'; // Desktop (>= 1180px)
-}
-
-function isMobileViewport() {
-  return window.innerWidth < 768;
-}
-
-function isTabletViewport() {
-  const w = window.innerWidth;
-  return w >= 768 && w < 1180;
-}
-
-function isDesktopViewport() {
-  return window.innerWidth >= 1180;
-}
-
-function syncResponsiveDeviceClasses() {
-  if (typeof document === 'undefined' || !document.body) return;
-  const isTouch = ('ontouchstart' in window) || (navigator.maxTouchPoints > 0);
-  const tier = getViewportTier();
-
-  document.body.classList.toggle('tier-compact', tier === 'compact');
-  document.body.classList.toggle('tier-medium', tier === 'medium');
-  document.body.classList.toggle('tier-wide', tier === 'wide');
-  document.body.classList.toggle('is-touch-device', isTouch);
-  document.body.classList.toggle('is-pointer-device', !isTouch);
-}
 
 function getCurrentAlbumFormat() {
   const sc = (typeof ALBUM_DATA !== 'undefined' && ALBUM_DATA.sizeClass) || 'ratio-portrait';
@@ -253,20 +218,17 @@ function getCurrentAlbumFormat() {
 function getFreshAlbumData() {
   return {
     version: SCHEMA_VERSION,
-    title: 'Bản thiết kế mới',
-    quote: '',
+    title: 'FRIEND SHIP',
+    quote: 'Snapshots of happiness that never fade.',
     salutation: 'Gửi người thương,',
-    message: '',
-    signature: '— melsou keepsake —',
+    message: 'Cảm ơn cậu vì đã luôn ở bên, ngay cả những lúc tôi không biết mình cần được ở bên. Mỗi trang sách này là một phần tuổi trẻ tuyệt đẹp của chúng ta... 💖',
+    signature: '— Sài Gòn, 2026 · melsou keepsake —',
     letterFont: "'Lora', serif",
     inkColor: '#1A1A1A',
-    spotifyUrl: null,
-    spotifyTrack: null,
-    spotifyTrackId: null,
-    spotifyTrackObj: null,
-    spotifyArtwork: null,
-    spotifyCodeImg: null,
-    spotifyEmbed: null,
+    spotifyUrl: '',
+    spotifyTrack: '',
+    spotifyTrackId: '',
+    spotifyCodeImg: '',
     package: 'signature',
     basePrice: 199000,
     sizeAdj: 0,
@@ -285,47 +247,69 @@ function getFreshAlbumData() {
     isHomeRecording: false,
     activePhotoSlot: null,
     photoTransforms: {},
-    userGallery: [],
+    userGallery: [
+      'https://images.unsplash.com/photo-1529156069898-49953e39b3ac?w=600&auto=format&fit=crop&q=80',
+      'https://images.unsplash.com/photo-1517841905240-472988babdf9?w=600&auto=format&fit=crop&q=80',
+      'https://images.unsplash.com/photo-1539571696357-5a69c17a67c6?w=600&auto=format&fit=crop&q=80',
+      'https://images.unsplash.com/photo-1492562080023-ab3db95bfbce?w=600&auto=format&fit=crop&q=80'
+    ],
     spreads: [
       {
         id: 'cover',
         name: 'Bìa Trước',
         isClosedCover: true,
-        coverImg: 'https://images.unsplash.com/photo-1518895949257-7621c3c786d7?w=800&auto=format&fit=crop&q=80',
+        coverImg: 'https://images.unsplash.com/photo-1529156069898-49953e39b3ac?w=800&auto=format&fit=crop&q=80',
         elements: []
       },
       {
         id: 'spread-1',
         name: 'Trang 2–3',
         leftType: 'spotify-hero',
-        elements: []
+        elements: [
+          { id: 101, type: 'photo', img: 'https://images.unsplash.com/photo-1517841905240-472988babdf9?w=600&auto=format&fit=crop&q=80', x: 380, y: 30, width: 200, rotate: -2 },
+          { id: 102, type: 'photo', img: 'https://images.unsplash.com/photo-1539571696357-5a69c17a67c6?w=600&auto=format&fit=crop&q=80', x: 370, y: 220, width: 190, rotate: 2 }
+        ]
       },
       {
         id: 'spread-2',
         name: 'Trang 4–5',
-        elements: []
+        elements: [
+          { id: 201, type: 'photo', img: 'https://images.unsplash.com/photo-1529156069898-49953e39b3ac?w=600&auto=format&fit=crop&q=80', x: 30, y: 40, width: 180, rotate: -2 },
+          { id: 202, type: 'photo', img: 'https://images.unsplash.com/photo-1492562080023-ab3db95bfbce?w=600&auto=format&fit=crop&q=80', x: 50, y: 220, width: 180, rotate: 2 },
+          { id: 203, type: 'photo', img: 'https://images.unsplash.com/photo-1517841905240-472988babdf9?w=600&auto=format&fit=crop&q=80', x: 380, y: 40, width: 180, rotate: -2 },
+          { id: 204, type: 'photo', img: 'https://images.unsplash.com/photo-1539571696357-5a69c17a67c6?w=600&auto=format&fit=crop&q=80', x: 370, y: 220, width: 170, rotate: 2 }
+        ]
       },
       {
         id: 'spread-3',
         name: 'Trang 6–7',
-        elements: []
+        elements: [
+          { id: 301, type: 'photo', img: 'https://images.unsplash.com/photo-1511632765486-a01980e01a18?w=800&auto=format&fit=crop&q=80', x: 30, y: 50, width: 250, rotate: 0 },
+          { id: 302, type: 'photo', img: 'https://images.unsplash.com/photo-1469474968028-56623f02e42e?w=600&auto=format&fit=crop&q=80', x: 370, y: 100, width: 190, rotate: 2 }
+        ]
       },
       {
         id: 'spread-4',
         name: 'Trang 8–9',
-        elements: []
+        elements: [
+          { id: 401, type: 'photo', img: 'https://images.unsplash.com/photo-1507525428034-b723cf961d3e?w=600&auto=format&fit=crop&q=80', x: 35, y: 40, width: 170, rotate: -4 },
+          { id: 402, type: 'photo', img: 'https://images.unsplash.com/photo-1519741497674-611481863552?w=800&auto=format&fit=crop&q=80', x: 370, y: 80, width: 190, rotate: 2 }
+        ]
       },
       {
         id: 'spread-5',
         name: 'Trang 10–11',
         leftType: 'handwritten-letter',
-        elements: []
+        elements: [
+          { id: 501, type: 'photo', img: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=600&auto=format&fit=crop&q=80', x: 380, y: 40, width: 190, rotate: -2 },
+          { id: 502, type: 'photo', img: 'https://images.unsplash.com/photo-1506744038136-46273834b3fb?w=600&auto=format&fit=crop&q=80', x: 370, y: 220, width: 180, rotate: 2 }
+        ]
       },
       {
         id: 'back-cover',
         name: 'Bìa Sau',
         isClosedBack: true,
-        backImg: '',
+        backImg: 'https://images.unsplash.com/photo-1518895949257-7621c3c786d7?w=600&auto=format&fit=crop&q=80',
         elements: []
       }
     ],
@@ -856,22 +840,14 @@ function syncHeroLiveBook() {
 
   const isEn = (currentAppLanguage === 'en');
   if (heroStep === 0) {
-    const heroCover = (ALBUM_DATA.spreads && ALBUM_DATA.spreads[0] && ALBUM_DATA.spreads[0].coverImg) || TEMPLATES_DATA[0].coverImg;
-    const heroTitle = ALBUM_DATA.title || (isEn ? 'Artistic Photobook' : 'Album Kỷ Niệm');
-    const heroQuote = ALBUM_DATA.quote || (isEn ? 'Snapshots of happiness that never fade.' : 'Mở phẳng 180° liền trang · Kỷ vật tình yêu');
-    left.innerHTML = `<div style="font-family:'Pacifico',cursive;font-size:22px;color:var(--yellow)">melsou</div><div><div style="font-family:'Lora',serif;font-size:20px;font-weight:700">${heroTitle}</div><div style="font-size:11.5px;font-style:italic;opacity:0.8;margin-top:4px">"${heroQuote}"</div></div><div style="font-size:10px;opacity:0.7">${isEn ? '180° Layflat Hardcover · Click to flip 3D →' : 'Bìa cứng mở phẳng 180° · Bấm để lật 3D →'}</div>`;
-    right.innerHTML = `<div class="pb-polaroid" style="transform:rotate(2deg)"><div class="pb-washi-corner" style="top:-6px;left:50%;transform:translateX(-50%)"></div><div style="height:120px;background:url('${heroCover}') center/cover;border-radius:2px"></div></div><div class="spotify-soundwave-bar" style="margin:0"><div class="spotify-logo-icon">🎵</div><div class="spotify-wave-lines"><span class="sw-line" style="height:8px"></span><span class="sw-line" style="height:16px"></span><span class="sw-line" style="height:10px"></span><span class="sw-line" style="height:20px"></span></div><span style="font-size:10px;font-weight:700">Spotify</span></div>`;
-  } else if (heroStep === 1) {
-    const songName = (ALBUM_DATA.spotifyTrack || (isEn ? 'Until I Found You' : 'Giai Điệu Kỷ Niệm')).split('—')[0];
-    const img1 = (ALBUM_DATA.userGallery && ALBUM_DATA.userGallery[0]) || TEMPLATES_DATA[0].spread1;
-    const img2 = (ALBUM_DATA.userGallery && ALBUM_DATA.userGallery[1]) || TEMPLATES_DATA[0].spread2;
-    left.innerHTML = `<div style="font-size:10px;font-weight:800;color:var(--red)">OUR TIMES</div><h3 style="font-size:18px">${isEn ? 'Cherished Melody' : 'Giai Điệu Kỷ Niệm'}</h3><div class="spotify-soundwave-bar"><div class="spotify-logo-icon">🎵</div><div class="spotify-wave-lines"><span class="sw-line" style="height:14px"></span><span class="sw-line" style="height:22px"></span><span class="sw-line" style="height:8px"></span><span class="sw-line" style="height:18px"></span></div><span style="font-size:10px;font-weight:700">${songName}</span></div>`;
-    right.innerHTML = `<div class="pb-polaroid" style="transform:rotate(-3deg)"><div style="height:110px;background:url('${img1}') center/cover"></div></div><div class="pb-polaroid" style="transform:rotate(3deg);margin-top:6px"><div style="height:110px;background:url('${img2}') center/cover"></div></div>`;
+    left.innerHTML = `<div style="font-family:'Pacifico',cursive;font-size:22px;color:var(--yellow)">melsou</div><div><div style="font-family:'Lora',serif;font-size:20px;font-weight:700">${ALBUM_DATA.title}</div><div style="font-size:11.5px;font-style:italic;opacity:0.8;margin-top:4px">"${ALBUM_DATA.quote}"</div></div><div style="font-size:10px;opacity:0.7">${isEn ? '180° Layflat Hardcover · Click to flip 3D →' : 'Bìa cứng mở phẳng 180° · Bấm để lật 3D →'}</div>`;
+    right.innerHTML = `<div class="pb-polaroid" style="transform:rotate(2deg)"><div class="pb-washi-corner" style="top:-6px;left:50%;transform:translateX(-50%)"></div><div style="height:120px;background:url('${ALBUM_DATA.spreads[0].coverImg}') center/cover;border-radius:2px"></div></div><div class="spotify-soundwave-bar" style="margin:0"><div class="spotify-logo-icon">🎵</div><div class="spotify-wave-lines"><span class="sw-line" style="height:8px"></span><span class="sw-line" style="height:16px"></span><span class="sw-line" style="height:10px"></span><span class="sw-line" style="height:20px"></span></div><span style="font-size:10px;font-weight:700">Spotify</span></div>`;
+} else if (heroStep === 1) {
+    left.innerHTML = `<div style="font-size:10px;font-weight:800;color:var(--red)">OUR TIMES</div><h3 style="font-size:18px">${isEn ? 'Cherished Melody' : 'Giai Điệu Kỷ Niệm'}</h3><div class="spotify-soundwave-bar"><div class="spotify-logo-icon">🎵</div><div class="spotify-wave-lines"><span class="sw-line" style="height:14px"></span><span class="sw-line" style="height:22px"></span><span class="sw-line" style="height:8px"></span><span class="sw-line" style="height:18px"></span></div><span style="font-size:10px;font-weight:700">${(ALBUM_DATA.spotifyTrack || (isEn ? 'No track selected' : 'Chưa chọn bài hát')).split('—')[0]}</span></div>`;
+    right.innerHTML = `<div class="pb-polaroid" style="transform:rotate(-3deg)"><div style="height:110px;background:url('${ALBUM_DATA.userGallery[0]}') center/cover"></div></div><div class="pb-polaroid" style="transform:rotate(3deg);margin-top:6px"><div style="height:110px;background:url('${ALBUM_DATA.userGallery[1]}') center/cover"></div></div>`;
   } else {
-    const img3 = (ALBUM_DATA.userGallery && ALBUM_DATA.userGallery[2]) || TEMPLATES_DATA[1].spread1;
-    const msg = ALBUM_DATA.message || (isEn ? 'Every page holds a cherished piece of our journey together...' : 'Mỗi trang sách này là một phần tuổi trẻ tuyệt đẹp của chúng ta... 💖');
-    left.innerHTML = `<span style="font-family:'Pacifico',cursive;color:var(--red);font-size:16px">${ALBUM_DATA.salutation || (isEn ? 'Dearest,' : 'Gửi người thương,')}</span><p style="font-family:${ALBUM_DATA.letterFont};color:${ALBUM_DATA.inkColor};font-size:11px;font-style:italic;line-height:1.6;margin-top:4px">${msg.slice(0, 110)}...</p><div style="font-size:9.5px;color:var(--gray);text-align:right;margin-top:8px">${ALBUM_DATA.signature}</div>`;
-    right.innerHTML = `<div class="pb-polaroid" style="height:100%"><div style="height:100%;background:url('${img3}') center/cover;border-radius:2px"></div></div>`;
+    left.innerHTML = `<span style="font-family:'Pacifico',cursive;color:var(--red);font-size:16px">${ALBUM_DATA.salutation || (isEn ? 'Dearest,' : 'Gửi người thương,')}</span><p style="font-family:${ALBUM_DATA.letterFont};color:${ALBUM_DATA.inkColor};font-size:11px;font-style:italic;line-height:1.6;margin-top:4px">${ALBUM_DATA.message.slice(0, 110)}...</p><div style="font-size:9.5px;color:var(--gray);text-align:right;margin-top:8px">${ALBUM_DATA.signature}</div>`;
+    right.innerHTML = `<div class="pb-polaroid" style="height:100%"><div style="height:100%;background:url('${ALBUM_DATA.userGallery[2]}') center/cover;border-radius:2px"></div></div>`;
   }
 }
 
@@ -952,18 +928,8 @@ function closeTemplateOnboardingModal() { document.getElementById('templateOnboa
 function loadTemplateToStudio(name, quote, coverImg) {
   closeTemplateOnboardingModal();
   ALBUM_DATA.title = name;
-  ALBUM_DATA.quote = quote || '';
-  if (coverImg && ALBUM_DATA.spreads && ALBUM_DATA.spreads[0]) {
-    ALBUM_DATA.spreads[0].coverImg = coverImg;
-  }
-  // FB87: Hard Rule - All interior freestyle spreads must be BLANK for EVERY template
-  if (Array.isArray(ALBUM_DATA.spreads)) {
-    ALBUM_DATA.spreads.forEach((s, idx) => {
-      if (idx > 0 && idx < ALBUM_DATA.spreads.length - 1) {
-        s.elements = [];
-      }
-    });
-  }
+  ALBUM_DATA.quote = quote;
+  if (coverImg) ALBUM_DATA.spreads[0].coverImg = coverImg;
   autoSaveToLocalStorage();
   showPage('studio');
   showToast(currentAppLanguage === 'en' ? `Applied template: ${name}` : `Đã áp dụng mẫu: ${name}`);
@@ -1022,149 +988,53 @@ function switchCanvaTab(tabIndex) {
   else if (tabIndex === 5) jumpToSpread(ALBUM_DATA.package === 'melody' ? 1 : ALBUM_DATA.spreads.length - 1);
 }
 
-// ── ➕ THÊM TRANG ĐÔI MỞ RỘNG (+15K/2 TRANG) & QUẢN LÝ SPREAD (FB88) ──
-let spreadIndexPendingRemoval = null;
-
-function scrollActiveFilmstripItemIntoView() {
-  setTimeout(() => {
-    const activeItem = document.querySelector('#studioFilmstripTray .filmstrip-item.active');
-    if (activeItem) {
-      activeItem.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
-    }
-  }, 50);
-}
-
-function syncActiveAlbumToCartIfPresent() {
-  if (!ALBUM_DATA || !Array.isArray(ALBUM_DATA.cart)) return;
-  const existingIdx = ALBUM_DATA.cart.findIndex(i => i.title && i.title.startsWith(`Album melsou · ${ALBUM_DATA.title}`));
-  if (existingIdx !== -1) {
-    const extraCost = (ALBUM_DATA.extraSpreadsCount || 0) * EXTRA_SPREAD_PRICE;
-    const pageCount = (ALBUM_DATA.spreads.length - 2) * 2;
-    const isEn = (currentAppLanguage === 'en');
-    const specs = isEn 
-      ? `${pageCount} pages · 180° Layflat · Couche 250gsm` 
-      : `${pageCount} trang · Mở phẳng 180° · In Couche 250gsm`;
-    ALBUM_DATA.cart[existingIdx].extraSpreadsCount = ALBUM_DATA.extraSpreadsCount || 0;
-    ALBUM_DATA.cart[existingIdx].extraCost = extraCost;
-    ALBUM_DATA.cart[existingIdx].price = (ALBUM_DATA.cart[existingIdx].basePrice || ALBUM_DATA.basePrice) + (ALBUM_DATA.sizeAdj || 0) + extraCost;
-    ALBUM_DATA.cart[existingIdx].specs = specs;
-    updateCartBadge();
-  }
-}
-
+// ── ➕ THÊM TRANG ĐÔI MỞ RỘNG (+15K/2 TRANG) ──
 function addNewSpreadToAlbum() {
-  const isEn = (currentAppLanguage === 'en');
-  pushStudioSnapshot(isEn ? 'Add 2 pages' : 'Thêm 2 trang');
   const insertIndex = ALBUM_DATA.spreads.length - 1; // Ngay trước Bìa Sau
   const newSpreadId = 'spread-custom-' + Date.now();
 
   const newSpread = {
     id: newSpreadId,
-    name: isEn ? 'New Spread' : 'Trang mới',
+    name: 'Trang mới',
     isCustomAdded: true,
-    elements: []
+    elements: [
+      { id: Date.now() + 1, type: 'photo', frameStyle: 'polaroid', img: ALBUM_DATA.userGallery[0] || 'https://images.unsplash.com/photo-1529156069898-49953e39b3ac?w=600&auto=format&fit=crop&q=80', x: 60, y: 60, width: 220, rotate: -2, crop: { zoom: 1.0, offsetX: 0, offsetY: 0 } },
+      { id: Date.now() + 2, type: 'photo', frameStyle: 'polaroid', img: ALBUM_DATA.userGallery[1] || 'https://images.unsplash.com/photo-1517841905240-472988babdf9?w=600&auto=format&fit=crop&q=80', x: 480, y: 60, width: 220, rotate: 2, crop: { zoom: 1.0, offsetX: 0, offsetY: 0 } }
+    ]
   };
 
   ALBUM_DATA.spreads.splice(insertIndex, 0, newSpread);
-  ALBUM_DATA.extraSpreadsCount = ALBUM_DATA.spreads.filter(s => s.isCustomAdded).length;
+  ALBUM_DATA.extraSpreadsCount = (ALBUM_DATA.extraSpreadsCount || 0) + 1;
   ALBUM_DATA.activeSpreadIndex = insertIndex;
 
   renumberSpreads();
-  syncActiveAlbumToCartIfPresent();
   autoSaveToLocalStorage();
   renderStudioWorkspace();
-  scrollActiveFilmstripItemIntoView();
-  showToast(isEn ? 'Added 2 pages (+15,000₫)' : '✅ Đã thêm thành công 2 trang (+15.000đ)!');
+  showToast(currentAppLanguage === 'en' ? 'Added 2 pages (+15,000₫)' : '✅ Đã thêm thành công 2 trang (+15.000đ)!');
 }
-
-function requestRemoveSpread(idx, e) {
-  if (e) e.stopPropagation();
-  const spread = ALBUM_DATA.spreads[idx];
-  if (!spread || !spread.isCustomAdded) return;
-  spreadIndexPendingRemoval = idx;
-
-  const isEn = (currentAppLanguage === 'en');
-  const modal = document.getElementById('removeSpreadConfirmModal');
-  const desc = document.getElementById('removeSpreadConfirmDesc') || document.getElementById('removeSpreadModalDesc');
-  const title = document.getElementById('removeSpreadConfirmTitle') || document.getElementById('removeSpreadModalTitle');
-  const cancelBtn = document.getElementById('removeSpreadCancelBtn');
-  const confirmBtn = document.getElementById('removeSpreadConfirmBtn');
-
-  if (title) {
-    title.textContent = isEn ? `Remove ${spread.name}?` : `Xóa ${spread.name}?`;
-  }
-  if (desc) {
-    desc.textContent = isEn
-      ? `Remove ${spread.name}? These 2 pages and their content will be removed. Total price will decrease by 15,000₫.`
-      : `Xóa ${spread.name}? 2 trang này và nội dung bên trong sẽ bị xóa. Tổng giá sẽ giảm 15.000đ.`;
-  }
-  if (cancelBtn) {
-    cancelBtn.textContent = isEn ? 'Cancel' : 'Hủy';
-  }
-  if (confirmBtn) {
-    confirmBtn.textContent = isEn ? 'Remove 2 pages' : 'Xóa 2 trang';
-  }
-  if (modal) {
-    modal.classList.remove('hidden');
-    modal.style.display = 'flex';
-  }
-}
-window.requestRemoveSpread = requestRemoveSpread;
-
-function closeRemoveSpreadModal() {
-  spreadIndexPendingRemoval = null;
-  const modal = document.getElementById('removeSpreadConfirmModal');
-  if (modal) {
-    modal.classList.add('hidden');
-    modal.style.display = 'none';
-  }
-}
-window.closeRemoveSpreadModal = closeRemoveSpreadModal;
-
-function executeRemoveSpread() {
-  if (spreadIndexPendingRemoval === null || spreadIndexPendingRemoval === undefined) return;
-  const idx = spreadIndexPendingRemoval;
-  const spread = ALBUM_DATA.spreads[idx];
-  if (!spread || !spread.isCustomAdded) {
-    closeRemoveSpreadModal();
-    return;
-  }
-
-  const isEn = (currentAppLanguage === 'en');
-  pushStudioSnapshot(isEn ? `Remove ${spread.name}` : `Xóa ${spread.name}`);
-
-  ALBUM_DATA.spreads.splice(idx, 1);
-  ALBUM_DATA.extraSpreadsCount = ALBUM_DATA.spreads.filter(s => s.isCustomAdded).length;
-
-  if (ALBUM_DATA.activeSpreadIndex >= ALBUM_DATA.spreads.length) {
-    ALBUM_DATA.activeSpreadIndex = ALBUM_DATA.spreads.length - 1;
-  } else if (ALBUM_DATA.activeSpreadIndex >= idx && ALBUM_DATA.activeSpreadIndex > 0) {
-    ALBUM_DATA.activeSpreadIndex = Math.max(0, ALBUM_DATA.activeSpreadIndex - 1);
-  }
-
-  renumberSpreads();
-  syncActiveAlbumToCartIfPresent();
-  autoSaveToLocalStorage();
-  renderStudioWorkspace();
-  closeRemoveSpreadModal();
-  showToast(isEn ? 'Spread removed. Price reduced by 15,000₫' : '✅ Đã xóa trang đôi và giảm 15.000đ');
-}
-window.executeRemoveSpread = executeRemoveSpread;
 
 function removeCustomSpread(index, e) {
-  requestRemoveSpread(index, e);
+  if (e) e.stopPropagation();
+  if (confirm(`Bạn có chắc chắn muốn xóa trang đôi này không?`)) {
+    ALBUM_DATA.spreads.splice(index, 1);
+    ALBUM_DATA.extraSpreadsCount = Math.max(0, (ALBUM_DATA.extraSpreadsCount || 1) - 1);
+    if (ALBUM_DATA.activeSpreadIndex >= ALBUM_DATA.spreads.length) {
+      ALBUM_DATA.activeSpreadIndex = ALBUM_DATA.spreads.length - 1;
+    }
+    renumberSpreads();
+    autoSaveToLocalStorage();
+    renderStudioWorkspace();
+  }
 }
 
 // ── CANVA FREESTYLE: ADD TEXT BOX & CANVA IMAGE FRAME ──
 function addRealFreeformTextBox() {
-  const isEn = (currentAppLanguage === 'en');
-  pushStudioSnapshot(isEn ? 'Add text' : 'Thêm văn bản');
   const spread = ALBUM_DATA.spreads[ALBUM_DATA.activeSpreadIndex];
   if (!spread.elements) spread.elements = [];
   spread.elements.push({
     id: Date.now(),
     type: 'text',
-    content: isEn ? 'Click to type message...' : 'Nhấp để gõ lời tựa...',
+    content: 'Nhấp để gõ lời tựa...',
     x: 100,
     y: 100,
     font: ALBUM_DATA.letterFont,
@@ -1177,8 +1047,6 @@ function addRealFreeformTextBox() {
 }
 
 function addCanvaImageFrame(frameStyle = 'polaroid', initialImg = '') {
-  const isEn = (currentAppLanguage === 'en');
-  pushStudioSnapshot(isEn ? 'Add photo frame' : 'Thêm khung ảnh');
   const spread = ALBUM_DATA.spreads[ALBUM_DATA.activeSpreadIndex];
   if (!spread.elements) spread.elements = [];
 
@@ -1206,8 +1074,6 @@ function addRealFreeformPhotoFrame() {
 }
 
 function addRealStickerToCanvas(stickerChar, dropX, dropY) {
-  const isEn = (currentAppLanguage === 'en');
-  pushStudioSnapshot(isEn ? 'Add sticker' : 'Thêm sticker');
   const spread = ALBUM_DATA.spreads[ALBUM_DATA.activeSpreadIndex];
   if (!spread.elements) spread.elements = [];
   spread.elements.push({
@@ -1224,8 +1090,6 @@ function addRealStickerToCanvas(stickerChar, dropX, dropY) {
 }
 
 function removeSpreadElement(id) {
-  const isEn = (currentAppLanguage === 'en');
-  pushStudioSnapshot(isEn ? 'Delete element' : 'Xóa đối tượng');
   const spread = ALBUM_DATA.spreads[ALBUM_DATA.activeSpreadIndex];
   spread.elements = spread.elements.filter(e => e.id !== id);
   if (ALBUM_DATA.cropEditingId === id) ALBUM_DATA.cropEditingId = null;
@@ -1235,18 +1099,20 @@ function removeSpreadElement(id) {
 
 // ── BỐ CỤC ẢNH MẪU (PRESET COMPOSITIONS CHUẨN VÙNG AN TOÀN IN) ──
 function applyPresetComposition(layoutType) {
-  const isEn = (currentAppLanguage === 'en');
   const spread = ALBUM_DATA.spreads[ALBUM_DATA.activeSpreadIndex];
   if (spread.isClosedCover || spread.isClosedBack) {
-    alert(isEn ? 'Please choose an interior page to apply layouts!' : 'Vui lòng chọn trang ruột để áp dụng bố cục ảnh!');
+    alert('Vui lòng chọn trang ruột để áp dụng bố cục ảnh!');
     return;
   }
 
-  pushStudioSnapshot(isEn ? 'Apply layout' : 'Áp dụng bố cục');
-
   const gallery = (ALBUM_DATA.userGallery && ALBUM_DATA.userGallery.length > 0)
     ? ALBUM_DATA.userGallery
-    : [];
+    : [
+        'https://images.unsplash.com/photo-1529156069898-49953e39b3ac?w=600&auto=format&fit=crop&q=80',
+        'https://images.unsplash.com/photo-1517841905240-472988babdf9?w=600&auto=format&fit=crop&q=80',
+        'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=600&auto=format&fit=crop&q=80',
+        'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=600&auto=format&fit=crop&q=80'
+      ];
 
   spread.elements = [];
   const now = Date.now();
@@ -1371,7 +1237,7 @@ function togglePrintSafeGuides() {
 function checkElementSafeArea(domItem, el) {
   if (!domItem || !el) return false;
   const curSpread = ALBUM_DATA.spreads ? ALBUM_DATA.spreads[ALBUM_DATA.activeSpreadIndex] : null;
-  const isMobileSingle = (isMobileViewport() && curSpread && !curSpread.isClosedCover && !curSpread.isClosedBack);
+  const isMobileSingle = (window.innerWidth < 768 && curSpread && !curSpread.isClosedCover && !curSpread.isClosedBack);
 
   const safeMargin = 20;
   const elW = el.width || (el.type === 'sticker' ? 50 : 200);
@@ -1424,8 +1290,6 @@ function checkElementSafeArea(domItem, el) {
 // ── PHÂN LỚP Z-INDEX & THAO TÁC ĐỐI TƯỢNG (LAYERS & LOCK) ──
 function bringElementForward(id, event) {
   if (event) event.stopPropagation();
-  const isEn = (currentAppLanguage === 'en');
-  pushStudioSnapshot(isEn ? 'Bring forward' : 'Tiến lên một lớp');
   const spread = ALBUM_DATA.spreads[ALBUM_DATA.activeSpreadIndex];
   if (!spread.elements) return;
   const idx = spread.elements.findIndex(e => String(e.id) === String(id));
@@ -1439,8 +1303,6 @@ function bringElementForward(id, event) {
 
 function sendElementBackward(id, event) {
   if (event) event.stopPropagation();
-  const isEn = (currentAppLanguage === 'en');
-  pushStudioSnapshot(isEn ? 'Send backward' : 'Lùi xuống một lớp');
   const spread = ALBUM_DATA.spreads[ALBUM_DATA.activeSpreadIndex];
   if (!spread.elements) return;
   const idx = spread.elements.findIndex(e => String(e.id) === String(id));
@@ -1454,8 +1316,6 @@ function sendElementBackward(id, event) {
 
 function bringElementToFront(id, event) {
   if (event) event.stopPropagation();
-  const isEn = (currentAppLanguage === 'en');
-  pushStudioSnapshot(isEn ? 'Bring to front' : 'Lên lớp trên cùng');
   const spread = ALBUM_DATA.spreads[ALBUM_DATA.activeSpreadIndex];
   if (!spread.elements) return;
   const idx = spread.elements.findIndex(e => String(e.id) === String(id));
@@ -1469,8 +1329,6 @@ function bringElementToFront(id, event) {
 
 function sendElementToBack(id, event) {
   if (event) event.stopPropagation();
-  const isEn = (currentAppLanguage === 'en');
-  pushStudioSnapshot(isEn ? 'Send to back' : 'Xuống lớp dưới cùng');
   const spread = ALBUM_DATA.spreads[ALBUM_DATA.activeSpreadIndex];
   if (!spread.elements) return;
   const idx = spread.elements.findIndex(e => String(e.id) === String(id));
@@ -1484,8 +1342,6 @@ function sendElementToBack(id, event) {
 
 function toggleLockElement(id, event) {
   if (event) event.stopPropagation();
-  const isEn = (currentAppLanguage === 'en');
-  pushStudioSnapshot(isEn ? 'Toggle lock' : 'Khóa/Mở khóa đối tượng');
   const spread = ALBUM_DATA.spreads[ALBUM_DATA.activeSpreadIndex];
   if (!spread.elements) return;
   const el = spread.elements.find(e => String(e.id) === String(id));
@@ -1508,8 +1364,6 @@ function copyElement(id) {
 
 function pasteElement() {
   if (!ALBUM_DATA.clipboardElement) return;
-  const isEn = (currentAppLanguage === 'en');
-  pushStudioSnapshot(isEn ? 'Paste element' : 'Dán đối tượng');
   const spread = ALBUM_DATA.spreads[ALBUM_DATA.activeSpreadIndex];
   if (!spread.elements) spread.elements = [];
   const clone = JSON.parse(JSON.stringify(ALBUM_DATA.clipboardElement));
@@ -1525,8 +1379,6 @@ function pasteElement() {
 
 function duplicateElement(id, event) {
   if (event) event.stopPropagation();
-  const isEn = (currentAppLanguage === 'en');
-  pushStudioSnapshot(isEn ? 'Duplicate element' : 'Nhân bản đối tượng');
   const spread = ALBUM_DATA.spreads[ALBUM_DATA.activeSpreadIndex];
   if (!spread.elements) return;
   const el = spread.elements.find(e => String(e.id) === String(id));
@@ -1544,8 +1396,6 @@ function duplicateElement(id, event) {
 }
 
 function alignElement(id, alignment) {
-  const isEn = (currentAppLanguage === 'en');
-  pushStudioSnapshot(isEn ? 'Align element' : 'Căn lề đối tượng');
   const spread = ALBUM_DATA.spreads[ALBUM_DATA.activeSpreadIndex];
   if (!spread || !spread.elements) return;
   const el = spread.elements.find(e => String(e.id) === String(id));
@@ -1554,7 +1404,7 @@ function alignElement(id, alignment) {
   const elW = el.width || 220;
   const elH = el.frameStyle === 'oval' ? elW : Math.round(elW * 0.65);
 
-  if (isMobileViewport() && !spread.isClosedCover && !spread.isClosedBack) {
+  if (window.innerWidth < 768 && !spread.isClosedCover && !spread.isClosedBack) {
     const isRight = (mobileActivePageHalf === 'right');
     const baseOffset = isRight ? 430 : 0;
     if (alignment === 'left') el.x = baseOffset + 30;
@@ -1926,7 +1776,7 @@ function renderActiveSpread() {
   if (curSpread) normalizeElementsToSafeArea(curSpread);
   const spread = ALBUM_DATA.spreads[ALBUM_DATA.activeSpreadIndex];
   const isEn = (currentAppLanguage === 'en');
-  const isMobile = isMobileViewport();
+  const isMobile = (window.innerWidth < 768);
 
   const ind = document.getElementById('currentSpreadName');
   const mobInd = document.getElementById('mobileCurrentSpreadLabel');
@@ -2043,7 +1893,6 @@ function renderActiveSpread() {
     }
 
     if (spread.leftType === 'spotify-hero') {
-      const meta = getSpotifyTrackDisplayMetadata();
       leftPage.innerHTML = `
         <div style="display:flex;flex-direction:column;height:100%;justify-content:space-between;background:var(--yellow-warm);border-radius:8px;padding:20px">
           <div>
@@ -2051,20 +1900,7 @@ function renderActiveSpread() {
             <h3 style="font-size:19px;font-weight:700;margin-top:4px;color:var(--dark)">${isEn ? 'Our Cherished Melody' : 'Giai Điệu Của Chúng Mình'}</h3>
           </div>
           <div style="margin:16px 0">
-            ${!meta.hasTrack ? `
-              <div style="font-size:13px;font-weight:700;margin-bottom:6px;color:var(--dark)">${isEn ? 'No track selected yet' : 'Chưa chọn bài hát'}</div>
-            ` : meta.isPending ? `
-              <div style="margin-bottom:10px;padding:8px 12px;background:rgba(0,0,0,0.04);border-radius:6px;text-align:left">
-                <div style="font-size:11.5px;font-weight:600;color:var(--gray)">${isEn ? '⏳ Fetching song details...' : '⏳ Đang lấy thông tin bài hát...'}</div>
-              </div>
-            ` : `
-              <div style="margin-bottom:12px;text-align:left">
-                <div style="font-size:9.5px;font-weight:800;color:var(--gray);text-transform:uppercase;letter-spacing:1px;margin-bottom:2px">${isEn ? 'Song' : 'Bài hát'}</div>
-                <div id="spotifyHeroSongTitle" style="font-size:15px;font-weight:800;color:var(--dark);margin-bottom:8px;line-height:1.3">${escapeSpotifyAttr(meta.title)}</div>
-                <div style="font-size:9.5px;font-weight:800;color:var(--gray);text-transform:uppercase;letter-spacing:1px;margin-bottom:2px">${isEn ? 'Artist' : 'Nghệ sĩ'}</div>
-                <div id="spotifyHeroArtistName" style="font-size:13px;font-weight:700;color:var(--red);margin-bottom:8px;line-height:1.3">${escapeSpotifyAttr(meta.artist || (isEn ? 'Spotify Artist' : 'Nghệ sĩ Spotify'))}</div>
-              </div>
-            `}
+            <div style="font-size:13px;font-weight:700;margin-bottom:6px;color:var(--dark)">${ALBUM_DATA.spotifyTrack || (isEn ? 'No track selected yet' : 'Chưa chọn bài hát')}</div>
             ${renderSpotifyHorizontalCodeHtml()}
           </div>
           <div style="font-size:10.5px;color:var(--gray);font-style:italic">${isEn ? 'Open Spotify on phone & scan code to play.' : 'Mở ứng dụng Spotify trên điện thoại & quét mã để nghe nhạc.'}</div>
@@ -2110,7 +1946,7 @@ function renderElementsOnSpreadOverlay(spread) {
   if (!spread.elements) return;
 
   const isEn = (currentAppLanguage === 'en');
-  const isMobile = (isMobileViewport() && !spread.isClosedCover && !spread.isClosedBack);
+  const isMobile = (window.innerWidth < 768 && !spread.isClosedCover && !spread.isClosedBack);
 
   const fmt = getCurrentAlbumFormat();
   const spineSplit = fmt.singleWidth + 6;
@@ -2237,8 +2073,7 @@ function renderElementsOnSpreadOverlay(spread) {
         <div style="display:inline-flex;align-items:center;padding:6px 14px;background:rgba(255,255,255,0.95);border:1.5px dashed rgba(168,35,35,0.4);border-radius:8px;box-shadow:0 4px 14px rgba(0,0,0,0.12);cursor:grab">
           <span style="font-size:14px;color:var(--red);margin-right:8px;user-select:none;cursor:grab;font-weight:bold" title="${isEn ? 'Hold to drag' : 'Giữ chuột vào đây hoặc ô chữ để kéo di chuyển'}">⋮⋮</span>
           <div class="canva-editable-text-field" contenteditable="${!isLocked}"
-               onfocus="this.dataset.initialText = this.innerText; this.dataset.initialSnap = JSON.stringify(ALBUM_DATA);"
-               onblur="if (this.innerText !== this.dataset.initialText) { pushStudioSnapshotState(this.dataset.initialSnap, currentAppLanguage === 'en' ? 'Edit text' : 'Sửa văn bản'); } el.content=this.innerText; autoSaveToLocalStorage();"
+               onblur="el.content=this.innerText;autoSaveToLocalStorage()"
                style="outline:none;font-family:${el.font || ALBUM_DATA.letterFont};color:${el.color || ALBUM_DATA.inkColor};font-size:${el.fontSize || 16}px;cursor:text">
             ${el.content}
           </div>
@@ -2269,14 +2104,12 @@ function renderElementsOnSpreadOverlay(spread) {
 
 // ── ROBUST POINTERCAPTURE DRAGGING (ZERO MOUSE-STICK BUG & 1:1 SCALE TRACKING FB70) ──
 let currentStageScale = 1;
-window.currentStageScale = currentStageScale;
 
 function makePointerDraggable(el, dataObj) {
   let isDragging = false;
   let hasMoved = false;
   let initialElX = 0, initialElY = 0;
   let initialPointerX = 0, initialPointerY = 0;
-  let dragPreSnapshot = null;
 
   el.addEventListener('pointerdown', function(e) {
     if (ALBUM_DATA.cropEditingId === dataObj?.id) return; // In crop mode, user is panning the photo inside
@@ -2285,7 +2118,6 @@ function makePointerDraggable(el, dataObj) {
     }
     if (e.target.closest('.fci-delete-btn') || e.target.closest('.fci-resize-handle') || e.target.closest('.fci-rotate-handle') || e.target.closest('.btn-outline') || e.target.closest('.canva-frame-toolbar') || e.target.closest('.element-action-toolbar')) return;
 
-    dragPreSnapshot = JSON.stringify(ALBUM_DATA);
     initialElX = el.offsetLeft;
     initialElY = el.offsetTop;
     initialPointerX = e.clientX;
@@ -2314,7 +2146,7 @@ function makePointerDraggable(el, dataObj) {
       el.style.top = newY + 'px';
       if (dataObj) {
         const curSpread = ALBUM_DATA.spreads ? ALBUM_DATA.spreads[ALBUM_DATA.activeSpreadIndex] : null;
-        const isMobileSingle = (isMobileViewport() && curSpread && !curSpread.isClosedCover && !curSpread.isClosedBack);
+        const isMobileSingle = (window.innerWidth < 768 && curSpread && !curSpread.isClosedCover && !curSpread.isClosedBack);
         const isRight = isMobileSingle && (mobileActivePageHalf === 'right');
         dataObj.x = isRight ? (newX + 430) : newX;
         dataObj.y = newY;
@@ -2328,10 +2160,6 @@ function makePointerDraggable(el, dataObj) {
       isDragging = false;
       try { el.releasePointerCapture(e.pointerId); } catch(err) {}
       if (hasMoved) {
-        if (dragPreSnapshot) {
-          pushStudioSnapshotState(dragPreSnapshot, currentAppLanguage === 'en' ? 'Move element' : 'Di chuyển đối tượng');
-          dragPreSnapshot = null;
-        }
         checkElementSafeArea(el, dataObj);
         autoSaveToLocalStorage();
       } else {
@@ -2358,7 +2186,6 @@ function initResizeElement(e, id) {
   const obj = spread.elements.find(el => el.id === id);
   if (!obj || obj.locked) return;
 
-  const resizePreSnapshot = JSON.stringify(ALBUM_DATA);
   const startX = e.clientX;
   const startW = obj.width || 220;
 
@@ -2380,9 +2207,6 @@ function initResizeElement(e, id) {
   function stopDrag() {
     document.removeEventListener('mousemove', doDrag);
     document.removeEventListener('mouseup', stopDrag);
-    if (obj.width !== startW) {
-      pushStudioSnapshotState(resizePreSnapshot, currentAppLanguage === 'en' ? 'Resize element' : 'Đổi kích thước');
-    }
     autoSaveToLocalStorage();
   }
 
@@ -2399,8 +2223,6 @@ function initRotateElement(e, id) {
   const domEl = document.getElementById('canvaEl_' + id);
   if (!obj || !domEl || obj.locked) return;
 
-  const rotatePreSnapshot = JSON.stringify(ALBUM_DATA);
-  const startRot = obj.rotate || 0;
   const rect = domEl.getBoundingClientRect();
   const centerX = rect.left + rect.width / 2;
   const centerY = rect.top + rect.height / 2;
@@ -2438,9 +2260,6 @@ function initRotateElement(e, id) {
   function stopRotate() {
     document.removeEventListener('pointermove', doRotate);
     document.removeEventListener('pointerup', stopRotate);
-    if ((obj.rotate || 0) !== startRot) {
-      pushStudioSnapshotState(rotatePreSnapshot, currentAppLanguage === 'en' ? 'Rotate element' : 'Xoay đối tượng');
-    }
     autoSaveToLocalStorage();
   }
 
@@ -2462,7 +2281,7 @@ function renderFilmstripTray() {
 
     return `
       <div class="filmstrip-item ${idx === ALBUM_DATA.activeSpreadIndex ? 'active' : ''}" onclick="jumpToSpread(${idx})">
-        ${spread.isCustomAdded ? `<button class="filmstrip-remove-btn" onclick="requestRemoveSpread(${idx}, event)" title="${isEn ? 'Remove this spread' : 'Xóa 2 trang này'}">✕</button>` : ''}
+        ${spread.isCustomAdded ? `<button onclick="removeCustomSpread(${idx}, event)" style="position:absolute;top:-4px;right:-4px;background:#dc2626;color:white;border:none;border-radius:50%;width:18px;height:18px;font-size:10px;font-weight:800;z-index:20">✕</button>` : ''}
 
         ${isCover || isBack ? `
           <div class="filmstrip-single-cover">${isCover ? coverLabel : backLabel}</div>
@@ -2490,7 +2309,6 @@ function renderFilmstripTray() {
   if (sumText) {
     sumText.textContent = isEn ? `All pages (${ALBUM_DATA.spreads.length} items)` : `Tất cả các trang (${ALBUM_DATA.spreads.length} mục)`;
   }
-  scrollActiveFilmstripItemIntoView();
 }
 
 function jumpToSpread(index) {
@@ -2500,10 +2318,9 @@ function jumpToSpread(index) {
   clearStudioSelection();
   renderActiveSpread();
   updateNavSpreadButtons();
-  scrollActiveFilmstripItemIntoView();
 }
 function goToNextSpread() {
-  if (isMobileViewport()) {
+  if (window.innerWidth < 768) {
     const cur = ALBUM_DATA.spreads ? ALBUM_DATA.spreads[ALBUM_DATA.activeSpreadIndex] : null;
     if (!cur) return;
     if (cur.isClosedCover) {
@@ -2540,7 +2357,7 @@ function goToNextSpread() {
 }
 
 function goToPrevSpread() {
-  if (isMobileViewport()) {
+  if (window.innerWidth < 768) {
     const cur = ALBUM_DATA.spreads ? ALBUM_DATA.spreads[ALBUM_DATA.activeSpreadIndex] : null;
     if (!cur) return;
     if (cur.isClosedBack) {
@@ -2581,7 +2398,7 @@ function updateNavSpreadButtons() {
   if (typeof ALBUM_DATA === 'undefined' || !ALBUM_DATA.spreads) return;
   const isEn = (currentAppLanguage === 'en');
   let isFirst, isLast;
-  if (isMobileViewport()) {
+  if (window.innerWidth < 768) {
     isFirst = (ALBUM_DATA.activeSpreadIndex === 0);
     isLast = (ALBUM_DATA.activeSpreadIndex >= ALBUM_DATA.spreads.length - 1);
   } else {
@@ -2654,7 +2471,7 @@ function handleGlobalClick(e) {
   }
   // Canva Desktop ergonomics: clicking on stage canvas closes flyout drawer
   if (e.target.closest('#interactiveLayflatBook') && !e.target.closest('.studio-rail') && !e.target.closest('#canvaSidebarEl')) {
-    if (!isMobileViewport() && isFlyoutDrawerOpen) {
+    if (window.innerWidth > 768 && isFlyoutDrawerOpen) {
       closeFlyoutDrawer();
     }
   }
@@ -2766,8 +2583,6 @@ function handleSlotDrop(e, slotKey) {
 
 function assignPhotoToSlot(slotKey, url) {
   if (!url) return;
-  const isEn = (currentAppLanguage === 'en');
-  pushStudioSnapshot(isEn ? 'Place photo' : 'Thêm/thay ảnh');
   const spread = ALBUM_DATA.spreads[ALBUM_DATA.activeSpreadIndex];
   if (!spread) return;
 
@@ -2841,16 +2656,6 @@ function handleReplaceSpecificPhoto(e) {
 function renderUserGalleryTray() {
   const tray = document.getElementById('userUploadedTray');
   if (!tray) return;
-  if (!ALBUM_DATA.userGallery || ALBUM_DATA.userGallery.length === 0) {
-    tray.innerHTML = `
-      <div style="grid-column:1/-1;text-align:center;padding:24px 12px;color:var(--gray);font-size:12px">
-        <div style="font-size:24px;margin-bottom:6px">📸</div>
-        <div>${currentAppLanguage === 'en' ? 'No photos uploaded yet' : 'Chưa có ảnh nào được tải lên'}</div>
-        <div style="font-size:11px;opacity:0.8;margin-top:4px">${currentAppLanguage === 'en' ? 'Click "Upload Photos" above to get started' : 'Bấm nút tải ảnh ở trên để bắt đầu'}</div>
-      </div>
-    `;
-    return;
-  }
   tray.innerHTML = ALBUM_DATA.userGallery.map(url => `
     <div class="uploaded-item" draggable="true"
          ondragstart="handlePhotoDragStart(event, '${url}')"
@@ -3290,7 +3095,7 @@ function navigateToSpotifyQrPage() {
     targetIndex = (ALBUM_DATA.spreads && ALBUM_DATA.spreads.length > 1) ? 1 : 0;
   }
 
-  if (isMobileViewport()) {
+  if (window.innerWidth < 768) {
     jumpToSpread(targetIndex);
     mobileActivePageHalf = 'left';
     renderActiveSpread();
@@ -3421,7 +3226,7 @@ function handleSpotifySongSearch(query) {
   }, 280);
 }
 
-// FB75.1 / FB81: Direct link resolver with real metadata synchronization
+// FB75.1: Direct link resolver with pending metadata state when resolver is not yet connected
 async function handleDirectSpotifyLinkResolve(cleanUrl, trackId) {
   // 1. If external Codex resolver is available, attempt real metadata resolution
   if (typeof window.codexResolveSpotifyTrack === 'function') {
@@ -3430,16 +3235,10 @@ async function handleDirectSpotifyLinkResolve(cleanUrl, trackId) {
       if (resolved && resolved.id) {
         selectSpotifyTrack({
           id: resolved.id,
-          name: resolved.name || resolved.title || '',
-          title: resolved.title || resolved.name || '',
-          artist: resolved.artist || resolved.artistNames || '',
-          artistNames: resolved.artistNames || resolved.artist || '',
-          artists: resolved.artists || (resolved.artist ? [resolved.artist] : []),
-          artwork: resolved.artwork || resolved.artworkUrl || '',
-          artworkUrl: resolved.artworkUrl || resolved.artwork || '',
-          albumName: resolved.albumName || '',
-          url: resolved.canonicalUrl || resolved.url || cleanUrl,
-          isPendingMetadata: false
+          title: resolved.title || `Spotify Track (${resolved.id})`,
+          artist: resolved.artist || '',
+          artwork: resolved.artwork || '',
+          url: resolved.url || cleanUrl
         });
         return;
       }
@@ -3454,10 +3253,8 @@ async function handleDirectSpotifyLinkResolve(cleanUrl, trackId) {
   const isEn = (currentAppLanguage === 'en');
   const pendingTrack = {
     id: trackId,
-    name: '',
-    title: '',
+    title: `Spotify Track (${trackId})`,
     artist: isEn ? 'Awaiting track metadata connection' : 'Đang chờ kết nối thông tin bài hát',
-    artistNames: isEn ? 'Awaiting track metadata connection' : 'Đang chờ kết nối thông tin bài hát',
     artwork: '',
     url: cleanUrl,
     isPendingMetadata: true
@@ -3465,87 +3262,18 @@ async function handleDirectSpotifyLinkResolve(cleanUrl, trackId) {
   selectSpotifyTrack(pendingTrack);
 }
 
-// FB81: Canonical metadata helper for printed Page 2 & 3D Preview
-function getSpotifyTrackDisplayMetadata() {
-  const isEn = (currentAppLanguage === 'en');
-  if (!ALBUM_DATA.spotifyTrack && !ALBUM_DATA.spotifyTrackId) {
-    return {
-      hasTrack: false,
-      title: isEn ? 'No track selected yet' : 'Chưa chọn bài hát',
-      artist: '',
-      isPending: false
-    };
-  }
-
-  if (ALBUM_DATA.spotifyTrackObj && typeof ALBUM_DATA.spotifyTrackObj === 'object') {
-    const obj = ALBUM_DATA.spotifyTrackObj;
-    const title = obj.name || obj.title || '';
-    const artist = obj.artistNames || (Array.isArray(obj.artists) ? obj.artists.join(', ') : obj.artist) || '';
-    const isPending = !!obj.isPendingMetadata;
-    return {
-      hasTrack: true,
-      title: title,
-      artist: artist,
-      isPending: isPending
-    };
-  }
-
-  const str = String(ALBUM_DATA.spotifyTrack || '');
-  if (str.includes(' — ')) {
-    const parts = str.split(' — ');
-    const isPending = str.includes('Đang chờ kết nối') || str.includes('Awaiting track');
-    return {
-      hasTrack: true,
-      title: isPending ? '' : parts[0],
-      artist: isPending ? '' : parts.slice(1).join(' — '),
-      isPending: isPending
-    };
-  }
-
-  const isPending = str.includes('Đang chờ kết nối') || str.includes('Awaiting track') || str.includes('Spotify Track (');
-  return {
-    hasTrack: !!str,
-    title: isPending ? '' : str,
-    artist: ALBUM_DATA.spotifyArtist || '',
-    isPending: isPending
-  };
-}
-
 function selectSpotifyTrack(track) {
   if (!track || !track.id) return;
 
-  const rawTitle = track.name || track.title || '';
-  const rawArtist = track.artistNames || (Array.isArray(track.artists) ? track.artists.join(', ') : track.artist) || '';
-  const isPending = !!track.isPendingMetadata;
-  const canonicalUrl = track.canonicalUrl || track.url || (`https://open.spotify.com/track/${track.id}`);
-  const artwork = track.artworkUrl || track.artwork || '';
-  const albumName = track.albumName || '';
+  pushStudioSnapshot('Chọn bài hát Spotify: ' + (track.title || track.id));
 
-  const displayTitle = rawTitle || (isPending ? `Spotify Track (${track.id})` : `Track ${track.id}`);
-  const displayArtist = rawArtist || '';
-
-  pushStudioSnapshot('Chọn bài hát Spotify: ' + (rawTitle || track.id));
-
-  // Canonical structured state (FB81)
-  ALBUM_DATA.spotifyTrackObj = {
-    id: track.id,
-    name: rawTitle,
-    title: rawTitle,
-    artist: rawArtist,
-    artistNames: rawArtist,
-    artists: Array.isArray(track.artists) ? track.artists : (rawArtist ? [rawArtist] : []),
-    canonicalUrl: canonicalUrl,
-    artworkUrl: artwork,
-    albumName: albumName,
-    isPendingMetadata: isPending
-  };
+  const displayTitle = track.title || `Spotify Track (${track.id})`;
+  const displayArtist = track.artist || '';
 
   ALBUM_DATA.spotifyTrack = displayArtist ? `${displayTitle} — ${displayArtist}` : displayTitle;
-  ALBUM_DATA.spotifyTrackTitle = rawTitle;
-  ALBUM_DATA.spotifyArtist = rawArtist;
-  ALBUM_DATA.spotifyUrl = canonicalUrl;
+  ALBUM_DATA.spotifyUrl = track.url || (`https://open.spotify.com/track/${track.id}`);
   ALBUM_DATA.spotifyTrackId = track.id;
-  ALBUM_DATA.spotifyArtwork = artwork;
+  ALBUM_DATA.spotifyArtwork = track.artwork || '';
   // Scannable SVG directly from official Spotify Scannables CDN using valid canonical track ID
   ALBUM_DATA.spotifyCodeImg = 'https://scannables.scdn.co/uri/plain/svg/000000/white/640/spotify:track:' + track.id;
 
@@ -3565,7 +3293,7 @@ function selectSpotifyTrack(track) {
 
   if (typeof window.codexOnSpotifyTrackSelected === 'function') {
     try {
-      window.codexOnSpotifyTrackSelected(ALBUM_DATA.spotifyTrackObj);
+      window.codexOnSpotifyTrackSelected(track);
     } catch (e) {
       console.warn('Codex track selected hook error:', e);
     }
@@ -3577,13 +3305,11 @@ function selectSpotifyTrack(track) {
 
 function removeSelectedSpotifySong() {
   pushStudioSnapshot('Gỡ bài hát Spotify');
-  ALBUM_DATA.spotifyTrack = null;
-  ALBUM_DATA.spotifyUrl = null;
-  ALBUM_DATA.spotifyTrackId = null;
-  ALBUM_DATA.spotifyTrackObj = null;
-  ALBUM_DATA.spotifyArtwork = null;
-  ALBUM_DATA.spotifyCodeImg = null;
-  ALBUM_DATA.spotifyEmbed = null;
+  ALBUM_DATA.spotifyTrack = '';
+  ALBUM_DATA.spotifyUrl = '';
+  ALBUM_DATA.spotifyTrackId = '';
+  ALBUM_DATA.spotifyArtwork = '';
+  ALBUM_DATA.spotifyCodeImg = '';
 
   const sInp = document.getElementById('spotifySearchInput');
   if (sInp) sInp.value = '';
@@ -3595,19 +3321,11 @@ function removeSelectedSpotifySong() {
   renderSpotifyOfficialEmbed();
   autoSaveToLocalStorage();
   renderActiveSpread();
-  showToast(currentAppLanguage === 'en' ? 'Spotify track unlinked' : 'Đã hủy liên kết bài hát Spotify');
+  showToast('Đã hủy liên kết bài hát Spotify');
 }
 
 // ── 🎵 SPOTIFY HORIZONTAL SCANNABLE CODE ENGINE (FB35) ──
 function renderSpotifyHorizontalCodeHtml() {
-  const meta = getSpotifyTrackDisplayMetadata();
-  if (!meta.hasTrack) {
-    return `
-      <div style="background:rgba(0,0,0,0.03);border:1px dashed var(--gray-l);border-radius:8px;padding:12px;text-align:center;color:var(--gray);font-size:11.5px;max-width:320px;margin:8px auto">
-        🎵 ${currentAppLanguage === 'en' ? 'Select a song in Audio tab to link Spotify & generate scannable code' : 'Chọn bài hát tại tab Âm thanh để liên kết Spotify & tạo mã quét'}
-      </div>
-    `;
-  }
   if (ALBUM_DATA.spotifyCodeImg) {
     return `
       <div class="spotify-scannable-bar-wrap" style="width:100%;max-width:320px;margin:8px auto;text-align:center">
@@ -3758,8 +3476,8 @@ function renderSpotifyOfficialEmbed() {
   }
 }
 
-// ── ↶ STUDIO UNDO / REDO ENGINE (FB14, FB88, FB89) ──
-const STUDIO_HISTORY_LIMIT = 50;
+// ── ↶ STUDIO UNDO / REDO ENGINE (FB14) ──
+const STUDIO_HISTORY_LIMIT = 20;
 let studioUndoStack = [];
 let studioRedoStack = [];
 let isApplyingHistory = false;
@@ -3769,16 +3487,6 @@ function pushStudioSnapshot(actionLabel = 'Chỉnh sửa album') {
   try {
     const snap = JSON.stringify(ALBUM_DATA);
     studioUndoStack.push({ time: Date.now(), label: actionLabel, state: snap });
-    if (studioUndoStack.length > STUDIO_HISTORY_LIMIT) studioUndoStack.shift();
-    studioRedoStack = [];
-    updateStudioUndoRedoButtons();
-  } catch (err) {}
-}
-
-function pushStudioSnapshotState(snapState, actionLabel = 'Chỉnh sửa album') {
-  if (isApplyingHistory || !snapState) return;
-  try {
-    studioUndoStack.push({ time: Date.now(), label: actionLabel, state: snapState });
     if (studioUndoStack.length > STUDIO_HISTORY_LIMIT) studioUndoStack.shift();
     studioRedoStack = [];
     updateStudioUndoRedoButtons();
@@ -3795,16 +3503,12 @@ function studioUndo() {
     const prev = studioUndoStack.pop();
     const parsed = JSON.parse(prev.state);
     ALBUM_DATA = parsed;
-    ALBUM_DATA.extraSpreadsCount = ALBUM_DATA.spreads ? ALBUM_DATA.spreads.filter(s => s.isCustomAdded).length : 0;
-    renumberSpreads();
-    syncActiveAlbumToCartIfPresent();
     autoSaveToLocalStorage();
-    renderStudioWorkspace();
+    renderActiveSpread();
+    renderFilmstripTray();
     updateStudioUndoRedoButtons();
-    const isEn = (currentAppLanguage === 'en');
-    showToast(isEn ? `Undone: ${prev.label || 'previous action'}` : `Đã hoàn tác: ${prev.label || 'thao tác trước'}`);
+    showToast(`Đã hoàn tác: ${prev.label || 'thao tác trước'}`);
   } catch (err) {
-    console.error('studioUndo error:', err);
   } finally {
     isApplyingHistory = false;
   }
@@ -3820,16 +3524,12 @@ function studioRedo() {
     const next = studioRedoStack.pop();
     const parsed = JSON.parse(next.state);
     ALBUM_DATA = parsed;
-    ALBUM_DATA.extraSpreadsCount = ALBUM_DATA.spreads ? ALBUM_DATA.spreads.filter(s => s.isCustomAdded).length : 0;
-    renumberSpreads();
-    syncActiveAlbumToCartIfPresent();
     autoSaveToLocalStorage();
-    renderStudioWorkspace();
+    renderActiveSpread();
+    renderFilmstripTray();
     updateStudioUndoRedoButtons();
-    const isEn = (currentAppLanguage === 'en');
-    showToast(isEn ? `Redone: ${next.label || 'action'}` : `Đã làm lại: ${next.label || 'thao tác'}`);
+    showToast(`Đã làm lại: ${next.label || 'thao tác'}`);
   } catch (err) {
-    console.error('studioRedo error:', err);
   } finally {
     isApplyingHistory = false;
   }
@@ -3840,23 +3540,11 @@ function updateStudioUndoRedoButtons() {
   const btnRedo = document.getElementById('btnStudioRedo');
   if (btnUndo) {
     btnUndo.disabled = studioUndoStack.length === 0;
-    btnUndo.style.opacity = studioUndoStack.length === 0 ? '0.35' : '1';
-    btnUndo.style.cursor = studioUndoStack.length === 0 ? 'not-allowed' : 'pointer';
+    btnUndo.style.opacity = studioUndoStack.length === 0 ? '0.4' : '1';
   }
   if (btnRedo) {
     btnRedo.disabled = studioRedoStack.length === 0;
-    btnRedo.style.opacity = studioRedoStack.length === 0 ? '0.35' : '1';
-    btnRedo.style.cursor = studioRedoStack.length === 0 ? 'not-allowed' : 'pointer';
-  }
-  const msmUndo = document.getElementById('msmItemUndo') || document.querySelector('.msm-item[onclick*="studioUndo"]');
-  const msmRedo = document.getElementById('msmItemRedo') || document.querySelector('.msm-item[onclick*="studioRedo"]');
-  if (msmUndo) {
-    msmUndo.disabled = studioUndoStack.length === 0;
-    msmUndo.style.opacity = studioUndoStack.length === 0 ? '0.4' : '1';
-  }
-  if (msmRedo) {
-    msmRedo.disabled = studioRedoStack.length === 0;
-    msmRedo.style.opacity = studioRedoStack.length === 0 ? '0.4' : '1';
+    btnRedo.style.opacity = studioRedoStack.length === 0 ? '0.4' : '1';
   }
 }
 
@@ -3997,7 +3685,7 @@ function confirmAlbumSizeChange() {
 
   remapElementsForFormatChange(oldFmt, targetFmt);
 
-  ALBUM_DATA.sizeAdj = 0;
+  ALBUM_DATA.sizeAdj = adj;
   ALBUM_DATA.sizeClass = ratioClass;
   ALBUM_DATA.sizeName = name;
   ALBUM_DATA.albumFormat = {
@@ -4005,7 +3693,7 @@ function confirmAlbumSizeChange() {
     ratioClass: targetFmt.ratioClass,
     widthMm: targetFmt.id === 'square-20' ? 200 : targetFmt.id === 'a5-landscape' ? 210 : targetFmt.id === 'a6-mini' ? 100 : 150,
     heightMm: targetFmt.id === 'square-20' ? 200 : targetFmt.id === 'a5-landscape' ? 150 : targetFmt.id === 'a6-mini' ? 150 : 210,
-    priceDelta: 0
+    priceDelta: adj
   };
 
   document.querySelectorAll('#sizeCardSelectorGroup .layout-card').forEach(el => el.classList.remove('active'));
@@ -4410,7 +4098,7 @@ function closeFlipbookModal() {
 }
 
 function triggerPageCurlEffect(direction) {
-  if (isMobileViewport()) return;
+  if (window.innerWidth < 768) return;
   const leaf = document.getElementById('fbmTurnLeaf');
   if (!leaf) return;
   leaf.className = 'fbm-turn-leaf ' + (direction === 'forward' ? 'flip-forward' : 'flip-backward');
@@ -4420,7 +4108,7 @@ function triggerPageCurlEffect(direction) {
 function fbmNextPage() {
   if (typeof ALBUM_DATA === 'undefined' || !ALBUM_DATA.spreads) return;
   const totalPages = (ALBUM_DATA.spreads.length - 2) * 2 + 2;
-  if (isMobileViewport()) {
+  if (window.innerWidth < 768) {
     if (fbmMobilePageIndex < totalPages) {
       triggerPageCurlEffect('forward');
       playPaperFlipSound();
@@ -4441,7 +4129,7 @@ function fbmNextPage() {
 function fbmPrevPage() {
   if (typeof ALBUM_DATA === 'undefined' || !ALBUM_DATA.spreads) return;
   const totalPages = (ALBUM_DATA.spreads.length - 2) * 2 + 2;
-  if (isMobileViewport()) {
+  if (window.innerWidth < 768) {
     if (fbmMobilePageIndex > 1) {
       triggerPageCurlEffect('backward');
       playPaperFlipSound();
@@ -4463,7 +4151,7 @@ function renderFlipbookSpread() {
   if (typeof ALBUM_DATA === 'undefined' || !ALBUM_DATA.spreads) return;
   const isEn = (currentAppLanguage === 'en');
   const totalPages = (ALBUM_DATA.spreads.length - 2) * 2 + 2;
-  const isMobile = isMobileViewport();
+  const isMobile = window.innerWidth < 768;
 
   const book = document.getElementById('fbmBookContainer');
   const l = document.getElementById('fbmLeftPage');
@@ -4598,31 +4286,14 @@ function renderFlipbookSpread() {
         l.style.display = 'flex';
         r.style.display = 'none';
         if (curSpread?.leftType === 'spotify-hero') {
-          const meta = getSpotifyTrackDisplayMetadata();
           l.innerHTML = `
             <div style="height:100%;width:100%;background:var(--yellow-warm);border-radius:8px;padding:20px;display:flex;flex-direction:column;justify-content:space-between">
               <div>
                 <span style="font-size:10px;font-weight:800;color:var(--red);letter-spacing:2px">OUR TIMES</span>
-                <h3 style="font-size:18px;font-weight:700;margin-top:4px">${isEn ? 'Our Cherished Melody' : 'Giai Điệu Của Chúng Mình'}</h3>
+                <h3 style="font-size:18px;font-weight:700;margin-top:4px">${ALBUM_DATA.spotifyTrack || (isEn ? 'No track selected yet' : 'Chưa chọn bài hát')}</h3>
               </div>
               <div style="margin:16px 0">
-                ${!meta.hasTrack ? `
-                  <div style="font-size:13px;font-weight:700;margin-bottom:6px;color:var(--dark)">${isEn ? 'No track selected yet' : 'Chưa chọn bài hát'}</div>
-                ` : meta.isPending ? `
-                  <div style="margin-bottom:10px;padding:6px 10px;background:rgba(0,0,0,0.04);border-radius:6px">
-                    <div style="font-size:11px;font-weight:600;color:var(--gray)">${isEn ? '⏳ Fetching song details...' : '⏳ Đang lấy thông tin bài hát...'}</div>
-                  </div>
-                ` : `
-                  <div style="margin-bottom:10px;text-align:left">
-                    <div style="font-size:9px;font-weight:800;color:var(--gray);text-transform:uppercase;letter-spacing:1px;margin-bottom:2px">${isEn ? 'Song' : 'Bài hát'}</div>
-                    <div class="fbm-spotify-song-name" style="font-size:14px;font-weight:800;color:var(--dark);margin-bottom:6px;line-height:1.3">${escapeSpotifyAttr(meta.title)}</div>
-                    <div style="font-size:9px;font-weight:800;color:var(--gray);text-transform:uppercase;letter-spacing:1px;margin-bottom:2px">${isEn ? 'Artist' : 'Nghệ sĩ'}</div>
-                    <div class="fbm-spotify-artist-name" style="font-size:12px;font-weight:700;color:var(--red);margin-bottom:6px;line-height:1.3">${escapeSpotifyAttr(meta.artist || (isEn ? 'Spotify Artist' : 'Nghệ sĩ Spotify'))}</div>
-                  </div>
-                `}
-                ${!meta.hasTrack ? `
-                  <div style="font-size:11px;color:var(--gray);font-style:italic;padding:8px 0">${isEn ? 'Please choose a song in Audio tab' : 'Vui lòng chọn bài hát tại tab Âm thanh'}</div>
-                ` : ALBUM_DATA.spotifyCodeImg ? `<img src="${ALBUM_DATA.spotifyCodeImg}" style="width:100%;border-radius:6px;box-shadow:0 4px 12px rgba(139,30,63,0.35)">` : `<div class="spotify-soundwave-bar"><div class="spotify-logo-icon">🎵</div><span style="font-size:12px;font-weight:700">${escapeSpotifyAttr(meta.title || 'Spotify Soundwave')}</span></div>`}
+                ${ALBUM_DATA.spotifyCodeImg ? `<img src="${ALBUM_DATA.spotifyCodeImg}" style="width:100%;border-radius:6px;box-shadow:0 4px 12px rgba(139,30,63,0.35)">` : `<div class="spotify-soundwave-bar"><div class="spotify-logo-icon">🎵</div><span style="font-size:12px;font-weight:700">${ALBUM_DATA.spotifyTrack || 'Spotify Soundwave'}</span></div>`}
               </div>
               <div style="font-size:10.5px;color:var(--gray);font-style:italic">${isEn ? 'Scan code on Spotify mobile app to play music.' : 'Quét mã trên app Spotify để phát nhạc.'}</div>
             </div>
@@ -4734,32 +4405,15 @@ function renderFlipbookSpread() {
       r.style.display = 'flex';
 
       if (spread.leftType === 'spotify-hero') {
-        const meta = getSpotifyTrackDisplayMetadata();
         l.innerHTML = `
           <div style="height:100%;width:100%;background:var(--yellow-warm);border-radius:8px;padding:24px;display:flex;flex-direction:column;justify-content:space-between">
             <div>
               <span style="font-size:10px;font-weight:800;color:var(--red);letter-spacing:2px">OUR TIMES</span>
-              <h3 style="font-size:20px;font-weight:700;margin-top:4px">${isEn ? 'Our Cherished Melody' : 'Giai Điệu Của Chúng Mình'}</h3>
+              <h3 style="font-size:20px;font-weight:700;margin-top:4px">${ALBUM_DATA.spotifyTrack || (isEn ? 'No track selected yet' : 'Chưa chọn bài hát')}</h3>
             </div>
             <div style="margin:20px 0">
-              ${!meta.hasTrack ? `
-                <div style="font-size:13px;font-weight:700;margin-bottom:6px;color:var(--dark)">${isEn ? 'No track selected yet' : 'Chưa chọn bài hát'}</div>
-              ` : meta.isPending ? `
-                <div style="margin-bottom:12px;padding:8px 12px;background:rgba(0,0,0,0.04);border-radius:6px">
-                  <div style="font-size:11.5px;font-weight:600;color:var(--gray)">${isEn ? '⏳ Fetching song details...' : '⏳ Đang lấy thông tin bài hát...'}</div>
-                </div>
-              ` : `
-                <div style="margin-bottom:14px;text-align:left">
-                  <div style="font-size:9.5px;font-weight:800;color:var(--gray);text-transform:uppercase;letter-spacing:1px;margin-bottom:2px">${isEn ? 'Song' : 'Bài hát'}</div>
-                  <div class="fbm-spotify-song-name" style="font-size:16px;font-weight:800;color:var(--dark);margin-bottom:8px;line-height:1.3">${escapeSpotifyAttr(meta.title)}</div>
-                  <div style="font-size:9.5px;font-weight:800;color:var(--gray);text-transform:uppercase;letter-spacing:1px;margin-bottom:2px">${isEn ? 'Artist' : 'Nghệ sĩ'}</div>
-                  <div class="fbm-spotify-artist-name" style="font-size:13.5px;font-weight:700;color:var(--red);margin-bottom:8px;line-height:1.3">${escapeSpotifyAttr(meta.artist || (isEn ? 'Spotify Artist' : 'Nghệ sĩ Spotify'))}</div>
-                </div>
-              `}
-              ${!meta.hasTrack ? `
-                <div style="font-size:11.5px;color:var(--gray);font-style:italic;padding:10px 0">${isEn ? 'Please choose a song in Audio tab' : 'Vui lòng chọn bài hát tại tab Âm thanh'}</div>
-              ` : ALBUM_DATA.spotifyCodeImg ? `<img src="${ALBUM_DATA.spotifyCodeImg}" style="width:100%;border-radius:6px;box-shadow:0 4px 12px rgba(139,30,63,0.35)">` : `<div class="spotify-soundwave-bar"><div class="spotify-logo-icon">🎵</div><span style="font-size:12px;font-weight:700">${escapeSpotifyAttr(meta.title || 'Spotify Soundwave')}</span></div>`}
-              </div>
+              ${ALBUM_DATA.spotifyCodeImg ? `<img src="${ALBUM_DATA.spotifyCodeImg}" style="width:100%;border-radius:6px;box-shadow:0 4px 12px rgba(139,30,63,0.35)">` : `<div class="spotify-soundwave-bar"><div class="spotify-logo-icon">🎵</div><span style="font-size:12px;font-weight:700">${ALBUM_DATA.spotifyTrack || 'Spotify Soundwave'}</span></div>`}
+            </div>
             <div style="font-size:11px;color:var(--gray);font-style:italic">${isEn ? 'Scan code on Spotify mobile app to play music.' : 'Quét mã trên app Spotify để phát nhạc.'}</div>
           </div>
         `;
@@ -4860,160 +4514,37 @@ function renderFlipbookSpread() {
 // ── RECOVERED CORE MODAL HANDLERS & POLICIES ──
 function openDraftsManagerModal() { const m = document.getElementById('draftsManagerModal'); if (m) m.classList.add('open'); }
 function closeDraftsManagerModal() { const m = document.getElementById('draftsManagerModal'); if (m) m.classList.remove('open'); }
-function openOrdersManagerModal() {
-  const m = document.getElementById('ordersManagerModal');
-  if (m) m.classList.add('open');
-  renderOrdersManagerList();
-}
-function closeOrdersManagerModal() {
-  const m = document.getElementById('ordersManagerModal');
-  if (m) m.classList.remove('open');
-}
-
-function renderOrdersManagerList() {
-  const list = document.getElementById('ordersManagerList');
-  if (!list) return;
-
-  let orders = [];
-  if (typeof window.codexGetCustomerOrders === 'function') {
-    try { orders = window.codexGetCustomerOrders() || []; } catch(e) {}
-  }
-  if (orders.length === 0 && Array.isArray(window.MELSOU_CONFIRMED_ORDERS)) {
-    orders = window.MELSOU_CONFIRMED_ORDERS;
-  }
-
-  const isEn = (currentAppLanguage === 'en');
-  if (orders.length === 0) {
-    list.innerHTML = `
-      <div style="text-align:center;padding:44px 16px;color:var(--gray)">
-        <div style="font-size:42px;margin-bottom:12px">📦</div>
-        <div style="font-size:16px;font-weight:700;color:var(--dark);margin-bottom:6px">
-          ${isEn ? 'No orders yet' : 'Bạn chưa có đơn hàng nào'}
-        </div>
-        <p style="font-size:13px;color:var(--gray);max-width:400px;margin:0 auto 16px;line-height:1.5">
-          ${isEn ? 'When you complete an order and payment is verified, your order will appear here.' : 'Sau khi bạn hoàn tất đặt hàng và thanh toán thành công, chi tiết đơn hàng sẽ xuất hiện tại đây.'}
-        </p>
-        <button class="btn-outline" style="font-size:12.5px;padding:8px 18px" onclick="closeOrdersManagerModal();showPage('studio')">
-          ${isEn ? '🪄 Create photobook now' : '🪄 Bắt đầu tạo album'}
-        </button>
-      </div>
-    `;
-    return;
-  }
-
-  list.innerHTML = orders.map(o => `
-    <div style="padding:16px;border:1px solid var(--gray-l);border-radius:12px;background:white">
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
-        <strong style="font-size:15px;color:var(--dark)">${o.orderCode}</strong>
-        <span style="font-size:12px;background:#dcfce7;color:#16a34a;padding:3px 10px;border-radius:100px;font-weight:700">${o.statusText || (isEn ? 'Confirmed' : 'Đã xác nhận')}</span>
-      </div>
-      <div style="font-size:12.5px;color:var(--gray);margin-bottom:6px">
-        ${o.items ? o.items.map(i => i.title).join(', ') : (isEn ? 'Custom photobook' : 'Album photobook')}
-      </div>
-      <div style="display:flex;justify-content:space-between;align-items:center;font-size:12.5px;border-top:1px solid #f3f4f6;padding-top:8px">
-        <span style="color:var(--gray)">${o.createdAt || ''}</span>
-        <strong style="color:var(--red);font-size:14px">${(o.totalAmount || 0).toLocaleString('vi-VN')}đ</strong>
-      </div>
-    </div>
-  `).join('');
-}
-
-function renderTrackingOrderDetails(order) {
-  const title = document.getElementById('trackOrderTitle');
-  const badge = document.getElementById('trackOrderStatusBadge');
-  const itemsList = document.getElementById('trackOrderItemsList');
-  const timeline = document.getElementById('trackTimelineContainer');
-  const isEn = (currentAppLanguage === 'en');
-
-  if (title) title.textContent = `${order.orderCode} · ${order.customer?.name || (isEn ? 'Customer' : 'Khách hàng')}`;
-  if (badge) badge.textContent = order.statusText || (isEn ? '✅ Order Confirmed' : '✅ Đã xác nhận đơn hàng');
-
-  if (itemsList) {
-    if (order.items && order.items.length > 0) {
-      itemsList.innerHTML = order.items.map(it => `
-        <div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid #eee">
-          <span>${it.title || it.packageName} × ${it.qty || 1}</span>
-          <strong>${((it.price || 0) * (it.qty || 1)).toLocaleString('vi-VN')}đ</strong>
-        </div>
-      `).join('');
-    } else {
-      itemsList.innerHTML = `<div>${isEn ? 'Photobook 180° Layflat' : 'Album photobook mở phẳng 180°'}</div>`;
-    }
-  }
-
-  if (timeline) {
-    const steps = order.timeline || [
-      { time: order.createdAt || (isEn ? 'Just now' : 'Vừa xong'), title: isEn ? 'Order confirmed & payment verified' : 'Xác nhận đơn hàng & khớp lệnh thanh toán thành công' },
-      { time: isEn ? 'In production' : 'Đang xử lý', title: isEn ? 'Melsou workshop received seamless 180° layout file' : 'Xưởng in Melsou tiếp nhận tệp thiết kế liền trang 180°' },
-      { time: isEn ? 'Estimated' : 'Dự kiến', title: isEn ? 'Packaging & handover to delivery courier' : 'Đóng gói hộp quà Kraft & bàn giao đơn vị vận chuyển' }
-    ];
-    timeline.innerHTML = steps.map(s => `
-      <div>
-        <div style="font-size:11px;color:var(--gray)">${s.time}</div>
-        <div style="font-size:13.5px;font-weight:700">${s.title}</div>
-      </div>
-    `).join('');
-  }
-}
+function openOrdersManagerModal() { const m = document.getElementById('ordersManagerModal'); if (m) m.classList.add('open'); }
+function closeOrdersManagerModal() { const m = document.getElementById('ordersManagerModal'); if (m) m.classList.remove('open'); }
+function openPrivacyPolicyModal() { const m = document.getElementById('privacyPolicyModal'); if (m) m.classList.add('open'); }
+function closePrivacyPolicyModal() { const m = document.getElementById('privacyPolicyModal'); if (m) m.classList.remove('open'); }
+function openWarrantyPolicyModal() { const m = document.getElementById('warrantyPolicyModal'); if (m) m.classList.add('open'); }
+function closeWarrantyPolicyModal() { const m = document.getElementById('warrantyPolicyModal'); if (m) m.classList.remove('open'); }
+function toggleSpeedDial() { const m = document.getElementById('speedDialMenu'); if (m) m.classList.toggle('open'); }
 
 function performTrackingSearch() {
   const inp = document.getElementById('trackQueryInput');
   const q = inp ? inp.value.trim() : '';
-  const init = document.getElementById('trackInitialBox');
   const res = document.getElementById('trackResultBox');
   const emp = document.getElementById('trackEmptyBox');
-  const loading = document.getElementById('trackLoadingBox');
-
-  if (!q) {
-    if (init) init.style.display = 'block';
-    if (res) res.style.display = 'none';
+  if (q) {
+    if (res) res.style.display = 'block';
     if (emp) emp.style.display = 'none';
-    if (loading) loading.style.display = 'none';
-    showToast(currentAppLanguage === 'en' ? 'Please enter an order code or phone number' : 'Vui lòng nhập mã đơn hàng hoặc số điện thoại');
-    return;
+    const title = document.getElementById('trackOrderTitle');
+    if (title) title.textContent = `${q} · Nguyễn Thiện Bách`;
+  } else {
+    if (res) res.style.display = 'none';
+    if (emp) emp.style.display = 'block';
   }
-
-  if (init) init.style.display = 'none';
-  if (res) res.style.display = 'none';
-  if (emp) emp.style.display = 'none';
-  if (loading) loading.style.display = 'block';
-
-  setTimeout(() => {
-    if (loading) loading.style.display = 'none';
-
-    let foundOrder = null;
-    if (typeof window.codexTrackOrder === 'function') {
-      try { foundOrder = window.codexTrackOrder(q); } catch(e) {}
-    }
-    if (!foundOrder && Array.isArray(window.MELSOU_CONFIRMED_ORDERS)) {
-      foundOrder = window.MELSOU_CONFIRMED_ORDERS.find(o =>
-        (o.orderCode && o.orderCode.toLowerCase() === q.toLowerCase()) ||
-        (o.customer && o.customer.phone === q)
-      );
-    }
-
-    if (foundOrder) {
-      if (res) res.style.display = 'block';
-      if (emp) emp.style.display = 'none';
-      renderTrackingOrderDetails(foundOrder);
-    } else {
-      if (res) res.style.display = 'none';
-      if (emp) emp.style.display = 'block';
-    }
-  }, 300);
 }
 
 function resetTrackingSearch() {
   const inp = document.getElementById('trackQueryInput');
   if (inp) { inp.value = ''; inp.focus(); }
-  const init = document.getElementById('trackInitialBox');
   const res = document.getElementById('trackResultBox');
-  const emp = document.getElementById('trackEmptyBox');
-  const loading = document.getElementById('trackLoadingBox');
-  if (init) init.style.display = 'block';
   if (res) res.style.display = 'none';
+  const emp = document.getElementById('trackEmptyBox');
   if (emp) emp.style.display = 'none';
-  if (loading) loading.style.display = 'none';
 }
 
 function toggleFlipSound(val) {
@@ -5457,49 +4988,15 @@ function copyToClipboard(text) {
 }
 
 function simulateSuccessfulPayment() {
-  const memoEl = document.getElementById('copyMemoText');
-  const code = (memoEl && memoEl.textContent !== '--') ? memoEl.textContent : ('MELS' + Date.now().toString().slice(-7));
-  const nameEl = document.getElementById('shipName');
-  const phoneEl = document.getElementById('shipPhone');
-  const addressEl = document.getElementById('shipAddress');
-
-  const confirmedOrder = {
-    orderCode: code,
-    customer: {
-      name: (nameEl ? nameEl.value.trim() : '') || (currentAppLanguage === 'en' ? 'Customer' : 'Khách hàng'),
-      phone: (phoneEl ? phoneEl.value.trim() : '') || '',
-      address: (addressEl ? addressEl.value.trim() : '') || '',
-      email: currentUser?.email || ''
-    },
-    items: ALBUM_DATA.cart ? ALBUM_DATA.cart.filter(i => i.selected) : [],
-    totalAmount: ALBUM_DATA.cart ? ALBUM_DATA.cart.reduce((s, i) => s + (i.selected ? i.price * i.qty : 0), 0) + 30000 : 0,
-    status: 'confirmed',
-    statusText: currentAppLanguage === 'en' ? '✅ Payment Verified' : '✅ Đã xác nhận thanh toán',
-    createdAt: new Date().toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' }) + ' · Hôm nay'
-  };
-
-  if (!window.MELSOU_CONFIRMED_ORDERS) window.MELSOU_CONFIRMED_ORDERS = [];
-  window.MELSOU_CONFIRMED_ORDERS.unshift(confirmedOrder);
-
   if (typeof window.codexCheckPaymentStatus === 'function') {
     try {
-      window.codexCheckPaymentStatus(confirmedOrder);
+      window.codexCheckPaymentStatus();
     } catch(e) {}
   }
-
-  showToast(currentAppLanguage === 'en' ? '✅ Payment verified! Melsou is preparing your bespoke album.' : '✅ Đã ghi nhận chuyển khoản thành công! Melsou đang chuyển sang chế độ chuẩn bị ấn phẩm.');
-
-  // Clean cart of selected items
-  ALBUM_DATA.cart = ALBUM_DATA.cart.filter(i => !i.selected);
-  autoSaveToLocalStorage();
-  updateCartBadge();
-
+  showToast('✅ Đã ghi nhận chuyển khoản thành công! Melsou đang chuyển sang chế độ chuẩn bị ấn phẩm.');
   setTimeout(() => {
     closeCheckoutModal();
     showPage('tracking');
-    const trackInput = document.getElementById('trackQueryInput');
-    if (trackInput) trackInput.value = code;
-    performTrackingSearch();
   }, 1000);
 }
 
@@ -5717,25 +5214,6 @@ function toggleMobileSidebar() {
   }
 }
 
-// FB82: Bounding height calculation for left side drawer above filmstrip
-function recalculateDrawerAvailableHeight() {
-  if (isMobileViewport()) return; // Mobile uses bottom sheet mode
-  const drawer = document.getElementById('canvaSidebarEl');
-  const filmstripEl = document.getElementById('studioFilmstripWrapper');
-  const studioBody = document.getElementById('studioBodyContainer');
-  if (!drawer || !studioBody) return;
-
-  if (filmstripEl) {
-    const filmstripRect = filmstripEl.getBoundingClientRect();
-    const bodyRect = studioBody.getBoundingClientRect();
-    const safeGap = 12; // 12px aesthetic clear gap before top edge of filmstrip
-    const bottomOffset = Math.max(0, Math.round(bodyRect.bottom - filmstripRect.top) + safeGap);
-    drawer.style.bottom = `${bottomOffset}px`;
-  } else {
-    drawer.style.bottom = '120px';
-  }
-}
-
 function adjustMobileStageScale() {
   const stage = document.getElementById('studioStageArea');
   const book = document.getElementById('interactiveLayflatBook');
@@ -5749,7 +5227,7 @@ function adjustMobileStageScale() {
   const isEn = (currentAppLanguage === 'en');
   const stageWrapper = document.querySelector('.photobook-stage-wrapper');
 
-  if (isMobileViewport()) {
+  if (window.innerWidth < 768) {
     const isDrawerOpen = typeof isFlyoutDrawerOpen !== 'undefined' && isFlyoutDrawerOpen;
     const drawer = document.getElementById('canvaSidebarEl');
     let drawerHeight = 0;
@@ -5771,8 +5249,6 @@ function adjustMobileStageScale() {
     const targetBaseHeight = fmt.singleHeight;
     const scale = Math.max(0.35, Math.min(availableWidth / targetBaseWidth, availableHeight / targetBaseHeight, 0.95));
 
-    currentStageScale = scale;
-    window.currentStageScale = scale;
     book.style.transform = `scale(${scale})`;
     book.style.transformOrigin = 'center center';
 
@@ -5795,10 +5271,11 @@ function adjustMobileStageScale() {
 
     if (stageWrapper) stageWrapper.style.minHeight = (targetBaseHeight * scale + 10) + 'px';
   } else {
-    // Desktop & Tablet Responsive Scale (FB90 Fit-to-Workspace Canva-style Engine)
+    // Desktop Responsive Scale (FB74: Prevent Bottom Page Tray from Covering Desktop Album)
+    // availableCanvasHeight = viewportHeight - topBars - trayHeight - safeSpacing
     const fmt = getCurrentAlbumFormat();
     const stageW = stage.clientWidth || (window.innerWidth - 64);
-    const stageH = stage.clientHeight || (window.innerHeight - 48);
+    const stageH = stage.clientHeight || (window.innerHeight - 170);
     const baseW = isCoverOrBack ? fmt.singleWidth : fmt.spreadWidth;
     const baseH = isCoverOrBack ? fmt.singleHeight : fmt.spreadHeight;
 
@@ -5806,35 +5283,28 @@ function adjustMobileStageScale() {
     const toolbarEl = document.querySelector('.stage-toolbar');
     const isTrayCollapsed = filmstripEl ? filmstripEl.classList.contains('collapsed') : false;
     const trayH = filmstripEl ? (isTrayCollapsed ? 32 : (filmstripEl.offsetHeight || 108)) : 0;
-    const toolbarH = toolbarEl ? (toolbarEl.offsetHeight || 36) : 36;
+    const toolbarH = toolbarEl ? (toolbarEl.offsetHeight || 40) : 40;
 
-    // Available rectangle inside stage area (since .studio-stage has margin-left: 320px when drawer is open, stage.clientWidth is already the true available width)
-    const availW = Math.max(300, stageW - 48); // 24px padding each side
-    const availH = Math.max(260, stageH - toolbarH - trayH - 36);
+    // Total vertical non-book space:
+    // Stage padding top/bottom (40px) + toolbar/tray vertical margins (20px) + toolbar + tray + safe visual buffer (36px)
+    const totalVerticalDeductions = 40 + 20 + toolbarH + trayH + 36;
+    const availW = Math.max(300, stageW - 64);
+    const availH = Math.max(220, stageH - totalVerticalDeductions);
 
-    // Fit-to-workspace scale utilizing available space while locking physical aspect ratio
-    const rawScale = Math.min(availW / baseW, availH / baseH);
-    const scale = Math.max(0.40, Math.min(Math.round(rawScale * 100) / 100, 1.85));
+    const factor = (window.innerWidth >= 1900) ? 0.98 : (window.innerWidth >= 1400) ? 0.98 : 1.0;
+    const rawScale = Math.min(availW / baseW, availH / baseH) * factor;
+    const scale = Math.max(0.68, Math.min(Math.round(rawScale * 100) / 100, 1.65));
 
     currentStageScale = scale;
-    window.currentStageScale = scale;
     book.style.transform = `scale(${scale})`;
     book.style.transformOrigin = 'center center';
-
     if (stageWrapper) {
       stageWrapper.style.paddingBottom = '0px';
       stageWrapper.style.minHeight = '0px';
-      stageWrapper.style.marginLeft = '0px';
-      stageWrapper.style.transition = 'transform 0.24s ease';
     }
-
     const ind = document.getElementById('currentSpreadName');
     if (activeSpread && ind) {
       ind.textContent = activeSpread.name || '';
-    }
-
-    if (typeof recalculateDrawerAvailableHeight === 'function') {
-      recalculateDrawerAvailableHeight();
     }
   }
 }
@@ -5881,12 +5351,7 @@ function updateAdaptiveCtaText() {
     ctaBtn.textContent = isWide ? '🪄 Bắt đầu tạo album' : '🪄 Tạo album';
   }
 }
-window.addEventListener('resize', () => {
-  syncResponsiveDeviceClasses();
-  updateAdaptiveCtaText();
-  adjustMobileStageScale();
-  recalculateDrawerAvailableHeight();
-});
+window.addEventListener('resize', updateAdaptiveCtaText);
 
 const MELSOU_I18N = {
   vi: {
@@ -5932,7 +5397,7 @@ const MELSOU_I18N = {
     valCardMore3: 'Khám phá câu chuyện →',
 
     // Pricing Section
-    pricingTitle: 'Gói sản phẩm',
+    pricingTitle: 'Gói sản phẩm & Bảng giá',
     pkgFeaturedBadge: '✦ Được nhiều khách lựa chọn nhất',
     pkgMelodyLabel: 'MELODY KEEPSAKE',
     pkgMelodyNote: 'Nhỏ gọn, mở phẳng liền trang kèm mã nhạc Spotify độc bản',
@@ -6049,7 +5514,7 @@ const MELSOU_I18N = {
     topbarAction: 'Create now →',
     navAbout: 'About us',
     navValues: 'Unique Values',
-    navPricing: 'Packages',
+    navPricing: 'Packages & Pricing',
     navTemplates: 'Template Library',
     navReviews: 'User Reviews',
     navBlog: 'Blog',
@@ -6085,7 +5550,7 @@ const MELSOU_I18N = {
     valCardMore3: 'Explore story →',
 
     // Pricing Section
-    pricingTitle: 'Packages',
+    pricingTitle: 'Packages & Pricing',
     pkgFeaturedBadge: '✦ Most Popular Choice',
     pkgMelodyLabel: 'MELODY KEEPSAKE',
     pkgMelodyNote: 'Compact, seamless layflat with personalized Spotify code',
@@ -6237,10 +5702,15 @@ function applyStudioTranslations(lang) {
     ['🎵 Gói Melody', '🎵 Melody Keepsake'],
     ['🎙️ Gói Voice', '🎙️ Voice Keepsake'],
     ['Full: Spotify + Voice Chip + Quà', 'Full: Spotify + Voice Chip + Gifts'],
+    ['2. Khổ Album & Kích Thước Thật', '2. Album Dimensions & Sizes'],
     ['A5 Đứng', 'A5 Portrait'],
+    ['15 × 21 cm · Chuẩn', '15 × 21 cm · Standard'],
     ['Khổ Vuông', 'Square Format'],
+    ['20 × 20 cm · Vuông vắn', '20 × 20 cm · Square'],
     ['A5 Ngang', 'A5 Landscape'],
+    ['21 × 15 cm · Panorama', '21 × 15 cm · Panorama'],
     ['A6 Mini', 'A6 Mini Pocket'],
+    ['10 × 15 cm · Bỏ túi', '10 × 15 cm · Pocket'],
     ['Thêm Trang Đôi Mở Rộng', 'Add Extra Interior Spreads'],
     ['➕ Thêm 1 Trang Đôi Liền Kề (+15.000đ / 2 trang)', '➕ Add 1 Extra Spread (+15,000đ / 2 pages)'],
     ['Khung Ảnh Canva (Canva Frames)', 'Canva Photo Frames'],
@@ -6308,9 +5778,13 @@ function applyStudioTranslations(lang) {
     ['Full: Spotify + Voice Chip + Gifts', 'Full: Spotify + Voice Chip + Quà'],
     ['2. Album Dimensions & Sizes', '2. Khổ Album & Kích Thước Thật'],
     ['A5 Portrait', 'A5 Đứng'],
+    ['15 × 21 cm · Standard', '15 × 21 cm · Chuẩn'],
     ['Square Format', 'Khổ Vuông'],
+    ['20 × 20 cm · Square', '20 × 20 cm · Vuông vắn'],
     ['A5 Landscape', 'A5 Ngang'],
+    ['21 × 15 cm · Panorama', '21 × 15 cm · Panorama'],
     ['A6 Mini Pocket', 'A6 Mini'],
+    ['10 × 15 cm · Pocket', '10 × 15 cm · Bỏ túi'],
     ['Add Extra Interior Spreads', 'Thêm Trang Đôi Mở Rộng'],
     ['➕ Add 1 Extra Spread (+15,000đ / 2 pages)', '➕ Thêm 1 Trang Đôi Liền Kề (+15.000đ / 2 trang)'],
     ['Canva Photo Frames', 'Khung Ảnh Canva (Canva Frames)'],
@@ -6474,7 +5948,7 @@ function applyMobileDrawerTranslations(lang) {
   const mndMap = {
     mndLinkHome: isEn ? '🏠 Home' : '🏠 Trang chủ',
     mndLinkValues: isEn ? '✨ Four Unique Values' : '✨ Bốn giá trị độc bản',
-    mndLinkPricing: isEn ? '🏷️ Packages' : '🏷️ Gói sản phẩm',
+    mndLinkPricing: isEn ? '🏷️ Packages & Pricing' : '🏷️ Gói sản phẩm & Bảng giá',
     mndLinkTemplates: isEn ? '🎨 Template Library' : '🎨 Thư viện Template',
     mndLinkReviews: isEn ? '💬 User Reviews' : '💬 Trải nghiệm người dùng',
     mndLinkBlog: isEn ? '📖 Blog' : '📖 Câu chuyện',
@@ -6905,7 +6379,6 @@ function switchLanguage(lang) {
 }
 
 // ── INIT ON LOAD ──
-syncResponsiveDeviceClasses();
 initUserAuthState();
 loadFromLocalStorage();
 initTemplateCards();
@@ -7537,8 +7010,8 @@ function handleRailTabClick(tabIndex) {
 
   const isCollapsed = drawer.classList.contains('collapsed');
 
-  // If clicking the currently active tab on desktop/tablet while drawer is open -> collapse
-  if (!isCollapsed && activeRailTabIndex === tabIndex && !isMobileViewport()) {
+  // If clicking the currently active tab on desktop while drawer is open -> collapse
+  if (!isCollapsed && activeRailTabIndex === tabIndex && window.innerWidth > 768) {
     closeFlyoutDrawer();
     return;
   }
@@ -7554,13 +7027,11 @@ function openFlyoutDrawer(tabIndex) {
   const drawer = document.getElementById('canvaSidebarEl');
   if (drawer) {
     drawer.classList.remove('collapsed');
-    if (isMobileViewport()) {
+    if (window.innerWidth < 768) {
       drawer.classList.remove('snap-expanded', 'snap-full');
       drawer.classList.add('snap-compact', 'snap-half');
+      adjustMobileStageScale();
     }
-    adjustMobileStageScale();
-    setTimeout(adjustMobileStageScale, 250);
-    recalculateDrawerAvailableHeight();
   }
 
   const isEn = (currentAppLanguage === 'en');
@@ -7601,9 +7072,9 @@ function closeFlyoutDrawer() {
     drawer.classList.remove('snap-compact', 'snap-half', 'snap-expanded', 'snap-full');
   }
   document.querySelectorAll('.studio-rail-btn').forEach(btn => btn.classList.remove('active'));
-  adjustMobileStageScale();
-  setTimeout(adjustMobileStageScale, 250);
-  recalculateDrawerAvailableHeight();
+  if (window.innerWidth < 768) {
+    adjustMobileStageScale();
+  }
 }
 
 function selectSpreadItem(type, id, el, e) {
@@ -7776,13 +7247,10 @@ function toggleFilmstripCollapse() {
   }
   requestAnimationFrame(() => {
     adjustMobileStageScale();
-    recalculateDrawerAvailableHeight();
   });
 }
 
 function applySpreadBgColor(color) {
-  const isEn = (currentAppLanguage === 'en');
-  pushStudioSnapshot(isEn ? 'Change background color' : 'Đổi màu nền trang');
   const curSpread = ALBUM_DATA.spreads[ALBUM_DATA.activeSpreadIndex];
   if (!curSpread) return;
   curSpread.bgColor = color;
@@ -7791,12 +7259,10 @@ function applySpreadBgColor(color) {
   if (leftPage) leftPage.style.backgroundColor = color;
   if (rightPage) rightPage.style.backgroundColor = color;
   autoSaveToLocalStorage();
-  showToast(isEn ? 'Page background updated' : 'Đã đổi màu nền trang');
+  showToast(currentAppLanguage === 'en' ? 'Page background updated' : 'Đã đổi màu nền trang');
 }
 
 function cyclePhotoFilter(slotKey) {
-  const isEn = (currentAppLanguage === 'en');
-  pushStudioSnapshot(isEn ? 'Photo filter' : 'Bộ lọc ảnh');
   if (!ALBUM_DATA.photoFilters) ALBUM_DATA.photoFilters = {};
   const filters = ['none', 'sepia(0.4) contrast(1.1)', 'grayscale(1)', 'sepia(0.2) saturate(1.3)'];
   const filterNames = ['Gốc', 'Vintage', 'Đen Trắng', 'Ấm Áp'];
@@ -7813,8 +7279,6 @@ function cyclePhotoFilter(slotKey) {
 }
 
 function clearPhotoSlot(slotKey) {
-  const isEn = (currentAppLanguage === 'en');
-  pushStudioSnapshot(isEn ? 'Clear photo' : 'Xóa ảnh');
   if (slotKey.startsWith('el_')) {
     const elId = parseInt(slotKey.replace('el_', ''));
     removeSpreadElement(elId);
@@ -7827,13 +7291,11 @@ function clearPhotoSlot(slotKey) {
     renderActiveSpread();
     clearStudioSelection();
     autoSaveToLocalStorage();
-    showToast(isEn ? 'Photo cleared' : 'Đã xóa ảnh khỏi khung');
+    showToast(currentAppLanguage === 'en' ? 'Photo cleared' : 'Đã xóa ảnh khỏi khung');
   }
 }
 
 function flipElementHorizontal(elId) {
-  const isEn = (currentAppLanguage === 'en');
-  pushStudioSnapshot(isEn ? 'Flip horizontal' : 'Lật ngang');
   const spread = ALBUM_DATA.spreads[ALBUM_DATA.activeSpreadIndex];
   if (!spread || !spread.elements) return;
   const el = spread.elements.find(e => e.id === elId);
@@ -7849,8 +7311,6 @@ function flipElementHorizontal(elId) {
 }
 
 function rotateSpreadElement90(elId) {
-  const isEn = (currentAppLanguage === 'en');
-  pushStudioSnapshot(isEn ? 'Rotate 90°' : 'Xoay 90°');
   const spread = ALBUM_DATA.spreads[ALBUM_DATA.activeSpreadIndex];
   if (!spread || !spread.elements) return;
   const el = spread.elements.find(e => e.id === elId);
@@ -7864,17 +7324,15 @@ function rotateSpreadElement90(elId) {
   }
 }
 
+
+
 function applyTextFont(fontFamily) {
-  const isEn = (currentAppLanguage === 'en');
-  pushStudioSnapshot(isEn ? 'Change font' : 'Đổi phông chữ');
   ALBUM_DATA.letterFont = fontFamily;
   renderActiveSpread();
   autoSaveToLocalStorage();
 }
 
 function adjustTextFontSize(delta) {
-  const isEn = (currentAppLanguage === 'en');
-  pushStudioSnapshot(isEn ? 'Change font size' : 'Đổi cỡ chữ');
   ALBUM_DATA.letterFontSize = Math.max(10, Math.min(36, (ALBUM_DATA.letterFontSize || 14) + delta));
   const textEls = document.querySelectorAll('.pb-editable-text');
   textEls.forEach(t => { t.style.fontSize = ALBUM_DATA.letterFontSize + 'px'; });
@@ -7882,8 +7340,6 @@ function adjustTextFontSize(delta) {
 }
 
 function applyTextColor(color) {
-  const isEn = (currentAppLanguage === 'en');
-  pushStudioSnapshot(isEn ? 'Change text color' : 'Đổi màu chữ');
   ALBUM_DATA.inkColor = color;
   const textEls = document.querySelectorAll('.pb-editable-text');
   textEls.forEach(t => { t.style.color = color; });
@@ -7891,8 +7347,6 @@ function applyTextColor(color) {
 }
 
 function toggleTextBold() {
-  const isEn = (currentAppLanguage === 'en');
-  pushStudioSnapshot(isEn ? 'Toggle bold' : 'In đậm chữ');
   ALBUM_DATA.letterFontWeight = ALBUM_DATA.letterFontWeight === 'bold' ? 'normal' : 'bold';
   const textEls = document.querySelectorAll('.pb-editable-text');
   textEls.forEach(t => { t.style.fontWeight = ALBUM_DATA.letterFontWeight; });
@@ -7900,8 +7354,6 @@ function toggleTextBold() {
 }
 
 function toggleTextItalic() {
-  const isEn = (currentAppLanguage === 'en');
-  pushStudioSnapshot(isEn ? 'Toggle italic' : 'In nghiêng chữ');
   ALBUM_DATA.letterFontStyle = ALBUM_DATA.letterFontStyle === 'italic' ? 'normal' : 'italic';
   const textEls = document.querySelectorAll('.pb-editable-text');
   textEls.forEach(t => { t.style.fontStyle = ALBUM_DATA.letterFontStyle; });

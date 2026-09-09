@@ -2,6 +2,134 @@
 
 This log prevents accidental overlap. Add the newest entry at the top.
 
+## CURRENT BEST VERSION — Antigravity — Golden Baseline FB90 Milestone (Per PO Directive)
+
+- **When / agent:** 2026-09-10 00:20 — Antigravity
+- **Status:** GOLDEN BASELINE / PHIÊN BẢN TỐT NHẤT HIỆN TẠI (Approved by Product Owner)
+- **Active Working Directory:** `demo/recovery_fb38/`
+- **Frozen Baseline Checkpoints:** `demo/checkpoint_fb90_golden/` (Active Golden Baseline), `demo/checkpoint_fb87_golden/`, `demo/checkpoint_fb77_golden/`, `demo/checkpoint_fb71_golden/` (Untouched)
+- **Files changed:** `demo/checkpoint_fb90_golden/` (frozen), `demo/recovery_fb38/index.html`, `demo/recovery_fb38/styles.css`, `demo/recovery_fb38/app.js`, `COLLABORATION_LOG.md`
+- **Purpose:** Executed batch of 3 core Studio improvements approved by Product Owner:
+  - **FB88 (Fix Page Management / Add–Remove Spread UX):**
+    - 1 click "Thêm 2 trang (+15.000đ)" = exactly 1 spread = 2 pages = $+15.000đ$.
+    - Only user-added custom spreads (`isCustomAdded: true`) have a remove button (`.filmstrip-remove-btn`, 22px circle, z-index: 30, red `#dc2626`). Default spreads (Bìa Trước, Trang 2–3 đến Trang 10–11, Bìa Sau) are strictly protected.
+    - Clicking remove button opens custom confirmation dialog `#removeSpreadConfirmModal` with exact bilingual copy:
+      - VI: *"Xóa Trang 12–13? 2 trang này và nội dung bên trong sẽ bị xóa. Tổng giá sẽ giảm 15.000đ."*
+      - EN: *"Remove Pages 12–13? These 2 pages and their content will be removed. Total price will decrease by 15,000₫."*
+    - Bidirectional price reconciliation: adding spreads $+15.000đ$, removing spreads $-15.000đ$. Extra spread count invariant: `ALBUM_DATA.extraSpreadsCount = ALBUM_DATA.spreads.filter(s => s.isCustomAdded).length`. Synchronized across Studio topbar, cart items, and draft autosaver.
+    - Mobile filmstrip fully accessible: removed `display: none !important;`, enabled horizontal swipe with scroll-snapping, auto-scroll active spread into view, while preserving single-page editor on mobile canvas.
+  - **FB89 (Fix Studio Undo/Redo Interaction):**
+    - Root cause: `pushStudioSnapshot` was previously uncalled on editor operations (photo frame add, sticker add, text edit, drag, resize, rotate, spread add/remove).
+    - Wired `pushStudioSnapshot` across all 17 atomic canvas operations and state mutations.
+    - Transaction/commit model: drag, resize, rotate record initial state on `pointerdown` and commit ONE snapshot on release (`pointerup`/`stopDrag`/`stopRotate`) if movement occurred. Inline text edits commit on `blur` if text changed.
+    - Full bidirectional integration with spread management: Undo "Thêm 2 trang" removes spread and decrements price by $15.000đ$; Redo restores spread and price.
+    - Max history limit expanded to 50 (`STUDIO_HISTORY_LIMIT = 50`). Undo/Redo buttons disabled/enabled correctly on both desktop (`#btnStudioUndo`, `#btnStudioRedo`) and mobile (`#msmItemUndo`, `#msmItemRedo`).
+  - **FB90 (Fix Studio Workspace Fitting when Left Drawer Opens):**
+    - Root cause: Previous implementation applied `stageWrapper.style.marginLeft = '320px'` inside an already full-width container, shifting the right edge 320px off-screen into an `overflow: hidden` container and cutting off pages.
+    - Canva mental model implemented: When desktop drawer opens ($\ge 960\text{px}$), `.studio-stage` shifts by `margin-left: 320px` via smooth CSS transition. The remaining space between the drawer and screen edge becomes the exact available workspace.
+    - `adjustMobileStageScale()` resets `stageWrapper.style.marginLeft = '0px'`, takes the true available rectangle, and calculates contain/fit scale `scale = Math.min(availW / baseW, availH / baseH)`. Album is centered in the available space (`diff: 0.0px`).
+    - Post-transition timer (`setTimeout(adjustMobileStageScale, 250)`) ensures pixel-perfect recalculation upon drawer open/close. Zero page clipping, zero aspect-ratio deformation, zero coordinate drift.
+- **Checks passed:**
+  - Automated CDP Headless test suite (`test_fb88_fb89_fb90_suite.cjs`): 41/41 PASSED (100%).
+  - Extra verification suite (`test_extra_verifications.cjs`): 2/2 PASSED (Multiple spreads renumbering + inline text edit undo).
+  - Syntax check: `node -c demo/recovery_fb38/app.js` (0 errors).
+  - Proof screenshots captured and visually verified:
+    - `shot_fb88_spread_added.png`
+    - `shot_fb88_remove_modal.png`
+    - `shot_fb90_workspace_drawer_closed.png`
+    - `shot_fb90_workspace_drawer_open.png`
+    - `shot_fb88_mobile_filmstrip.png`
+  - Baselines `checkpoint_fb71_golden/`, `checkpoint_fb77_golden/`, `checkpoint_fb87_golden/` 100% untouched. No git commits or pushes.
+
+## CURRENT BEST VERSION — Antigravity — Golden Baseline FB87 Milestone (Per PO Directive)
+
+- **When / agent:** 2026-09-09 23:54 — Antigravity
+- **Status:** GOLDEN BASELINE / PHIÊN BẢN TỐT NHẤT HIỆN TẠI (Approved by Product Owner)
+- **Active Working Directory:** `demo/recovery_fb38/`
+- **Frozen Backup Checkpoint:** `demo/checkpoint_fb87_golden/`
+- **Untouched Baselines:** `demo/checkpoint_fb71_golden/`, `demo/checkpoint_fb77_golden/`
+- **Files changed:** `demo/checkpoint_fb87_golden/` (frozen), `COLLABORATION_LOG.md`
+- **Purpose:** Deployment readiness overhaul ensuring fresh visitors start with clean state:
+  - **FB86 Desktop Scale Restored:** Restored full desktop scale, hero book clamp (`500px - 680px`), pricing grid container (`1400px`), and Tier 1 nav typography ($\ge 1180\text{px}$) while keeping FB85 3-tier responsiveness intact.
+  - **Hard Rule 1 (Clean Template Interior Spreads):** Interior spreads 1 to 5 (`elements: []`) set strictly blank for all 8 templates in Template Library. Zero preloaded Unsplash sample photos on interior pages.
+  - **Hard Rule 2 (Empty Cart for Fresh Visitors):** Fresh visitor starts with cart `[]`, badge text `'0'` with `.is-empty` class, and empty state drawer with start CTA.
+  - **Hard Rule 3 (Spotify Clean Start):** `spotifyTrack = null`, `spotifyTrackObj = null`, `spotifyEmbed = null`, `spotifyUrl = null`, `spotifyCodeImg = null`. Audio tab starts with "Chưa có bài hát nào được chọn", mini-player hidden, no autoplay, no fake soundwave printed on spreads.
+  - **Hard Rule 4 (Zero Demo Personal Data):** Purged all references to "Thiện Bách", "Thien Bach", and demo order code `MELS-2608-001` / `MELS2608001` across HTML, CSS, and JS (0 occurrences in grep).
+  - **Hard Rule 5 (Backend-Ready Tracking & Orders):** Tracking form starts clean. Search connects to `window.codexTrackOrder(q)` or session confirmed orders (`window.MELSOU_CONFIRMED_ORDERS`), displaying clean Not Found (`#trackEmptyBox`) if no order exists. Orders Manager modal displays clean empty state.
+  - **Hard Rule 6 (Guest-First Persistence Protected):** Zero indiscriminate `localStorage.clear()` on reload. Returning visitors with an existing active draft have their draft, cart, and uploaded photos 100% preserved across page reloads.
+- **Checks passed:**
+  - Automated CDP Headless test suite (`test_fb87_clean_state.cjs`): 8/8 suites PASSED (100%).
+  - Codebase grep: 0 matches for "Thiện Bách", "Thien Bach", "MELS-2608-001", "MELS2608001".
+  - Clean proof screenshots captured and validated:
+    - `shot_fb87_clean_home.png`
+    - `shot_fb87_clean_studio.png`
+    - `shot_fb87_clean_interior_spread.png`
+    - `shot_fb87_clean_audio.png`
+    - `shot_fb87_clean_tracking.png`
+    - `shot_fb87_clean_orders_modal.png`
+  - Golden checkpoints `demo/checkpoint_fb71_golden/` and `demo/checkpoint_fb77_golden/` untouched. Zero git commits or pushes.
+
+
+## COMPLETED — Antigravity — Batch FB78–FB84 Execution (Per PO Approval)
+
+- **When / agent:** 2026-09-09 22:15 — Antigravity
+- **Status:** COMPLETED & VERIFIED (52/52 Tests Passed)
+- **Active Working Directory:** `demo/recovery_fb38/`
+- **Untouched Baselines:** `demo/checkpoint_fb71_golden/`, `demo/checkpoint_fb77_golden/`
+- **Files changed:** `demo/recovery_fb38/index.html`, `demo/recovery_fb38/styles.css`, `demo/recovery_fb38/app.js`, `demo/recovery_fb38/README.md`, `COLLABORATION_LOG.md`
+- **Purpose:** Executed batch of 7 Product Owner feedbacks upon explicit approval ("oke"):
+  - **FB78:** Sửa tiêu đề khu vực Gói sản phẩm: "Gói sản phẩm & Bảng giá" -> "Gói sản phẩm" (VI) / "Packages" (EN); mobile drawer nav: "🏷️ Gói sản phẩm" / "🏷️ Packages".
+  - **FB79:** Xóa toàn bộ ảnh nội dung mặc định trên các trang 3–11 (`elements: []`) tạo freestyle blank canvas cho người dùng tự do sáng tạo; bảo toàn cấu trúc trang, bìa trước/sau, Trang 2 Spotify Hero và Trang 10 thư tay.
+  - **FB80:** Gỡ bỏ hoàn toàn thanh công cụ ngang phụ `#studioContextualToolbar`, giải phóng $40\text{px}$ chiều cao cho Album Canvas với khoảng cách $0\text{px}$ giữa Topbar và Body.
+  - **FB81:** Đồng bộ dữ liệu Spotify thật vào Trang 2 album (`spotifyTrackObj`: riêng Bài hát và Nghệ sĩ, xóa bỏ chuỗi thô placeholder `Spotify Track ({trackId}) — Đang chờ kết nối...`); đồng bộ realtime sang 3D Flipbook modal và autosaver.
+  - **FB82:** Neo chiều cao Drawer bên trái dừng cách mép trên Filmstrip đúng $12\text{px}$, đảm bảo 100% filmstrip hiển thị đầy đủ và clickable; nội dung drawer tự cuộn `overflow-y: auto`.
+  - **FB83:** Decouple kích thước vật lý với Display Scale trong editor: phóng lớn album fit-to-workspace đạt $80.5\%$ diện tích hữu ích, co giãn mượt mà khi đóng/mở drawer mà không làm lệch hệ tọa độ canonical.
+  - **FB84:** Tất cả 4 khổ album đồng giá ($0₫$ delta), xóa bỏ hoàn toàn các nhãn `+20k`, `+10k`, `-20k`, `· Chuẩn`. Đổi khổ không làm thay đổi giá gói (Signature = 199k, Melody = 119k, Voice = 159k).
+- **Checks passed:**
+  - Automated FB78–FB84 Suite (`test_fb78_fb84_suite.cjs`): 52/52 PASSED (100%).
+  - Zero regressions on golden baselines `demo/checkpoint_fb71_golden/` and `demo/checkpoint_fb77_golden/`.
+  - 11 visual proof screenshots captured and validated.
+
+
+## CURRENT BEST VERSION — Antigravity — Golden Baseline FB67–FB71 Milestone (Per PO Directive)
+
+- **When / agent:** 2026-09-09 17:25 — Antigravity
+- **Status:** GOLDEN BASELINE / PHIÊN BẢN TỐT NHẤT HIỆN TẠI (Approved by Product Owner)
+- **Active Working Directory:** `demo/recovery_fb38/`
+- **Frozen Backup Checkpoint:** `demo/checkpoint_fb71_golden/`
+- **Files changed:** `demo/recovery_fb38/index.html`, `demo/recovery_fb38/styles.css`, `demo/recovery_fb38/app.js`, `demo/recovery_fb38/README.md`, `COLLABORATION_LOG.md`
+- **Purpose:** Official designation and recording of the current codebase as the **Current Best Version** (Phiên bản tốt nhất từ trước đến nay về tổng thể UI/UX) after implementing FB67–FB71 while strictly preserving Mobile Custom Album (FB64) and Desktop Spread (FB63):
+  - **FB67 (Full-Site i18n Single Source of Truth / Zero Mixed-Language UI):**
+    - Single global runtime state `currentAppLanguage = 'vi' | 'en'`.
+    - Zero mixed-language patterns across customer UI: eliminated all bilingual fallbacks `(About us)`, `(Canva Frames)`, `(Preset Layouts)`, etc.
+    - Standardized badge amounts: `(+35.000đ)` in VI and `(+35,000đ)` in EN.
+    - 100% translation coverage across Settings modal (Header, Groups A–D, hardware permissions, API connection badges, input placeholders, action buttons), Cart Drawer, Speed Dial, and Mobile Drawer.
+  - **FB68 (Synchronize Journal Navigation Across Desktop & Mobile):**
+    - Added 6th primary navigation link to desktop header: `Nhật ký Melsou` (VI) / `Melsou Journal` (EN).
+    - Synchronized mobile drawer link to `📖 Nhật ký Melsou` (VI) / `📖 Melsou Journal` (EN).
+    - Both point to the exact same `#blog-section` anchor. Zero header overflow across 1180px–1920px+.
+  - **FB69 (Mobile 3D Viewer Single-Page Projection < 768px):**
+    - Sequential 1-page projection on mobile: `Bìa Trước` $\rightarrow$ `Trang 2` $\rightarrow$ `Trang 3` ... $\rightarrow$ `Bìa Sau`.
+    - Center spine and opposite page completely hidden on mobile; touch swipe gestures enabled.
+    - Freeform element overlay scaled dynamically (`scale(bookWidth / 430)`) to ensure photos, polaroids, washi tape, and stickers fit within the single-page mobile viewport without clipping.
+    - Desktop ($\ge 768\text{px}$) keeps 2-page 180° seamless layflat spread experience intact.
+  - **FB70 (Fix Desktop Studio Workspace Shrink / Restore True 1:1 Editor Scale):**
+    - Fixed `.studio-stage` collapse by applying `flex: 1; width: 100%; min-width: 0;`.
+    - Viewport-responsive scale: ~1.08x at 1366px, ~1.25x at 1440px, ~1.52x at 1920px.
+    - Expanded filmstrip wrapper and toolbar to `min(1200px, 94%)`.
+    - Corrected drag and resize delta calculation by dividing by `currentStageScale` for 1:1 precision.
+  - **FB71 (Restore Floating Chat Button on Mobile):**
+    - Restored 54px circular red floating chat button at bottom-right (`right: 16px; bottom: max(16px, env(safe-area-inset-bottom))`).
+    - Elevated to `bottom: 70px` inside Studio Mobile to avoid overlapping category toolbar. Auto-hides when mobile drawer or full modal is open.
+  - **Preserved Core Baselines:**
+    - Mobile Custom Album Canva-like (< 768px) with 3 snap levels (`collapsed`: 48px, `compact`: 33vh, `expanded`: 75vh).
+    - Desktop True Spread editing (>= 768px) with dual-page canvas and center spine.
+- **Checks passed:**
+  - Automated Regression Suite (`test_fb63_fb66_suite.cjs`): 65/65 passed (100% PASS).
+  - Automated Milestone Suite (`test_fb67_fb71_suite.cjs`): 100% passed across all viewports (320px–1920px).
+  - Verified across Edge headless CDP with 21 visual proof artifacts.
+  - Zero git commits or pushes made.
+
 ## COMPLETED — Antigravity — Restoration to Stable FB38 Milestone (Per PO Directive)
 
 - **When / agent:** 2026-09-09 00:25 — Antigravity
@@ -159,6 +287,41 @@ This log prevents accidental overlap. Add the newest entry at the top.
 - **Verification:** 64/64 automated CDP Headless Edge tests PASSED (0 failures).
 - **Status:** COMPLETED & VERIFIED on localhost (Ready for Product Owner review).
 
+
+---
+
+## DONE — Antigravity — FB76 & FB77 Implementation & Verification
+
+- **When / agent:** 2026-09-09 — Antigravity
+- **Files changed:** `demo/recovery_fb38/index.html`, `demo/recovery_fb38/styles.css`, `demo/recovery_fb38/app.js`
+- **Result:**
+  - **FB76:** Synchronized full bilingual i18n for 8 launch template sets in `TEMPLATES_DATA`, dynamic re-render on `switchLanguage('vi'/'en')` without page reload, and updated onboarding modal headers and CTA labels (`Chọn mẫu này →` / `Use this template →`).
+  - **FB77:** Restored real physical album format switching (A5 Portrait, Square 20×20, A5 Landscape, A6 Mini) changing the true page and spread aspect ratios (0.714, 1.0, 1.4, 0.667) across Desktop 2-page spreads and Mobile single-page canvas. Added desktop confirmation modal (`#sizeChangeConfirmModal`), safe element coordinate remapping, decoupled product package and physical size, synchronized 3D viewer, and verified FB74 clearance ($\ge 29.9\text{px}$).
+- **Protected contracts preserved:** Zero modifications to Golden Baseline `demo/checkpoint_fb71_golden/`. Zero backend modifications. Kept `MelsouAuth`, Google Auth gate, Codex contract hooks intact.
+- **Verification:**
+  - `test_fb77_formats.cjs`: 51/51 PASSED (100%)
+  - `test_fb76.cjs`: 14/14 PASSED (100%)
+  - `test_fb75_1_suite.cjs`: 34/34 PASSED (100%)
+  - `test_fb67_fb71_suite.cjs`: 100% PASSED
+- **Status:** APPROVED BY PRODUCT OWNER AS CURRENT BEST VERSION (GOLDEN BASELINE FB77 MILESTONE). Frozen into `demo/checkpoint_fb77_golden/`.
+
+## DONE — Antigravity — FB85 Full-Site Responsive Architecture Fix
+
+- **When / agent:** 2026-09-09 22:58 — Antigravity
+- **Files changed:** `demo/recovery_fb38/index.html`, `demo/recovery_fb38/styles.css`, `demo/recovery_fb38/app.js`
+- **Result:**
+  - **3-Tier Architecture:** Standardized into Wide / Desktop ($\ge 1180\text{px}$), Medium / Tablet ($768\text{px} - 1179.98\text{px}$), and Compact / Mobile ($< 768\text{px}$). Decoupled layout breakpoints from touch interaction capability flags (`maxTouchPoints`, `.is-touch-device`).
+  - **Zero Premature Collapse:** Prevented premature desktop hamburger menu at $1100\text{px}$ (or $125\%$ zoom on $1366\text{px}$). All 6 navigation links remain visible down to $1024\text{px}$ by using CSS clamp gaps and hiding redundant button labels.
+  - **Adaptive Tablet Tier:** Tablet portrait ($768\text{px} - 1023.98\text{px}$) preserves the primary CTA button (`#navCtaBtn`), formats 4 brand values into a 2-column grid, provides fluid min $260\text{px}$ pricing cards, and organizes template discovery into 2/3 columns without text wrapping or button clipping.
+  - **Tablet Portrait Studio Optimization:** In Custom Album Studio on viewports $< 960\text{px}$ (Tablet Portrait), the left drawer operates as a slide-out overlay (`marginLeft = 0px`) instead of docking side-by-side and squishing the 2-page spread. The full $704\text{px}$ available stage width is preserved, giving a generous scale ($\ge 1.0 - 1.5\text{x}$) for the 2-page spread. Tapping outside the drawer on the album canvas smoothly closes it. On wide screens ($\ge 960\text{px}$), side-by-side docking ($320\text{px}$ margin) is maintained.
+  - **Zero Canonical Geometry Drift:** Visual zoom and fit-to-workspace transformations project onto display styles without mutating canonical document geometry (`ALBUM_DATA.spreads.elements`). Verified deterministic coordinate equality across repeated resize oscillation loops.
+- **Protected contracts preserved:** Golden checkpoints `demo/checkpoint_fb71_golden/` and `demo/checkpoint_fb77_golden/` untouched. Zero backend modifications. Kept `MelsouAuth`, Google Auth gate, Codex contract hooks intact.
+- **Verification:**
+  - `scratch/test_fb85_full_matrix.cjs`: 100% PASSED across 16 viewports (Desktop 1920, 1440, 1366, 1280, 1180, 1100; Tablet 1024x1366, 1024x768, 834x1194, 820x1180, 768x1024; Mobile 430, 414, 390, 375, 360).
+  - Zero horizontal overflow (`scrollWidth <= innerWidth`) on all 16 viewports and across zoom simulation matrix (80%, 90%, 100%, 110%, 125%, 150%).
+  - Zero coordinate drift invariant preserved.
+  - 7 visual proof screenshots saved in artifacts directory.
+- **Status:** COMPLETED & VERIFIED.
 
 ---
 

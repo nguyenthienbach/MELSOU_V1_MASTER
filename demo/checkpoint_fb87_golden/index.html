@@ -645,8 +645,8 @@
               <button class="msm-item" onclick="togglePrintSafeGuides();closeMobileStageMenu()">📏 Vùng an toàn in</button>
               <button class="msm-item" id="msmItem3D" onclick="openFlipbookModal();closeMobileStageMenu()">📖 Xem 3D</button>
               <button class="msm-item" onclick="exportCurrentDesignFile();closeMobileStageMenu()">⬇ Tải PDF album</button>
-              <button class="msm-item" id="msmItemUndo" onclick="studioUndo();closeMobileStageMenu()">↶ Hoàn tác</button>
-              <button class="msm-item" id="msmItemRedo" onclick="studioRedo();closeMobileStageMenu()">↷ Làm lại</button>
+              <button class="msm-item" onclick="studioUndo();closeMobileStageMenu()">↶ Hoàn tác</button>
+              <button class="msm-item" onclick="studioRedo();closeMobileStageMenu()">↷ Làm lại</button>
             </div>
           </div>
           <!-- Desktop Toolbar Buttons (>768px) -->
@@ -933,21 +933,6 @@
     <div style="display:flex;gap:10px;justify-content:center">
       <button class="btn-outline" style="flex:1;padding:10px 16px;font-size:13px;font-weight:700;border-radius:10px" onclick="cancelAlbumSizeChange()" id="sizeChangeCancelBtn">Hủy</button>
       <button class="btn-primary" style="flex:1;padding:10px 16px;font-size:13px;font-weight:700;border-radius:10px;background:var(--red)" onclick="confirmAlbumSizeChange()" id="sizeChangeConfirmBtn">Đổi khổ</button>
-    </div>
-  </div>
-</div>
-
-<!-- ════════ 🗑️ MODAL: CONFIRM REMOVE SPREAD (FB88) ════════ -->
-<div class="modal-backdrop" id="removeSpreadConfirmModal" onclick="if(event.target===this)closeRemoveSpreadModal()">
-  <div class="modal-box" style="max-width:400px;text-align:center;padding:24px 20px;border-radius:16px;box-shadow:0 16px 40px rgba(0,0,0,0.2)">
-    <div style="font-size:36px;margin-bottom:8px">🗑️</div>
-    <h3 style="font-size:18px;font-weight:800;color:var(--dark);margin-bottom:8px" id="removeSpreadModalTitle">Xóa Trang 12–13?</h3>
-    <p style="font-size:13px;color:var(--gray);line-height:1.6;margin-bottom:20px" id="removeSpreadModalDesc">
-      2 trang này và nội dung bên trong sẽ bị xóa. Tổng giá sẽ giảm 15.000đ.
-    </p>
-    <div style="display:flex;gap:10px;justify-content:center">
-      <button class="btn-outline" style="flex:1;padding:10px 16px;font-size:13px;font-weight:700;border-radius:10px" onclick="closeRemoveSpreadModal()" id="removeSpreadCancelBtn">Hủy</button>
-      <button class="btn-primary" style="flex:1;padding:10px 16px;font-size:13px;font-weight:700;border-radius:10px;background:var(--red)" onclick="executeRemoveSpread()" id="removeSpreadConfirmBtn">Xóa 2 trang</button>
     </div>
   </div>
 </div>

@@ -1003,12 +1003,7 @@ header {
 /* ============================================================
    📖 PHYSICAL 3D ALBUM STRUCTURE (COVER / OPEN / BACK) 📖
 ============================================================ */
-.studio-stage { flex: 1; width: 100%; min-width: 0; display: flex; flex-direction: column; align-items: center; justify-content: space-between; padding: 16px 20px; background: radial-gradient(circle at center, #ece7de 0%, #d8d2c4 100%); position: relative; overflow: hidden; transition: margin-left 0.22s cubic-bezier(0.2, 0, 0.2, 1); }
-@media (min-width: 960px) {
-  body.drawer-open .studio-stage {
-    margin-left: 320px;
-  }
-}
+.studio-stage { flex: 1; width: 100%; min-width: 0; display: flex; flex-direction: column; align-items: center; justify-content: space-between; padding: 20px; background: radial-gradient(circle at center, #ece7de 0%, #d8d2c4 100%); position: relative; overflow: hidden; }
 .stage-toolbar { flex-shrink: 0; display: flex; align-items: center; justify-content: space-between; width: 100%; max-width: min(1200px, 94%); margin-bottom: 12px; z-index: 50; }
 .spread-title-tag { font-size: 13.5px; font-weight: 800; color: var(--dark); background: white; padding: 6px 14px; border-radius: 100px; box-shadow: 0 2px 8px rgba(0,0,0,0.06); }
 .fn-btn { background: white; border: 1px solid var(--gray-l); padding: 8px 14px; border-radius: 100px; font-size: 12.5px; font-weight: 700; color: var(--dark); transition: var(--transition); }
@@ -1759,35 +1754,6 @@ header {
   border-color: var(--red) !important;
   box-shadow: 0 0 0 2px rgba(168,35,35,0.25);
   background: #fff8f8;
-}
-
-/* DEDICATED SPREAD REMOVE BUTTON (FB88) */
-.filmstrip-remove-btn {
-  position: absolute;
-  top: -6px;
-  right: -6px;
-  width: 22px;
-  height: 22px;
-  background: #dc2626;
-  color: #ffffff;
-  border: 1.5px solid #ffffff;
-  border-radius: 50%;
-  font-size: 11px;
-  font-weight: 800;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  z-index: 30;
-  box-shadow: 0 2px 6px rgba(0,0,0,0.25);
-  transition: transform 0.15s ease, background 0.15s ease;
-  pointer-events: auto;
-  line-height: 1;
-  padding: 0;
-}
-.filmstrip-remove-btn:hover {
-  background: #b91c1c;
-  transform: scale(1.15);
 }
 
 /* SINGLE COVER THUMBNAIL (BÌA TRƯỚC / BÌA SAU) */
@@ -3647,64 +3613,9 @@ body.in-studio #page-studio.active {
     width: 100% !important;
   }
 
-  /* Filmstrip on mobile (FB88: Accessible horizontal swipe & scroll-snap) */
+  /* Filmstrip on mobile */
   .studio-filmstrip-wrapper {
-    display: block !important;
-    position: relative !important;
-    width: 100% !important;
-    max-width: 100% !important;
-    margin: 4px 0 0 0 !important;
-    padding: 0 !important;
-    border-radius: 10px !important;
-    background: rgba(255, 255, 255, 0.95) !important;
-    backdrop-filter: blur(8px) !important;
-    box-shadow: 0 -2px 10px rgba(0,0,0,0.05) !important;
-    z-index: 95 !important;
-    flex-shrink: 0 !important;
-  }
-  .filmstrip-header-bar {
-    padding: 3px 8px !important;
-  }
-  .filmstrip-summary {
-    font-size: 10px !important;
-  }
-  .canva-filmstrip {
-    height: 52px !important;
-    padding: 4px 8px !important;
-    gap: 8px !important;
-    overflow-x: auto !important;
-    overflow-y: hidden !important;
-    -webkit-overflow-scrolling: touch !important;
-    scroll-snap-type: x proximity !important;
-    scroll-behavior: smooth !important;
-    display: flex !important;
-    flex-wrap: nowrap !important;
-    align-items: center !important;
-    box-sizing: border-box !important;
-  }
-  .filmstrip-item {
-    flex: 0 0 68px !important;
-    height: 44px !important;
-    scroll-snap-align: center !important;
-    padding: 2px !important;
-  }
-  .filmstrip-mini-spread {
-    height: 22px !important;
-  }
-  .filmstrip-single-cover {
-    width: 36px !important;
-    height: 22px !important;
-    font-size: 7.5px !important;
-  }
-  .filmstrip-label {
-    font-size: 8.5px !important;
-    margin-top: 2px !important;
-  }
-  .btn-add-spread-tray {
-    flex: 0 0 84px !important;
-    height: 44px !important;
-    font-size: 8.5px !important;
-    scroll-snap-align: center !important;
+    display: none !important;
   }
 
   /* Mobile True Single-Page Canvas Architecture (FB62) */

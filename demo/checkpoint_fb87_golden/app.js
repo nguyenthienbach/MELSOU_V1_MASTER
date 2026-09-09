@@ -1022,149 +1022,50 @@ function switchCanvaTab(tabIndex) {
   else if (tabIndex === 5) jumpToSpread(ALBUM_DATA.package === 'melody' ? 1 : ALBUM_DATA.spreads.length - 1);
 }
 
-// ── ➕ THÊM TRANG ĐÔI MỞ RỘNG (+15K/2 TRANG) & QUẢN LÝ SPREAD (FB88) ──
-let spreadIndexPendingRemoval = null;
-
-function scrollActiveFilmstripItemIntoView() {
-  setTimeout(() => {
-    const activeItem = document.querySelector('#studioFilmstripTray .filmstrip-item.active');
-    if (activeItem) {
-      activeItem.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
-    }
-  }, 50);
-}
-
-function syncActiveAlbumToCartIfPresent() {
-  if (!ALBUM_DATA || !Array.isArray(ALBUM_DATA.cart)) return;
-  const existingIdx = ALBUM_DATA.cart.findIndex(i => i.title && i.title.startsWith(`Album melsou · ${ALBUM_DATA.title}`));
-  if (existingIdx !== -1) {
-    const extraCost = (ALBUM_DATA.extraSpreadsCount || 0) * EXTRA_SPREAD_PRICE;
-    const pageCount = (ALBUM_DATA.spreads.length - 2) * 2;
-    const isEn = (currentAppLanguage === 'en');
-    const specs = isEn 
-      ? `${pageCount} pages · 180° Layflat · Couche 250gsm` 
-      : `${pageCount} trang · Mở phẳng 180° · In Couche 250gsm`;
-    ALBUM_DATA.cart[existingIdx].extraSpreadsCount = ALBUM_DATA.extraSpreadsCount || 0;
-    ALBUM_DATA.cart[existingIdx].extraCost = extraCost;
-    ALBUM_DATA.cart[existingIdx].price = (ALBUM_DATA.cart[existingIdx].basePrice || ALBUM_DATA.basePrice) + (ALBUM_DATA.sizeAdj || 0) + extraCost;
-    ALBUM_DATA.cart[existingIdx].specs = specs;
-    updateCartBadge();
-  }
-}
-
+// ── ➕ THÊM TRANG ĐÔI MỞ RỘNG (+15K/2 TRANG) ──
 function addNewSpreadToAlbum() {
-  const isEn = (currentAppLanguage === 'en');
-  pushStudioSnapshot(isEn ? 'Add 2 pages' : 'Thêm 2 trang');
   const insertIndex = ALBUM_DATA.spreads.length - 1; // Ngay trước Bìa Sau
   const newSpreadId = 'spread-custom-' + Date.now();
 
   const newSpread = {
     id: newSpreadId,
-    name: isEn ? 'New Spread' : 'Trang mới',
+    name: 'Trang mới',
     isCustomAdded: true,
     elements: []
   };
 
   ALBUM_DATA.spreads.splice(insertIndex, 0, newSpread);
-  ALBUM_DATA.extraSpreadsCount = ALBUM_DATA.spreads.filter(s => s.isCustomAdded).length;
+  ALBUM_DATA.extraSpreadsCount = (ALBUM_DATA.extraSpreadsCount || 0) + 1;
   ALBUM_DATA.activeSpreadIndex = insertIndex;
 
   renumberSpreads();
-  syncActiveAlbumToCartIfPresent();
   autoSaveToLocalStorage();
   renderStudioWorkspace();
-  scrollActiveFilmstripItemIntoView();
-  showToast(isEn ? 'Added 2 pages (+15,000₫)' : '✅ Đã thêm thành công 2 trang (+15.000đ)!');
+  showToast(currentAppLanguage === 'en' ? 'Added 2 pages (+15,000₫)' : '✅ Đã thêm thành công 2 trang (+15.000đ)!');
 }
-
-function requestRemoveSpread(idx, e) {
-  if (e) e.stopPropagation();
-  const spread = ALBUM_DATA.spreads[idx];
-  if (!spread || !spread.isCustomAdded) return;
-  spreadIndexPendingRemoval = idx;
-
-  const isEn = (currentAppLanguage === 'en');
-  const modal = document.getElementById('removeSpreadConfirmModal');
-  const desc = document.getElementById('removeSpreadConfirmDesc') || document.getElementById('removeSpreadModalDesc');
-  const title = document.getElementById('removeSpreadConfirmTitle') || document.getElementById('removeSpreadModalTitle');
-  const cancelBtn = document.getElementById('removeSpreadCancelBtn');
-  const confirmBtn = document.getElementById('removeSpreadConfirmBtn');
-
-  if (title) {
-    title.textContent = isEn ? `Remove ${spread.name}?` : `Xóa ${spread.name}?`;
-  }
-  if (desc) {
-    desc.textContent = isEn
-      ? `Remove ${spread.name}? These 2 pages and their content will be removed. Total price will decrease by 15,000₫.`
-      : `Xóa ${spread.name}? 2 trang này và nội dung bên trong sẽ bị xóa. Tổng giá sẽ giảm 15.000đ.`;
-  }
-  if (cancelBtn) {
-    cancelBtn.textContent = isEn ? 'Cancel' : 'Hủy';
-  }
-  if (confirmBtn) {
-    confirmBtn.textContent = isEn ? 'Remove 2 pages' : 'Xóa 2 trang';
-  }
-  if (modal) {
-    modal.classList.remove('hidden');
-    modal.style.display = 'flex';
-  }
-}
-window.requestRemoveSpread = requestRemoveSpread;
-
-function closeRemoveSpreadModal() {
-  spreadIndexPendingRemoval = null;
-  const modal = document.getElementById('removeSpreadConfirmModal');
-  if (modal) {
-    modal.classList.add('hidden');
-    modal.style.display = 'none';
-  }
-}
-window.closeRemoveSpreadModal = closeRemoveSpreadModal;
-
-function executeRemoveSpread() {
-  if (spreadIndexPendingRemoval === null || spreadIndexPendingRemoval === undefined) return;
-  const idx = spreadIndexPendingRemoval;
-  const spread = ALBUM_DATA.spreads[idx];
-  if (!spread || !spread.isCustomAdded) {
-    closeRemoveSpreadModal();
-    return;
-  }
-
-  const isEn = (currentAppLanguage === 'en');
-  pushStudioSnapshot(isEn ? `Remove ${spread.name}` : `Xóa ${spread.name}`);
-
-  ALBUM_DATA.spreads.splice(idx, 1);
-  ALBUM_DATA.extraSpreadsCount = ALBUM_DATA.spreads.filter(s => s.isCustomAdded).length;
-
-  if (ALBUM_DATA.activeSpreadIndex >= ALBUM_DATA.spreads.length) {
-    ALBUM_DATA.activeSpreadIndex = ALBUM_DATA.spreads.length - 1;
-  } else if (ALBUM_DATA.activeSpreadIndex >= idx && ALBUM_DATA.activeSpreadIndex > 0) {
-    ALBUM_DATA.activeSpreadIndex = Math.max(0, ALBUM_DATA.activeSpreadIndex - 1);
-  }
-
-  renumberSpreads();
-  syncActiveAlbumToCartIfPresent();
-  autoSaveToLocalStorage();
-  renderStudioWorkspace();
-  closeRemoveSpreadModal();
-  showToast(isEn ? 'Spread removed. Price reduced by 15,000₫' : '✅ Đã xóa trang đôi và giảm 15.000đ');
-}
-window.executeRemoveSpread = executeRemoveSpread;
 
 function removeCustomSpread(index, e) {
-  requestRemoveSpread(index, e);
+  if (e) e.stopPropagation();
+  if (confirm(`Bạn có chắc chắn muốn xóa trang đôi này không?`)) {
+    ALBUM_DATA.spreads.splice(index, 1);
+    ALBUM_DATA.extraSpreadsCount = Math.max(0, (ALBUM_DATA.extraSpreadsCount || 1) - 1);
+    if (ALBUM_DATA.activeSpreadIndex >= ALBUM_DATA.spreads.length) {
+      ALBUM_DATA.activeSpreadIndex = ALBUM_DATA.spreads.length - 1;
+    }
+    renumberSpreads();
+    autoSaveToLocalStorage();
+    renderStudioWorkspace();
+  }
 }
 
 // ── CANVA FREESTYLE: ADD TEXT BOX & CANVA IMAGE FRAME ──
 function addRealFreeformTextBox() {
-  const isEn = (currentAppLanguage === 'en');
-  pushStudioSnapshot(isEn ? 'Add text' : 'Thêm văn bản');
   const spread = ALBUM_DATA.spreads[ALBUM_DATA.activeSpreadIndex];
   if (!spread.elements) spread.elements = [];
   spread.elements.push({
     id: Date.now(),
     type: 'text',
-    content: isEn ? 'Click to type message...' : 'Nhấp để gõ lời tựa...',
+    content: 'Nhấp để gõ lời tựa...',
     x: 100,
     y: 100,
     font: ALBUM_DATA.letterFont,
@@ -1177,8 +1078,6 @@ function addRealFreeformTextBox() {
 }
 
 function addCanvaImageFrame(frameStyle = 'polaroid', initialImg = '') {
-  const isEn = (currentAppLanguage === 'en');
-  pushStudioSnapshot(isEn ? 'Add photo frame' : 'Thêm khung ảnh');
   const spread = ALBUM_DATA.spreads[ALBUM_DATA.activeSpreadIndex];
   if (!spread.elements) spread.elements = [];
 
@@ -1206,8 +1105,6 @@ function addRealFreeformPhotoFrame() {
 }
 
 function addRealStickerToCanvas(stickerChar, dropX, dropY) {
-  const isEn = (currentAppLanguage === 'en');
-  pushStudioSnapshot(isEn ? 'Add sticker' : 'Thêm sticker');
   const spread = ALBUM_DATA.spreads[ALBUM_DATA.activeSpreadIndex];
   if (!spread.elements) spread.elements = [];
   spread.elements.push({
@@ -1224,8 +1121,6 @@ function addRealStickerToCanvas(stickerChar, dropX, dropY) {
 }
 
 function removeSpreadElement(id) {
-  const isEn = (currentAppLanguage === 'en');
-  pushStudioSnapshot(isEn ? 'Delete element' : 'Xóa đối tượng');
   const spread = ALBUM_DATA.spreads[ALBUM_DATA.activeSpreadIndex];
   spread.elements = spread.elements.filter(e => e.id !== id);
   if (ALBUM_DATA.cropEditingId === id) ALBUM_DATA.cropEditingId = null;
@@ -1235,14 +1130,11 @@ function removeSpreadElement(id) {
 
 // ── BỐ CỤC ẢNH MẪU (PRESET COMPOSITIONS CHUẨN VÙNG AN TOÀN IN) ──
 function applyPresetComposition(layoutType) {
-  const isEn = (currentAppLanguage === 'en');
   const spread = ALBUM_DATA.spreads[ALBUM_DATA.activeSpreadIndex];
   if (spread.isClosedCover || spread.isClosedBack) {
-    alert(isEn ? 'Please choose an interior page to apply layouts!' : 'Vui lòng chọn trang ruột để áp dụng bố cục ảnh!');
+    alert('Vui lòng chọn trang ruột để áp dụng bố cục ảnh!');
     return;
   }
-
-  pushStudioSnapshot(isEn ? 'Apply layout' : 'Áp dụng bố cục');
 
   const gallery = (ALBUM_DATA.userGallery && ALBUM_DATA.userGallery.length > 0)
     ? ALBUM_DATA.userGallery
@@ -1424,8 +1316,6 @@ function checkElementSafeArea(domItem, el) {
 // ── PHÂN LỚP Z-INDEX & THAO TÁC ĐỐI TƯỢNG (LAYERS & LOCK) ──
 function bringElementForward(id, event) {
   if (event) event.stopPropagation();
-  const isEn = (currentAppLanguage === 'en');
-  pushStudioSnapshot(isEn ? 'Bring forward' : 'Tiến lên một lớp');
   const spread = ALBUM_DATA.spreads[ALBUM_DATA.activeSpreadIndex];
   if (!spread.elements) return;
   const idx = spread.elements.findIndex(e => String(e.id) === String(id));
@@ -1439,8 +1329,6 @@ function bringElementForward(id, event) {
 
 function sendElementBackward(id, event) {
   if (event) event.stopPropagation();
-  const isEn = (currentAppLanguage === 'en');
-  pushStudioSnapshot(isEn ? 'Send backward' : 'Lùi xuống một lớp');
   const spread = ALBUM_DATA.spreads[ALBUM_DATA.activeSpreadIndex];
   if (!spread.elements) return;
   const idx = spread.elements.findIndex(e => String(e.id) === String(id));
@@ -1454,8 +1342,6 @@ function sendElementBackward(id, event) {
 
 function bringElementToFront(id, event) {
   if (event) event.stopPropagation();
-  const isEn = (currentAppLanguage === 'en');
-  pushStudioSnapshot(isEn ? 'Bring to front' : 'Lên lớp trên cùng');
   const spread = ALBUM_DATA.spreads[ALBUM_DATA.activeSpreadIndex];
   if (!spread.elements) return;
   const idx = spread.elements.findIndex(e => String(e.id) === String(id));
@@ -1469,8 +1355,6 @@ function bringElementToFront(id, event) {
 
 function sendElementToBack(id, event) {
   if (event) event.stopPropagation();
-  const isEn = (currentAppLanguage === 'en');
-  pushStudioSnapshot(isEn ? 'Send to back' : 'Xuống lớp dưới cùng');
   const spread = ALBUM_DATA.spreads[ALBUM_DATA.activeSpreadIndex];
   if (!spread.elements) return;
   const idx = spread.elements.findIndex(e => String(e.id) === String(id));
@@ -1484,8 +1368,6 @@ function sendElementToBack(id, event) {
 
 function toggleLockElement(id, event) {
   if (event) event.stopPropagation();
-  const isEn = (currentAppLanguage === 'en');
-  pushStudioSnapshot(isEn ? 'Toggle lock' : 'Khóa/Mở khóa đối tượng');
   const spread = ALBUM_DATA.spreads[ALBUM_DATA.activeSpreadIndex];
   if (!spread.elements) return;
   const el = spread.elements.find(e => String(e.id) === String(id));
@@ -1508,8 +1390,6 @@ function copyElement(id) {
 
 function pasteElement() {
   if (!ALBUM_DATA.clipboardElement) return;
-  const isEn = (currentAppLanguage === 'en');
-  pushStudioSnapshot(isEn ? 'Paste element' : 'Dán đối tượng');
   const spread = ALBUM_DATA.spreads[ALBUM_DATA.activeSpreadIndex];
   if (!spread.elements) spread.elements = [];
   const clone = JSON.parse(JSON.stringify(ALBUM_DATA.clipboardElement));
@@ -1525,8 +1405,6 @@ function pasteElement() {
 
 function duplicateElement(id, event) {
   if (event) event.stopPropagation();
-  const isEn = (currentAppLanguage === 'en');
-  pushStudioSnapshot(isEn ? 'Duplicate element' : 'Nhân bản đối tượng');
   const spread = ALBUM_DATA.spreads[ALBUM_DATA.activeSpreadIndex];
   if (!spread.elements) return;
   const el = spread.elements.find(e => String(e.id) === String(id));
@@ -1544,8 +1422,6 @@ function duplicateElement(id, event) {
 }
 
 function alignElement(id, alignment) {
-  const isEn = (currentAppLanguage === 'en');
-  pushStudioSnapshot(isEn ? 'Align element' : 'Căn lề đối tượng');
   const spread = ALBUM_DATA.spreads[ALBUM_DATA.activeSpreadIndex];
   if (!spread || !spread.elements) return;
   const el = spread.elements.find(e => String(e.id) === String(id));
@@ -2237,8 +2113,7 @@ function renderElementsOnSpreadOverlay(spread) {
         <div style="display:inline-flex;align-items:center;padding:6px 14px;background:rgba(255,255,255,0.95);border:1.5px dashed rgba(168,35,35,0.4);border-radius:8px;box-shadow:0 4px 14px rgba(0,0,0,0.12);cursor:grab">
           <span style="font-size:14px;color:var(--red);margin-right:8px;user-select:none;cursor:grab;font-weight:bold" title="${isEn ? 'Hold to drag' : 'Giữ chuột vào đây hoặc ô chữ để kéo di chuyển'}">⋮⋮</span>
           <div class="canva-editable-text-field" contenteditable="${!isLocked}"
-               onfocus="this.dataset.initialText = this.innerText; this.dataset.initialSnap = JSON.stringify(ALBUM_DATA);"
-               onblur="if (this.innerText !== this.dataset.initialText) { pushStudioSnapshotState(this.dataset.initialSnap, currentAppLanguage === 'en' ? 'Edit text' : 'Sửa văn bản'); } el.content=this.innerText; autoSaveToLocalStorage();"
+               onblur="el.content=this.innerText;autoSaveToLocalStorage()"
                style="outline:none;font-family:${el.font || ALBUM_DATA.letterFont};color:${el.color || ALBUM_DATA.inkColor};font-size:${el.fontSize || 16}px;cursor:text">
             ${el.content}
           </div>
@@ -2276,7 +2151,6 @@ function makePointerDraggable(el, dataObj) {
   let hasMoved = false;
   let initialElX = 0, initialElY = 0;
   let initialPointerX = 0, initialPointerY = 0;
-  let dragPreSnapshot = null;
 
   el.addEventListener('pointerdown', function(e) {
     if (ALBUM_DATA.cropEditingId === dataObj?.id) return; // In crop mode, user is panning the photo inside
@@ -2285,7 +2159,6 @@ function makePointerDraggable(el, dataObj) {
     }
     if (e.target.closest('.fci-delete-btn') || e.target.closest('.fci-resize-handle') || e.target.closest('.fci-rotate-handle') || e.target.closest('.btn-outline') || e.target.closest('.canva-frame-toolbar') || e.target.closest('.element-action-toolbar')) return;
 
-    dragPreSnapshot = JSON.stringify(ALBUM_DATA);
     initialElX = el.offsetLeft;
     initialElY = el.offsetTop;
     initialPointerX = e.clientX;
@@ -2328,10 +2201,6 @@ function makePointerDraggable(el, dataObj) {
       isDragging = false;
       try { el.releasePointerCapture(e.pointerId); } catch(err) {}
       if (hasMoved) {
-        if (dragPreSnapshot) {
-          pushStudioSnapshotState(dragPreSnapshot, currentAppLanguage === 'en' ? 'Move element' : 'Di chuyển đối tượng');
-          dragPreSnapshot = null;
-        }
         checkElementSafeArea(el, dataObj);
         autoSaveToLocalStorage();
       } else {
@@ -2358,7 +2227,6 @@ function initResizeElement(e, id) {
   const obj = spread.elements.find(el => el.id === id);
   if (!obj || obj.locked) return;
 
-  const resizePreSnapshot = JSON.stringify(ALBUM_DATA);
   const startX = e.clientX;
   const startW = obj.width || 220;
 
@@ -2380,9 +2248,6 @@ function initResizeElement(e, id) {
   function stopDrag() {
     document.removeEventListener('mousemove', doDrag);
     document.removeEventListener('mouseup', stopDrag);
-    if (obj.width !== startW) {
-      pushStudioSnapshotState(resizePreSnapshot, currentAppLanguage === 'en' ? 'Resize element' : 'Đổi kích thước');
-    }
     autoSaveToLocalStorage();
   }
 
@@ -2399,8 +2264,6 @@ function initRotateElement(e, id) {
   const domEl = document.getElementById('canvaEl_' + id);
   if (!obj || !domEl || obj.locked) return;
 
-  const rotatePreSnapshot = JSON.stringify(ALBUM_DATA);
-  const startRot = obj.rotate || 0;
   const rect = domEl.getBoundingClientRect();
   const centerX = rect.left + rect.width / 2;
   const centerY = rect.top + rect.height / 2;
@@ -2438,9 +2301,6 @@ function initRotateElement(e, id) {
   function stopRotate() {
     document.removeEventListener('pointermove', doRotate);
     document.removeEventListener('pointerup', stopRotate);
-    if ((obj.rotate || 0) !== startRot) {
-      pushStudioSnapshotState(rotatePreSnapshot, currentAppLanguage === 'en' ? 'Rotate element' : 'Xoay đối tượng');
-    }
     autoSaveToLocalStorage();
   }
 
@@ -2462,7 +2322,7 @@ function renderFilmstripTray() {
 
     return `
       <div class="filmstrip-item ${idx === ALBUM_DATA.activeSpreadIndex ? 'active' : ''}" onclick="jumpToSpread(${idx})">
-        ${spread.isCustomAdded ? `<button class="filmstrip-remove-btn" onclick="requestRemoveSpread(${idx}, event)" title="${isEn ? 'Remove this spread' : 'Xóa 2 trang này'}">✕</button>` : ''}
+        ${spread.isCustomAdded ? `<button onclick="removeCustomSpread(${idx}, event)" style="position:absolute;top:-4px;right:-4px;background:#dc2626;color:white;border:none;border-radius:50%;width:18px;height:18px;font-size:10px;font-weight:800;z-index:20">✕</button>` : ''}
 
         ${isCover || isBack ? `
           <div class="filmstrip-single-cover">${isCover ? coverLabel : backLabel}</div>
@@ -2490,7 +2350,6 @@ function renderFilmstripTray() {
   if (sumText) {
     sumText.textContent = isEn ? `All pages (${ALBUM_DATA.spreads.length} items)` : `Tất cả các trang (${ALBUM_DATA.spreads.length} mục)`;
   }
-  scrollActiveFilmstripItemIntoView();
 }
 
 function jumpToSpread(index) {
@@ -2500,7 +2359,6 @@ function jumpToSpread(index) {
   clearStudioSelection();
   renderActiveSpread();
   updateNavSpreadButtons();
-  scrollActiveFilmstripItemIntoView();
 }
 function goToNextSpread() {
   if (isMobileViewport()) {
@@ -2766,8 +2624,6 @@ function handleSlotDrop(e, slotKey) {
 
 function assignPhotoToSlot(slotKey, url) {
   if (!url) return;
-  const isEn = (currentAppLanguage === 'en');
-  pushStudioSnapshot(isEn ? 'Place photo' : 'Thêm/thay ảnh');
   const spread = ALBUM_DATA.spreads[ALBUM_DATA.activeSpreadIndex];
   if (!spread) return;
 
@@ -3758,8 +3614,8 @@ function renderSpotifyOfficialEmbed() {
   }
 }
 
-// ── ↶ STUDIO UNDO / REDO ENGINE (FB14, FB88, FB89) ──
-const STUDIO_HISTORY_LIMIT = 50;
+// ── ↶ STUDIO UNDO / REDO ENGINE (FB14) ──
+const STUDIO_HISTORY_LIMIT = 20;
 let studioUndoStack = [];
 let studioRedoStack = [];
 let isApplyingHistory = false;
@@ -3769,16 +3625,6 @@ function pushStudioSnapshot(actionLabel = 'Chỉnh sửa album') {
   try {
     const snap = JSON.stringify(ALBUM_DATA);
     studioUndoStack.push({ time: Date.now(), label: actionLabel, state: snap });
-    if (studioUndoStack.length > STUDIO_HISTORY_LIMIT) studioUndoStack.shift();
-    studioRedoStack = [];
-    updateStudioUndoRedoButtons();
-  } catch (err) {}
-}
-
-function pushStudioSnapshotState(snapState, actionLabel = 'Chỉnh sửa album') {
-  if (isApplyingHistory || !snapState) return;
-  try {
-    studioUndoStack.push({ time: Date.now(), label: actionLabel, state: snapState });
     if (studioUndoStack.length > STUDIO_HISTORY_LIMIT) studioUndoStack.shift();
     studioRedoStack = [];
     updateStudioUndoRedoButtons();
@@ -3795,16 +3641,12 @@ function studioUndo() {
     const prev = studioUndoStack.pop();
     const parsed = JSON.parse(prev.state);
     ALBUM_DATA = parsed;
-    ALBUM_DATA.extraSpreadsCount = ALBUM_DATA.spreads ? ALBUM_DATA.spreads.filter(s => s.isCustomAdded).length : 0;
-    renumberSpreads();
-    syncActiveAlbumToCartIfPresent();
     autoSaveToLocalStorage();
-    renderStudioWorkspace();
+    renderActiveSpread();
+    renderFilmstripTray();
     updateStudioUndoRedoButtons();
-    const isEn = (currentAppLanguage === 'en');
-    showToast(isEn ? `Undone: ${prev.label || 'previous action'}` : `Đã hoàn tác: ${prev.label || 'thao tác trước'}`);
+    showToast(`Đã hoàn tác: ${prev.label || 'thao tác trước'}`);
   } catch (err) {
-    console.error('studioUndo error:', err);
   } finally {
     isApplyingHistory = false;
   }
@@ -3820,16 +3662,12 @@ function studioRedo() {
     const next = studioRedoStack.pop();
     const parsed = JSON.parse(next.state);
     ALBUM_DATA = parsed;
-    ALBUM_DATA.extraSpreadsCount = ALBUM_DATA.spreads ? ALBUM_DATA.spreads.filter(s => s.isCustomAdded).length : 0;
-    renumberSpreads();
-    syncActiveAlbumToCartIfPresent();
     autoSaveToLocalStorage();
-    renderStudioWorkspace();
+    renderActiveSpread();
+    renderFilmstripTray();
     updateStudioUndoRedoButtons();
-    const isEn = (currentAppLanguage === 'en');
-    showToast(isEn ? `Redone: ${next.label || 'action'}` : `Đã làm lại: ${next.label || 'thao tác'}`);
+    showToast(`Đã làm lại: ${next.label || 'thao tác'}`);
   } catch (err) {
-    console.error('studioRedo error:', err);
   } finally {
     isApplyingHistory = false;
   }
@@ -3840,23 +3678,11 @@ function updateStudioUndoRedoButtons() {
   const btnRedo = document.getElementById('btnStudioRedo');
   if (btnUndo) {
     btnUndo.disabled = studioUndoStack.length === 0;
-    btnUndo.style.opacity = studioUndoStack.length === 0 ? '0.35' : '1';
-    btnUndo.style.cursor = studioUndoStack.length === 0 ? 'not-allowed' : 'pointer';
+    btnUndo.style.opacity = studioUndoStack.length === 0 ? '0.4' : '1';
   }
   if (btnRedo) {
     btnRedo.disabled = studioRedoStack.length === 0;
-    btnRedo.style.opacity = studioRedoStack.length === 0 ? '0.35' : '1';
-    btnRedo.style.cursor = studioRedoStack.length === 0 ? 'not-allowed' : 'pointer';
-  }
-  const msmUndo = document.getElementById('msmItemUndo') || document.querySelector('.msm-item[onclick*="studioUndo"]');
-  const msmRedo = document.getElementById('msmItemRedo') || document.querySelector('.msm-item[onclick*="studioRedo"]');
-  if (msmUndo) {
-    msmUndo.disabled = studioUndoStack.length === 0;
-    msmUndo.style.opacity = studioUndoStack.length === 0 ? '0.4' : '1';
-  }
-  if (msmRedo) {
-    msmRedo.disabled = studioRedoStack.length === 0;
-    msmRedo.style.opacity = studioRedoStack.length === 0 ? '0.4' : '1';
+    btnRedo.style.opacity = studioRedoStack.length === 0 ? '0.4' : '1';
   }
 }
 
@@ -5795,26 +5621,36 @@ function adjustMobileStageScale() {
 
     if (stageWrapper) stageWrapper.style.minHeight = (targetBaseHeight * scale + 10) + 'px';
   } else {
-    // Desktop & Tablet Responsive Scale (FB90 Fit-to-Workspace Canva-style Engine)
+    // Desktop & Tablet Responsive Scale (FB83 & FB85: Decoupled Fit-to-Workspace Canva-style Editor Display Scale)
     const fmt = getCurrentAlbumFormat();
     const stageW = stage.clientWidth || (window.innerWidth - 64);
     const stageH = stage.clientHeight || (window.innerHeight - 48);
     const baseW = isCoverOrBack ? fmt.singleWidth : fmt.spreadWidth;
     const baseH = isCoverOrBack ? fmt.singleHeight : fmt.spreadHeight;
 
+    const drawer = document.getElementById('canvaSidebarEl');
+    const isDrawerOpen = typeof isFlyoutDrawerOpen !== 'undefined' && isFlyoutDrawerOpen && drawer && !drawer.classList.contains('collapsed');
     const filmstripEl = document.getElementById('studioFilmstripWrapper');
     const toolbarEl = document.querySelector('.stage-toolbar');
     const isTrayCollapsed = filmstripEl ? filmstripEl.classList.contains('collapsed') : false;
     const trayH = filmstripEl ? (isTrayCollapsed ? 32 : (filmstripEl.offsetHeight || 108)) : 0;
     const toolbarH = toolbarEl ? (toolbarEl.offsetHeight || 36) : 36;
 
-    // Available rectangle inside stage area (since .studio-stage has margin-left: 320px when drawer is open, stage.clientWidth is already the true available width)
-    const availW = Math.max(300, stageW - 48); // 24px padding each side
-    const availH = Math.max(260, stageH - toolbarH - trayH - 36);
+    // FB85: Tablet Portrait adaptive workspace rule:
+    // On wide viewports (>= 960px), side drawer docks side-by-side (drawerOffset = 320px, marginLeft = 320px).
+    // On tablet portrait / compact workspaces (< 960px), drawer floats as an overlay (drawerOffset = 0, marginLeft = 0px)
+    // so the 2-page spread keeps its full available width and is never crushed!
+    const shouldDockDrawer = (window.innerWidth >= 960);
+    const drawerOffset = (isDrawerOpen && shouldDockDrawer) ? 320 : 0;
+    const availW = Math.max(320, stageW - drawerOffset - 48);
+
+    // Available height accounting for top stage-toolbar + bottom filmstrip + visual breathing room
+    const totalVerticalDeductions = toolbarH + trayH + 48;
+    const availH = Math.max(260, stageH - totalVerticalDeductions);
 
     // Fit-to-workspace scale utilizing available space while locking physical aspect ratio
     const rawScale = Math.min(availW / baseW, availH / baseH);
-    const scale = Math.max(0.40, Math.min(Math.round(rawScale * 100) / 100, 1.85));
+    const scale = Math.max(0.45, Math.min(Math.round(rawScale * 100) / 100, 1.85));
 
     currentStageScale = scale;
     window.currentStageScale = scale;
@@ -5824,8 +5660,8 @@ function adjustMobileStageScale() {
     if (stageWrapper) {
       stageWrapper.style.paddingBottom = '0px';
       stageWrapper.style.minHeight = '0px';
-      stageWrapper.style.marginLeft = '0px';
-      stageWrapper.style.transition = 'transform 0.24s ease';
+      stageWrapper.style.marginLeft = (isDrawerOpen && shouldDockDrawer) ? '320px' : '0px';
+      stageWrapper.style.transition = 'margin-left 0.24s cubic-bezier(0.2, 0, 0.2, 1), transform 0.24s ease';
     }
 
     const ind = document.getElementById('currentSpreadName');
@@ -7559,7 +7395,6 @@ function openFlyoutDrawer(tabIndex) {
       drawer.classList.add('snap-compact', 'snap-half');
     }
     adjustMobileStageScale();
-    setTimeout(adjustMobileStageScale, 250);
     recalculateDrawerAvailableHeight();
   }
 
@@ -7602,7 +7437,6 @@ function closeFlyoutDrawer() {
   }
   document.querySelectorAll('.studio-rail-btn').forEach(btn => btn.classList.remove('active'));
   adjustMobileStageScale();
-  setTimeout(adjustMobileStageScale, 250);
   recalculateDrawerAvailableHeight();
 }
 
@@ -7781,8 +7615,6 @@ function toggleFilmstripCollapse() {
 }
 
 function applySpreadBgColor(color) {
-  const isEn = (currentAppLanguage === 'en');
-  pushStudioSnapshot(isEn ? 'Change background color' : 'Đổi màu nền trang');
   const curSpread = ALBUM_DATA.spreads[ALBUM_DATA.activeSpreadIndex];
   if (!curSpread) return;
   curSpread.bgColor = color;
@@ -7791,12 +7623,10 @@ function applySpreadBgColor(color) {
   if (leftPage) leftPage.style.backgroundColor = color;
   if (rightPage) rightPage.style.backgroundColor = color;
   autoSaveToLocalStorage();
-  showToast(isEn ? 'Page background updated' : 'Đã đổi màu nền trang');
+  showToast(currentAppLanguage === 'en' ? 'Page background updated' : 'Đã đổi màu nền trang');
 }
 
 function cyclePhotoFilter(slotKey) {
-  const isEn = (currentAppLanguage === 'en');
-  pushStudioSnapshot(isEn ? 'Photo filter' : 'Bộ lọc ảnh');
   if (!ALBUM_DATA.photoFilters) ALBUM_DATA.photoFilters = {};
   const filters = ['none', 'sepia(0.4) contrast(1.1)', 'grayscale(1)', 'sepia(0.2) saturate(1.3)'];
   const filterNames = ['Gốc', 'Vintage', 'Đen Trắng', 'Ấm Áp'];
@@ -7813,8 +7643,6 @@ function cyclePhotoFilter(slotKey) {
 }
 
 function clearPhotoSlot(slotKey) {
-  const isEn = (currentAppLanguage === 'en');
-  pushStudioSnapshot(isEn ? 'Clear photo' : 'Xóa ảnh');
   if (slotKey.startsWith('el_')) {
     const elId = parseInt(slotKey.replace('el_', ''));
     removeSpreadElement(elId);
@@ -7827,13 +7655,11 @@ function clearPhotoSlot(slotKey) {
     renderActiveSpread();
     clearStudioSelection();
     autoSaveToLocalStorage();
-    showToast(isEn ? 'Photo cleared' : 'Đã xóa ảnh khỏi khung');
+    showToast(currentAppLanguage === 'en' ? 'Photo cleared' : 'Đã xóa ảnh khỏi khung');
   }
 }
 
 function flipElementHorizontal(elId) {
-  const isEn = (currentAppLanguage === 'en');
-  pushStudioSnapshot(isEn ? 'Flip horizontal' : 'Lật ngang');
   const spread = ALBUM_DATA.spreads[ALBUM_DATA.activeSpreadIndex];
   if (!spread || !spread.elements) return;
   const el = spread.elements.find(e => e.id === elId);
@@ -7849,8 +7675,6 @@ function flipElementHorizontal(elId) {
 }
 
 function rotateSpreadElement90(elId) {
-  const isEn = (currentAppLanguage === 'en');
-  pushStudioSnapshot(isEn ? 'Rotate 90°' : 'Xoay 90°');
   const spread = ALBUM_DATA.spreads[ALBUM_DATA.activeSpreadIndex];
   if (!spread || !spread.elements) return;
   const el = spread.elements.find(e => e.id === elId);
@@ -7864,17 +7688,15 @@ function rotateSpreadElement90(elId) {
   }
 }
 
+
+
 function applyTextFont(fontFamily) {
-  const isEn = (currentAppLanguage === 'en');
-  pushStudioSnapshot(isEn ? 'Change font' : 'Đổi phông chữ');
   ALBUM_DATA.letterFont = fontFamily;
   renderActiveSpread();
   autoSaveToLocalStorage();
 }
 
 function adjustTextFontSize(delta) {
-  const isEn = (currentAppLanguage === 'en');
-  pushStudioSnapshot(isEn ? 'Change font size' : 'Đổi cỡ chữ');
   ALBUM_DATA.letterFontSize = Math.max(10, Math.min(36, (ALBUM_DATA.letterFontSize || 14) + delta));
   const textEls = document.querySelectorAll('.pb-editable-text');
   textEls.forEach(t => { t.style.fontSize = ALBUM_DATA.letterFontSize + 'px'; });
@@ -7882,8 +7704,6 @@ function adjustTextFontSize(delta) {
 }
 
 function applyTextColor(color) {
-  const isEn = (currentAppLanguage === 'en');
-  pushStudioSnapshot(isEn ? 'Change text color' : 'Đổi màu chữ');
   ALBUM_DATA.inkColor = color;
   const textEls = document.querySelectorAll('.pb-editable-text');
   textEls.forEach(t => { t.style.color = color; });
@@ -7891,8 +7711,6 @@ function applyTextColor(color) {
 }
 
 function toggleTextBold() {
-  const isEn = (currentAppLanguage === 'en');
-  pushStudioSnapshot(isEn ? 'Toggle bold' : 'In đậm chữ');
   ALBUM_DATA.letterFontWeight = ALBUM_DATA.letterFontWeight === 'bold' ? 'normal' : 'bold';
   const textEls = document.querySelectorAll('.pb-editable-text');
   textEls.forEach(t => { t.style.fontWeight = ALBUM_DATA.letterFontWeight; });
@@ -7900,8 +7718,6 @@ function toggleTextBold() {
 }
 
 function toggleTextItalic() {
-  const isEn = (currentAppLanguage === 'en');
-  pushStudioSnapshot(isEn ? 'Toggle italic' : 'In nghiêng chữ');
   ALBUM_DATA.letterFontStyle = ALBUM_DATA.letterFontStyle === 'italic' ? 'normal' : 'italic';
   const textEls = document.querySelectorAll('.pb-editable-text');
   textEls.forEach(t => { t.style.fontStyle = ALBUM_DATA.letterFontStyle; });

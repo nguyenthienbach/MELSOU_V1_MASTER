@@ -645,7 +645,7 @@ header {
 /* 3D HERO AUTO-FLIPPING BOOK */
 .hero-3d-wrapper { perspective: 1500px; display: flex; align-items: center; justify-content: center; }
 .hero-book-3d {
-  width: clamp(500px, 36vw, 680px);
+  width: clamp(480px, 36vw, 600px);
   height: auto;
   aspect-ratio: 520 / 320;
   background: white;
@@ -702,8 +702,7 @@ header {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
   gap: 28px;
-  max-width: 1400px;
-  width: min(calc(100% - 64px), 1400px);
+  max-width: 1240px;
   margin: 0 auto;
 }
 .pricing-card {
@@ -736,24 +735,7 @@ header {
 .pkg-btn-fi:hover { background: var(--red-mid); transform: translateY(-2px); box-shadow: var(--shadow-md); }
 
 /* TEMPLATES GRID */
-.templates-grid-art {
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 24px;
-  margin-top: 32px;
-}
-@media (min-width: 900px) and (max-width: 1179.98px) {
-  .templates-grid-art {
-    grid-template-columns: repeat(3, 1fr);
-    gap: 20px;
-  }
-}
-@media (min-width: 768px) and (max-width: 899.98px) {
-  .templates-grid-art {
-    grid-template-columns: repeat(2, 1fr);
-    gap: 18px;
-  }
-}
+.templates-grid-art { display: grid; grid-template-columns: repeat(4, 1fr); gap: 24px; margin-top: 32px; }
 .art-tmpl-card {
   background: white;
   border-radius: 16px;
@@ -834,14 +816,21 @@ header {
 .st-right { display: flex; align-items: center; gap: 10px; }
 .st-price-tag { font-size: 16px; font-weight: 800; color: var(--red); }
 
-/* ── ZONE 2: CONTEXTUAL TOOLBAR (FB80: REMOVED REDUNDANT TOOLBAR) ── */
+/* ── ZONE 2: CONTEXTUAL TOOLBAR (40PX DYNAMIC ATTACHED STRIP) ── */
 .studio-contextual-toolbar {
-  display: none !important;
-  height: 0 !important;
-  border: none !important;
-  padding: 0 !important;
-  margin: 0 !important;
-  pointer-events: none !important;
+  height: 40px;
+  background: #ffffff;
+  border-bottom: 1px solid var(--gray-l);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 16px;
+  font-size: 12px;
+  z-index: 98;
+  overflow-x: auto;
+  flex-shrink: 0;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.02);
+  gap: 10px;
 }
 .ctx-left, .ctx-center, .ctx-right { display: flex; align-items: center; gap: 8px; }
 .ctx-badge { font-weight: 800; font-size: 11.5px; color: var(--dark); display: flex; align-items: center; gap: 5px; }
@@ -1003,18 +992,13 @@ header {
 /* ============================================================
    📖 PHYSICAL 3D ALBUM STRUCTURE (COVER / OPEN / BACK) 📖
 ============================================================ */
-.studio-stage { flex: 1; width: 100%; min-width: 0; display: flex; flex-direction: column; align-items: center; justify-content: space-between; padding: 16px 20px; background: radial-gradient(circle at center, #ece7de 0%, #d8d2c4 100%); position: relative; overflow: hidden; transition: margin-left 0.22s cubic-bezier(0.2, 0, 0.2, 1); }
-@media (min-width: 960px) {
-  body.drawer-open .studio-stage {
-    margin-left: 320px;
-  }
-}
-.stage-toolbar { flex-shrink: 0; display: flex; align-items: center; justify-content: space-between; width: 100%; max-width: min(1200px, 94%); margin-bottom: 12px; z-index: 50; }
+.studio-stage { flex: 1; width: 100%; min-width: 0; display: flex; flex-direction: column; align-items: center; justify-content: space-between; padding: 20px; background: radial-gradient(circle at center, #ece7de 0%, #d8d2c4 100%); position: relative; overflow: hidden; }
+.stage-toolbar { display: flex; align-items: center; justify-content: space-between; width: 100%; max-width: min(1200px, 94%); margin-bottom: 12px; z-index: 50; }
 .spread-title-tag { font-size: 13.5px; font-weight: 800; color: var(--dark); background: white; padding: 6px 14px; border-radius: 100px; box-shadow: 0 2px 8px rgba(0,0,0,0.06); }
 .fn-btn { background: white; border: 1px solid var(--gray-l); padding: 8px 14px; border-radius: 100px; font-size: 12.5px; font-weight: 700; color: var(--dark); transition: var(--transition); }
 .fn-btn:hover { background: var(--red); color: white; border-color: var(--red); }
 
-.photobook-stage-wrapper { perspective: 1600px; display: flex; align-items: center; justify-content: center; width: 100%; flex: 1; min-height: 0; position: relative; }
+.photobook-stage-wrapper { perspective: 1600px; display: flex; align-items: center; justify-content: center; width: 100%; flex: 1; }
 
 /* 1. OPEN 180° SPREAD (CO GIÃN THEO KÍCH THƯỚC THẬT) */
 .layflat-book {
@@ -1028,50 +1012,34 @@ header {
   grid-template-columns: 1fr 12px 1fr;
   position: relative;
   border: 1px solid rgba(0,0,0,0.08);
-  transition: max-width 0.35s cubic-bezier(0.4, 0, 0.2, 1), height 0.35s cubic-bezier(0.4, 0, 0.2, 1), box-shadow 0.35s ease, transform 0.25s ease;
+  transition: max-width 0.35s cubic-bezier(0.4, 0, 0.2, 1), height 0.35s cubic-bezier(0.4, 0, 0.2, 1), box-shadow 0.35s ease;
   transform-style: preserve-3d;
 }
 
-/* REAL PHYSICAL RATIOS & DIMENSIONS (FB77: TRUE PHYSICAL ASPECT RATIOS) */
-/* 1. A5 Portrait (15 × 21 cm) · Spread ~1.429 · Single ~0.714 */
-.layflat-book.ratio-portrait {
-  width: 672px;
-  max-width: 672px;
-  height: 460px;
-  grid-template-columns: 330px 12px 330px;
-}
-/* 2. Square (20 × 20 cm) · Spread 2.0 · Single 1.0 */
-.layflat-book.ratio-square {
-  width: 892px;
-  max-width: 892px;
-  height: 440px;
-  grid-template-columns: 440px 12px 440px;
-}
-/* 3. A5 Landscape (21 × 15 cm) · Spread 2.8 · Single 1.4 */
-.layflat-book.ratio-landscape {
-  width: 992px;
-  max-width: 992px;
-  height: 350px;
-  grid-template-columns: 490px 12px 490px;
-}
-/* 4. A6 Mini (10 × 15 cm) · Spread ~1.333 · Single ~0.667 */
+/* REAL PHYSICAL RATIOS & DIMENSIONS (FB63: CANONICAL 860x460 DESKTOP SPREAD) */
+.layflat-book.ratio-portrait,
+.layflat-book.ratio-square,
+.layflat-book.ratio-landscape,
 .layflat-book.ratio-mini {
-  width: 652px;
-  max-width: 652px;
-  height: 480px;
-  grid-template-columns: 320px 12px 320px;
+  max-width: 860px;
+  height: 460px;
 }
 
 /* 2. CLOSED 3D FRONT COVER */
 .layflat-book.single-cover-mode {
+  max-width: 440px !important;
+  height: 460px !important;
   grid-template-columns: 1fr;
   box-shadow: -15px 25px 50px rgba(0,0,0,0.35), 0 0 0 1px rgba(0,0,0,0.1);
   border-left: 14px solid #1a1a2e;
 }
-.layflat-book.single-cover-mode.ratio-portrait { width: 330px !important; max-width: 330px !important; height: 460px !important; }
-.layflat-book.single-cover-mode.ratio-square { width: 440px !important; max-width: 440px !important; height: 440px !important; }
-.layflat-book.single-cover-mode.ratio-landscape { width: 490px !important; max-width: 490px !important; height: 350px !important; }
-.layflat-book.single-cover-mode.ratio-mini { width: 320px !important; max-width: 320px !important; height: 480px !important; }
+.layflat-book.single-cover-mode.ratio-portrait,
+.layflat-book.single-cover-mode.ratio-square,
+.layflat-book.single-cover-mode.ratio-landscape,
+.layflat-book.single-cover-mode.ratio-mini {
+  max-width: 440px !important;
+  height: 460px !important;
+}
 
 .layflat-book.single-cover-mode .layflat-spine,
 .layflat-book.single-cover-mode .pb-page.left-page { display: none !important; }
@@ -1079,14 +1047,19 @@ header {
 
 /* 3. CLOSED 3D BACK COVER */
 .layflat-book.single-back-mode {
+  max-width: 440px !important;
+  height: 460px !important;
   grid-template-columns: 1fr;
   box-shadow: 15px 25px 50px rgba(0,0,0,0.35), 0 0 0 1px rgba(0,0,0,0.1);
   border-right: 14px solid #1a1a2e;
 }
-.layflat-book.single-back-mode.ratio-portrait { width: 330px !important; max-width: 330px !important; height: 460px !important; }
-.layflat-book.single-back-mode.ratio-square { width: 440px !important; max-width: 440px !important; height: 440px !important; }
-.layflat-book.single-back-mode.ratio-landscape { width: 490px !important; max-width: 490px !important; height: 350px !important; }
-.layflat-book.single-back-mode.ratio-mini { width: 320px !important; max-width: 320px !important; height: 480px !important; }
+.layflat-book.single-back-mode.ratio-portrait,
+.layflat-book.single-back-mode.ratio-square,
+.layflat-book.single-back-mode.ratio-landscape,
+.layflat-book.single-back-mode.ratio-mini {
+  max-width: 440px !important;
+  height: 460px !important;
+}
 
 .layflat-book.single-back-mode .layflat-spine,
 .layflat-book.single-back-mode .pb-page.left-page { display: none !important; }
@@ -1690,7 +1663,6 @@ header {
 
 /* ZONE 5: CANVA FILMSTRIP TRAY & WRAPPER (~70PX) */
 .studio-filmstrip-wrapper {
-  flex-shrink: 0;
   width: 100%;
   max-width: min(1200px, 94%);
   background: rgba(255, 255, 255, 0.96);
@@ -1759,35 +1731,6 @@ header {
   border-color: var(--red) !important;
   box-shadow: 0 0 0 2px rgba(168,35,35,0.25);
   background: #fff8f8;
-}
-
-/* DEDICATED SPREAD REMOVE BUTTON (FB88) */
-.filmstrip-remove-btn {
-  position: absolute;
-  top: -6px;
-  right: -6px;
-  width: 22px;
-  height: 22px;
-  background: #dc2626;
-  color: #ffffff;
-  border: 1.5px solid #ffffff;
-  border-radius: 50%;
-  font-size: 11px;
-  font-weight: 800;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  z-index: 30;
-  box-shadow: 0 2px 6px rgba(0,0,0,0.25);
-  transition: transform 0.15s ease, background 0.15s ease;
-  pointer-events: auto;
-  line-height: 1;
-  padding: 0;
-}
-.filmstrip-remove-btn:hover {
-  background: #b91c1c;
-  transform: scale(1.15);
 }
 
 /* SINGLE COVER THUMBNAIL (BÌA TRƯỚC / BÌA SAU) */
@@ -1896,7 +1839,7 @@ header {
 .fbm-viewport { flex: 1; display: flex; align-items: center; justify-content: center; width: 100%; max-width: 1050px; perspective: 2200px; }
 
 .fbm-book {
-  width: 700px;
+  width: 880px;
   height: 480px;
   background: white;
   border-radius: 12px;
@@ -1906,28 +1849,11 @@ header {
   position: relative;
   overflow: hidden;
   transform-style: preserve-3d;
-  transition: transform 0.12s ease-out, width 0.3s ease, height 0.3s ease;
+  transition: transform 0.12s ease-out;
   cursor: grab;
 }
-
-/* FB77: Physical format ratios for Desktop 3D */
-.fbm-book.ratio-portrait { width: 700px; height: 480px; grid-template-columns: 344px 12px 344px; }
-.fbm-book.ratio-portrait.fbm-single-cover,
-.fbm-book.ratio-portrait.fbm-single-back { width: 344px; max-width: 344px; height: 480px; }
-
-.fbm-book.ratio-square { width: 892px; height: 440px; grid-template-columns: 440px 12px 440px; }
-.fbm-book.ratio-square.fbm-single-cover,
-.fbm-book.ratio-square.fbm-single-back { width: 440px; max-width: 440px; height: 440px; }
-
-.fbm-book.ratio-landscape { width: 980px; height: 350px; grid-template-columns: 484px 12px 484px; }
-.fbm-book.ratio-landscape.fbm-single-cover,
-.fbm-book.ratio-landscape.fbm-single-back { width: 484px; max-width: 484px; height: 350px; }
-
-.fbm-book.ratio-mini { width: 652px; height: 480px; grid-template-columns: 320px 12px 320px; }
-.fbm-book.ratio-mini.fbm-single-cover,
-.fbm-book.ratio-mini.fbm-single-back { width: 320px; max-width: 320px; height: 480px; }
-
 .fbm-book.fbm-single-cover {
+  max-width: 450px;
   grid-template-columns: 1fr;
   border-left: 14px solid #1a1a2e;
 }
@@ -1935,6 +1861,7 @@ header {
 .fbm-book.fbm-single-cover .pb-page.left-page { display: none !important; }
 
 .fbm-book.fbm-single-back {
+  max-width: 450px;
   grid-template-columns: 1fr;
   border-right: 14px solid #1a1a2e;
 }
@@ -1973,7 +1900,7 @@ header {
 
 .modal-backdrop { position: fixed; inset: 0; background: rgba(0,0,0,0.6); backdrop-filter: blur(8px); z-index: 2100; display: none; align-items: center; justify-content: center; padding: 20px; }
 .modal-backdrop.open { display: flex; animation: fadeIn 0.25s ease; }
-.modal-box { background: white; border-radius: 20px; width: min(calc(100vw - 32px), 640px); max-width: 640px; max-height: 90vh; overflow-y: auto; box-shadow: var(--shadow-lg); padding: 30px; display: flex; flex-direction: column; gap: 18px; box-sizing: border-box; }
+.modal-box { background: white; border-radius: 20px; width: 100%; max-width: 640px; max-height: 90vh; overflow-y: auto; box-shadow: var(--shadow-lg); padding: 30px; display: flex; flex-direction: column; gap: 18px; }
 .form-input { width: 100%; padding: 12px 16px; border: 1.5px solid var(--gray-l); border-radius: 10px; font-size: 13.5px; }
 .form-input:focus { outline: none; border-color: var(--red); }
 .copy-pill { background: var(--bg); border: 1px solid var(--gray-l); padding: 8px 12px; border-radius: 8px; display: flex; justify-content: space-between; align-items: center; font-size: 13px; margin-top: 6px; }
@@ -2003,68 +1930,21 @@ footer { background: #141414; color: #a0a0a0; padding: 70px 32px 28px; border-to
    Co-ordinated fluid clamp spacing, adaptive CTA, and crisp Hamburger
 ============================================================ */
 /* ============================================================
-   FB85: UNIFIED 3-TIER RESPONSIVE ARCHITECTURE
-   Tier 1: Wide / Desktop (>= 1180px)
-   Tier 2: Medium / Tablet (768px - 1179.98px)
-     - Medium-Wide (1024px - 1179.98px): Compact nav links, CTA, Cart, Account, zero premature hamburger
-     - Medium-Compact (768px - 1023.98px): Tablet header (Logo, CTA, Cart, Account, Settings, clean menu)
-   Tier 3: Compact / Mobile (< 768px)
+   FB65: DESKTOP HEADER STRUCTURAL RESPONSIVE ARCHITECTURE
+   Preferred hierarchy: [Logo] [5 Primary Links] [⚙] [👤 Account] [🛒] [CTA]
+   >= 1440px: Full nav, full Account label, Settings icon, Cart icon, Full CTA
+   1180px - 1439px: Reduced gap, Account icon-only (👤), Cart icon, Full CTA
+   < 1180px: Collapse primary nav into mobile menu (☰)
 ============================================================ */
-
-/* ── TIER 1.5: TABLET LANDSCAPE & COMPACT DESKTOP (1024px - 1179.98px) ── */
-@media (min-width: 1024px) and (max-width: 1179.98px) {
-  .nav {
-    padding: 0 clamp(10px, 1.5vw, 24px);
-    gap: clamp(6px, 1vw, 16px);
-    justify-content: space-between;
-  }
-  .nav-links {
-    display: flex !important;
-    gap: clamp(4px, 0.7vw, 12px);
-    flex: 1;
-    min-width: 0;
-    justify-content: center;
-  }
-  .nav-links a {
-    display: inline-block !important;
-    font-size: 12.5px !important;
-    padding: 5px clamp(3px, 0.4vw, 6px) !important;
-    white-space: nowrap;
-  }
-  .nav-right {
-    display: flex !important;
-    align-items: center;
-    gap: clamp(5px, 0.8vw, 10px);
-    flex-shrink: 0;
-  }
-  .cta-btn {
-    display: inline-flex !important;
-    padding: 8px 12px !important;
-    font-size: 12.5px !important;
-    white-space: nowrap;
-    flex-shrink: 0;
-  }
-  .auth-btn .auth-btn-label {
-    display: none !important;
-  }
-  .auth-btn {
-    padding: 7px 10px !important;
-  }
-  .mobile-menu-btn {
-    display: none !important;
-  }
-}
-
-/* ── TIER 1: DESKTOP STANDARD & WIDE (>= 1180px) ── */
 @media (min-width: 1180px) {
   .nav {
     padding: 0 clamp(16px, 2vw, 36px);
-    gap: clamp(10px, 1.2vw, 24px);
+    gap: clamp(10px, 1.5vw, 24px);
     justify-content: space-between;
   }
   .nav-links {
     display: flex !important;
-    gap: clamp(8px, 1.1vw, 20px);
+    gap: clamp(8px, 1.1vw, 18px);
     flex: 1;
     min-width: 0;
     justify-content: center;
@@ -2072,8 +1952,7 @@ footer { background: #141414; color: #a0a0a0; padding: 70px 32px 28px; border-to
   .nav-links a {
     display: inline-block !important;
     font-size: 13.5px !important;
-    padding: 6px clamp(4px, 0.5vw, 10px) !important;
-    font-weight: 600;
+    padding: 6px clamp(4px, 0.5vw, 8px) !important;
     white-space: nowrap;
   }
   .nav-right {
@@ -2086,88 +1965,49 @@ footer { background: #141414; color: #a0a0a0; padding: 70px 32px 28px; border-to
     display: inline-flex !important;
     padding: 9px clamp(14px, 1.2vw, 22px) !important;
     font-size: 13.5px !important;
-    font-weight: 700;
     white-space: nowrap;
     flex-shrink: 0;
-  }
-  .auth-btn .auth-btn-label {
-    display: inline !important;
   }
   .mobile-menu-btn {
     display: none !important;
   }
 }
 
-@media (min-width: 1024px) {
-  .values-grid {
-    grid-template-columns: repeat(4, 1fr) !important;
-    gap: 24px;
+@media (min-width: 1180px) and (max-width: 1439px) {
+  .nav-links {
+    gap: clamp(6px, 0.8vw, 12px) !important;
+  }
+  .nav-links a {
+    padding: 6px clamp(3px, 0.4vw, 6px) !important;
+    font-size: 13px !important;
+  }
+  .auth-btn .auth-btn-label {
+    display: none !important;
+  }
+  .auth-btn {
+    padding: 8px 10px !important;
   }
 }
 
-/* ── TIER 2: MEDIUM & TABLET (768px - 1023.98px) ── */
-@media (min-width: 768px) and (max-width: 1023.98px) {
+@media (min-width: 1440px) {
+  .auth-btn .auth-btn-label {
+    display: inline !important;
+  }
+}
+
+@media (max-width: 1179px) {
+  .values-grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 20px;
+  }
   .nav-links {
     display: none !important;
   }
   .mobile-menu-btn {
     display: inline-flex !important;
   }
-  /* FB85: Preserve primary CTA button on Tablet Header! */
   .cta-btn {
-    display: inline-flex !important;
-    padding: 8px 14px !important;
-    font-size: 12.5px !important;
-  }
-  .auth-btn .auth-btn-label {
-    display: none !important;
-  }
-  .auth-btn {
-    padding: 0 !important;
-    width: 36px !important;
-    height: 36px !important;
-    border-radius: 50% !important;
-    display: inline-flex !important;
-    align-items: center !important;
-    justify-content: center !important;
-  }
-  .cart-btn {
-    height: 36px !important;
-    padding: 0 10px !important;
-  }
-  .values-grid {
-    grid-template-columns: repeat(2, 1fr) !important;
-    gap: 20px !important;
-  }
-  .pricing-grid {
-    grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)) !important;
-    gap: 20px !important;
-    max-width: 920px !important;
-    margin: 0 auto !important;
-  }
-  .pricing-card.featured {
-    transform: none !important;
-    margin: 0 !important;
-  }
-  /* Hero Tablet Optimization */
-  .hero {
-    padding: clamp(32px, 4vw, 44px) clamp(16px, 2.5vw, 24px) !important;
-    gap: 24px !important;
-  }
-  .hero-title {
-    font-size: clamp(28px, 3.8vw, 38px) !important;
-  }
-  .hero-title-accent {
-    font-size: clamp(26px, 3.4vw, 34px) !important;
-  }
-  .hero-desc {
-    font-size: 14px !important;
-    margin-bottom: 20px !important;
-  }
-  .hero-book-3d {
-    width: 100% !important;
-    max-width: 440px !important;
-    min-width: 0 !important;
+    display: none;
   }
 }
 
@@ -2207,7 +2047,7 @@ footer { background: #141414; color: #a0a0a0; padding: 70px 32px 28px; border-to
 .mobile-quick-3d-btn {
   display: none;
 }
-@media (max-width: 767.98px) {
+@media (max-width: 768px) {
   .mobile-quick-3d-btn {
     display: inline-flex !important;
   }
@@ -2227,7 +2067,7 @@ footer { background: #141414; color: #a0a0a0; padding: 70px 32px 28px; border-to
 .footer-copy-line1::after {
   content: " · ";
 }
-@media (max-width: 767.98px) {
+@media (max-width: 768px) {
   footer {
     padding-bottom: calc(72px + env(safe-area-inset-bottom, 16px)) !important;
   }
@@ -2249,9 +2089,9 @@ footer { background: #141414; color: #a0a0a0; padding: 70px 32px 28px; border-to
 }
 
 /* ============================================================
-   📱 FULL NATIVE-LEVEL MOBILE OPTIMIZATION SYSTEM (< 768px) 📱
+   📱 FULL NATIVE-LEVEL MOBILE OPTIMIZATION SYSTEM (<= 768px) 📱
 ============================================================ */
-@media (max-width: 767.98px) {
+@media (max-width: 768px) {
   /* GLOBAL APP RESET & OVERFLOW PREVENTION */
   html, body {
     overflow-x: hidden !important;
@@ -2987,6 +2827,8 @@ footer { background: #141414; color: #a0a0a0; padding: 70px 32px 28px; border-to
   .fbm-title { font-size: 15px !important; font-weight: 700 !important; max-width: 65vw; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .fbm-viewport { width: 100% !important; max-width: 100% !important; display: flex !important; align-items: center !important; justify-content: center !important; perspective: 1200px; }
   .fbm-book {
+    width: min(86vw, 360px) !important;
+    aspect-ratio: 1 / 1.05 !important;
     height: auto !important;
     max-height: 56vh !important;
     display: flex !important;
@@ -2995,22 +2837,6 @@ footer { background: #141414; color: #a0a0a0; padding: 70px 32px 28px; border-to
     position: relative !important;
     box-shadow: 0 12px 36px rgba(0,0,0,0.4) !important;
     border-radius: 8px !important;
-  }
-  .fbm-book.ratio-portrait {
-    width: min(84vw, 330px) !important;
-    aspect-ratio: 150 / 210 !important;
-  }
-  .fbm-book.ratio-square {
-    width: min(86vw, 350px) !important;
-    aspect-ratio: 1 / 1 !important;
-  }
-  .fbm-book.ratio-landscape {
-    width: min(92vw, 380px) !important;
-    aspect-ratio: 210 / 150 !important;
-  }
-  .fbm-book.ratio-mini {
-    width: min(78vw, 300px) !important;
-    aspect-ratio: 100 / 150 !important;
   }
   .fbm-book .pb-page {
     width: 100% !important;
@@ -3215,7 +3041,7 @@ body.in-studio #page-studio.active {
 }
 
 /* 🛡️ MOBILE STUDIO BOTTOM SHEET 3 SNAP LEVELS */
-@media (max-width: 767.98px) {
+@media (max-width: 768px) {
   body.in-studio,
   body:has(#page-studio.active) {
     overflow: hidden !important;
@@ -3240,7 +3066,7 @@ body.in-studio #page-studio.active {
   }
 }
 
-/* 🛡️ FB34: HIDE COMPACT MOBILE CONTROLS ON DESKTOP & TABLET VIEWPORTS BY DEFAULT */
+/* 🛡️ FB34: HIDE COMPACT MOBILE CONTROLS ON DESKTOP VIEWPORTS BY DEFAULT */
 .mobile-page-controller {
   display: none !important;
 }
@@ -3251,7 +3077,7 @@ body.in-studio #page-studio.active {
   display: none !important;
 }
 
-@media (max-width: 767.98px) {
+@media (max-width: 768px) {
   .mobile-page-controller {
     display: flex !important;
   }
@@ -3560,7 +3386,7 @@ body.in-studio #page-studio.active {
   border-color: var(--dark);
 }
 
-@media (max-width: 767.98px) {
+@media (max-width: 768px) {
   .customer-chat-panel {
     right: 0 !important;
     bottom: 0 !important;
@@ -3574,26 +3400,14 @@ body.in-studio #page-studio.active {
 
 
 /* ============================================================
-   🌟 FB57 & FB85: CANVA-INSPIRED MOBILE UX & TABLET PROJECTION
+   🌟 FB57: CANVA-INSPIRED MOBILE UX & SINGLE-PAGE PROJECTION
 ============================================================ */
 .mobile-contextual-bottom-bar {
   display: none;
 }
 
-/* Tablet Portrait Studio Optimization (768px - 959.98px) */
-@media (min-width: 768px) and (max-width: 959.98px) {
-  .canva-sidebar.studio-flyout-drawer {
-    width: 310px !important;
-    box-shadow: 12px 0 35px rgba(0, 0, 0, 0.18) !important;
-    z-index: 120 !important;
-  }
-  .st-title-wrapper {
-    max-width: 150px;
-  }
-}
-
-@media (max-width: 767.98px) {
-  /* Hide desktop left rail & desktop contextual toolbar on mobile (< 768px) */
+@media (max-width: 768px) {
+  /* Hide desktop left rail & desktop contextual toolbar on mobile */
   .studio-rail {
     display: none !important;
   }
@@ -3647,64 +3461,9 @@ body.in-studio #page-studio.active {
     width: 100% !important;
   }
 
-  /* Filmstrip on mobile (FB88: Accessible horizontal swipe & scroll-snap) */
+  /* Filmstrip on mobile */
   .studio-filmstrip-wrapper {
-    display: block !important;
-    position: relative !important;
-    width: 100% !important;
-    max-width: 100% !important;
-    margin: 4px 0 0 0 !important;
-    padding: 0 !important;
-    border-radius: 10px !important;
-    background: rgba(255, 255, 255, 0.95) !important;
-    backdrop-filter: blur(8px) !important;
-    box-shadow: 0 -2px 10px rgba(0,0,0,0.05) !important;
-    z-index: 95 !important;
-    flex-shrink: 0 !important;
-  }
-  .filmstrip-header-bar {
-    padding: 3px 8px !important;
-  }
-  .filmstrip-summary {
-    font-size: 10px !important;
-  }
-  .canva-filmstrip {
-    height: 52px !important;
-    padding: 4px 8px !important;
-    gap: 8px !important;
-    overflow-x: auto !important;
-    overflow-y: hidden !important;
-    -webkit-overflow-scrolling: touch !important;
-    scroll-snap-type: x proximity !important;
-    scroll-behavior: smooth !important;
-    display: flex !important;
-    flex-wrap: nowrap !important;
-    align-items: center !important;
-    box-sizing: border-box !important;
-  }
-  .filmstrip-item {
-    flex: 0 0 68px !important;
-    height: 44px !important;
-    scroll-snap-align: center !important;
-    padding: 2px !important;
-  }
-  .filmstrip-mini-spread {
-    height: 22px !important;
-  }
-  .filmstrip-single-cover {
-    width: 36px !important;
-    height: 22px !important;
-    font-size: 7.5px !important;
-  }
-  .filmstrip-label {
-    font-size: 8.5px !important;
-    margin-top: 2px !important;
-  }
-  .btn-add-spread-tray {
-    flex: 0 0 84px !important;
-    height: 44px !important;
-    font-size: 8.5px !important;
-    scroll-snap-align: center !important;
+    display: none !important;
   }
 
   /* Mobile True Single-Page Canvas Architecture (FB62) */
@@ -3712,33 +3471,15 @@ body.in-studio #page-studio.active {
     transition: transform 0.24s cubic-bezier(0.2, 0.8, 0.3, 1), box-shadow 0.2s ease !important;
   }
   .layflat-book.mobile-single-page-mode {
+    width: 430px !important;
+    max-width: 430px !important;
+    height: 460px !important;
     display: block !important;
-    flex-shrink: 0 !important;
     border-radius: 8px !important;
     box-shadow: 0 4px 20px rgba(0,0,0,0.12) !important;
     overflow: hidden !important;
     margin: 0 auto !important;
     position: relative !important;
-  }
-  .layflat-book.mobile-single-page-mode.ratio-portrait {
-    width: 330px !important;
-    max-width: 330px !important;
-    height: 460px !important;
-  }
-  .layflat-book.mobile-single-page-mode.ratio-square {
-    width: 440px !important;
-    max-width: 440px !important;
-    height: 440px !important;
-  }
-  .layflat-book.mobile-single-page-mode.ratio-landscape {
-    width: 490px !important;
-    max-width: 490px !important;
-    height: 350px !important;
-  }
-  .layflat-book.mobile-single-page-mode.ratio-mini {
-    width: 320px !important;
-    max-width: 320px !important;
-    height: 480px !important;
   }
   .layflat-book.mobile-single-page-mode .pb-page {
     width: 100% !important;

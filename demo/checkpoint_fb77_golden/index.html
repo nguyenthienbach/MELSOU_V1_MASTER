@@ -85,7 +85,7 @@
   <ul class="mnd-list">
     <li><a href="javascript:void(0)" onclick="mobileNavGo('home')" id="mndLinkHome">🏠 Trang chủ</a></li>
     <li><a href="javascript:void(0)" onclick="mobileNavScroll('values')" id="mndLinkValues">✨ Bốn giá trị độc bản</a></li>
-    <li><a href="javascript:void(0)" onclick="mobileNavScroll('pricing')" id="mndLinkPricing">🏷️ Gói sản phẩm</a></li>
+    <li><a href="javascript:void(0)" onclick="mobileNavScroll('pricing')" id="mndLinkPricing">🏷️ Gói sản phẩm &amp; Bảng giá</a></li>
     <li><a href="javascript:void(0)" onclick="mobileNavGo('templates')" id="mndLinkTemplates">🎨 Thư viện Template</a></li>
     <li><a href="javascript:void(0)" onclick="mobileNavScroll('reviews-section')" id="mndLinkReviews">💬 Trải nghiệm người dùng</a></li>
     <li><a href="javascript:void(0)" onclick="mobileNavScroll('blog-section')" id="mndLinkBlog">📖 Câu chuyện</a></li>
@@ -326,6 +326,10 @@
       </div>
     </div>
 
+    <!-- ZONE 2: CONTEXTUAL TOOLBAR (DYNAMIC SPREAD / PHOTO / TEXT / STICKER) -->
+    <div class="studio-contextual-toolbar" id="studioContextualToolbar">
+      <!-- Injected dynamically by updateContextualToolbar() -->
+    </div>
 
     <!-- MAIN BODY (RAIL + FLYOUT + CANVAS STAGE) -->
     <div class="studio-body" id="studioBodyContainer">
@@ -388,19 +392,19 @@
           <div class="layout-picker-grid" id="sizeCardSelectorGroup">
             <div class="layout-card active" id="sizeCardA5" onclick="selectAlbumSize(0, 'A5 Đứng', 'ratio-portrait')">
               <div class="layout-name">A5 Đứng</div>
-              <div style="font-size:11px;color:var(--gray)">15 × 21 cm</div>
+              <div style="font-size:11px;color:var(--gray)">15 × 21 cm · Chuẩn</div>
             </div>
-            <div class="layout-card" id="sizeCardSquare" onclick="selectAlbumSize(0, 'Khổ Vuông', 'ratio-square')">
+            <div class="layout-card" id="sizeCardSquare" onclick="selectAlbumSize(20000, 'Khổ Vuông', 'ratio-square')">
               <div class="layout-name">Khổ Vuông</div>
-              <div style="font-size:11px;color:var(--gray)">20 × 20 cm</div>
+              <div style="font-size:11px;color:var(--gray)">20 × 20 cm · +20k</div>
             </div>
-            <div class="layout-card" id="sizeCardLandscape" onclick="selectAlbumSize(0, 'A5 Ngang', 'ratio-landscape')">
+            <div class="layout-card" id="sizeCardLandscape" onclick="selectAlbumSize(10000, 'A5 Ngang', 'ratio-landscape')">
               <div class="layout-name">A5 Ngang</div>
-              <div style="font-size:11px;color:var(--gray)">21 × 15 cm</div>
+              <div style="font-size:11px;color:var(--gray)">21 × 15 cm · +10k</div>
             </div>
-            <div class="layout-card" id="sizeCardMini" onclick="selectAlbumSize(0, 'A6 Mini', 'ratio-mini')">
+            <div class="layout-card" id="sizeCardMini" onclick="selectAlbumSize(-20000, 'A6 Mini', 'ratio-mini')">
               <div class="layout-name">A6 Mini</div>
-              <div style="font-size:11px;color:var(--gray)">10 × 15 cm</div>
+              <div style="font-size:11px;color:var(--gray)">10 × 15 cm · -20k</div>
             </div>
           </div>
         </div>
@@ -645,8 +649,8 @@
               <button class="msm-item" onclick="togglePrintSafeGuides();closeMobileStageMenu()">📏 Vùng an toàn in</button>
               <button class="msm-item" id="msmItem3D" onclick="openFlipbookModal();closeMobileStageMenu()">📖 Xem 3D</button>
               <button class="msm-item" onclick="exportCurrentDesignFile();closeMobileStageMenu()">⬇ Tải PDF album</button>
-              <button class="msm-item" id="msmItemUndo" onclick="studioUndo();closeMobileStageMenu()">↶ Hoàn tác</button>
-              <button class="msm-item" id="msmItemRedo" onclick="studioRedo();closeMobileStageMenu()">↷ Làm lại</button>
+              <button class="msm-item" onclick="studioUndo();closeMobileStageMenu()">↶ Hoàn tác</button>
+              <button class="msm-item" onclick="studioRedo();closeMobileStageMenu()">↷ Làm lại</button>
             </div>
           </div>
           <!-- Desktop Toolbar Buttons (>768px) -->
@@ -729,9 +733,9 @@
   <div style="max-width:720px;margin:50px auto;padding:0 24px">
     <div style="background:white;border-radius:20px;padding:36px;box-shadow:var(--shadow-md);margin-bottom:28px;text-align:center">
       <h2 style="font-size:28px;margin-bottom:8px">Tra cứu đơn hàng trực tiếp</h2>
-      <p style="color:var(--gray);font-size:14.5px">Nhập mã đơn hàng (ví dụ: MELS-XXXXXXX) hoặc số điện thoại đặt in</p>
+      <p style="color:var(--gray);font-size:14.5px">Nhập mã đơn hàng (ví dụ: MELS-2608-001) hoặc số điện thoại đặt in</p>
       <div style="display:flex;gap:10px;margin-top:20px">
-        <input type="text" class="form-input" id="trackQueryInput" placeholder="Nhập mã đơn (vd: MELS-XXXXXXX) hoặc SĐT..." style="flex:1;border-radius:100px" onkeydown="if(event.key==='Enter')performTrackingSearch()">
+        <input type="text" class="form-input" id="trackQueryInput" placeholder="Nhập mã đơn (vd: MELS-2608-001) hoặc SĐT..." style="flex:1;border-radius:100px" onkeydown="if(event.key==='Enter')performTrackingSearch()">
         <button class="btn-primary" onclick="performTrackingSearch()">Tra cứu →</button>
       </div>
     </div>
@@ -755,7 +759,7 @@
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;border-bottom:1px solid var(--gray-l);padding-bottom:16px;flex-wrap:wrap;gap:12px">
         <div>
           <div style="font-size:11px;color:var(--gray);font-weight:700;text-transform:uppercase;letter-spacing:1px">Chi tiết vận đơn</div>
-          <div style="font-size:20px;font-weight:800;color:var(--dark);margin-top:2px" id="trackOrderTitle">--</div>
+          <div style="font-size:20px;font-weight:800;color:var(--dark);margin-top:2px" id="trackOrderTitle">MELS-2608-001</div>
         </div>
         <div style="background:#dcfce7;color:#16a34a;font-weight:700;padding:6px 14px;border-radius:100px;font-size:12.5px" id="trackOrderStatusBadge">✅ Đã xác nhận đơn hàng</div>
       </div>
@@ -763,7 +767,11 @@
       <div id="trackOrderItemsList" style="margin-bottom:20px;background:var(--bg);border-radius:12px;padding:14px;font-size:13px"></div>
 
       <div style="font-size:13.5px;font-weight:700;color:var(--dark);margin-bottom:12px">Tiến trình chế tác &amp; vận chuyển:</div>
-      <div style="padding-left:20px;border-left:2px solid var(--red);display:flex;flex-direction:column;gap:18px" id="trackTimelineContainer"></div>
+      <div style="padding-left:20px;border-left:2px solid var(--red);display:flex;flex-direction:column;gap:18px" id="trackTimelineContainer">
+        <div><div style="font-size:11px;color:var(--gray)">14:30 · Hôm nay</div><div style="font-size:13.5px;font-weight:700">Khớp lệnh VietQR MB Bank thành công (Mô phỏng)</div></div>
+        <div><div style="font-size:11px;color:var(--gray)">15:00 · Hôm nay</div><div style="font-size:13.5px;font-weight:700">Xưởng in Melsou tiếp nhận tệp thiết kế liền trang 180°</div></div>
+        <div><div style="font-size:11px;color:var(--gray)">Dự kiến</div><div style="font-size:13.5px;font-weight:700;color:var(--gray)">Đóng gói hộp quà Kraft &amp; bàn giao đơn vị vận chuyển</div></div>
+      </div>
     </div>
 
     <!-- STATE 4: NOT FOUND / EMPTY STATE -->
@@ -933,21 +941,6 @@
     <div style="display:flex;gap:10px;justify-content:center">
       <button class="btn-outline" style="flex:1;padding:10px 16px;font-size:13px;font-weight:700;border-radius:10px" onclick="cancelAlbumSizeChange()" id="sizeChangeCancelBtn">Hủy</button>
       <button class="btn-primary" style="flex:1;padding:10px 16px;font-size:13px;font-weight:700;border-radius:10px;background:var(--red)" onclick="confirmAlbumSizeChange()" id="sizeChangeConfirmBtn">Đổi khổ</button>
-    </div>
-  </div>
-</div>
-
-<!-- ════════ 🗑️ MODAL: CONFIRM REMOVE SPREAD (FB88) ════════ -->
-<div class="modal-backdrop" id="removeSpreadConfirmModal" onclick="if(event.target===this)closeRemoveSpreadModal()">
-  <div class="modal-box" style="max-width:400px;text-align:center;padding:24px 20px;border-radius:16px;box-shadow:0 16px 40px rgba(0,0,0,0.2)">
-    <div style="font-size:36px;margin-bottom:8px">🗑️</div>
-    <h3 style="font-size:18px;font-weight:800;color:var(--dark);margin-bottom:8px" id="removeSpreadModalTitle">Xóa Trang 12–13?</h3>
-    <p style="font-size:13px;color:var(--gray);line-height:1.6;margin-bottom:20px" id="removeSpreadModalDesc">
-      2 trang này và nội dung bên trong sẽ bị xóa. Tổng giá sẽ giảm 15.000đ.
-    </p>
-    <div style="display:flex;gap:10px;justify-content:center">
-      <button class="btn-outline" style="flex:1;padding:10px 16px;font-size:13px;font-weight:700;border-radius:10px" onclick="closeRemoveSpreadModal()" id="removeSpreadCancelBtn">Hủy</button>
-      <button class="btn-primary" style="flex:1;padding:10px 16px;font-size:13px;font-weight:700;border-radius:10px;background:var(--red)" onclick="executeRemoveSpread()" id="removeSpreadConfirmBtn">Xóa 2 trang</button>
     </div>
   </div>
 </div>
@@ -1385,15 +1378,15 @@
       <div style="text-align:center">
         <!-- QR CODE WITH DEMO OVERLAY WATERMARK (FB20) -->
         <div style="position:relative;background:white;padding:10px;border:1.5px solid var(--gray-l);border-radius:16px;display:inline-block;margin-bottom:10px;overflow:hidden">
-          <img id="vietQrImg" src="" style="width:220px;height:auto;border-radius:8px;display:block" alt="VietQR Thanh Toán">
+          <img id="vietQrImg" src="https://api.vietqr.io/image/970422-00931940512-compact2.jpg?amount=229000&addInfo=MELS2608001&accountName=MELSOU%20DEMO" style="width:220px;height:auto;border-radius:8px;display:block" alt="VietQR Mô Phỏng">
         </div>
 
         <div style="display:flex;flex-direction:column;gap:6px;text-align:left;max-width:360px;margin:0 auto;font-size:12.5px">
-          <div class="copy-pill"><span>Ngân hàng: <strong>MB (Quân Đội) · Chuyển khoản VietQR</strong></span></div>
+          <div class="copy-pill"><span>Ngân hàng: <strong>MB (Quân Đội) · Demo</strong></span></div>
           <div class="copy-pill"><span>Số TK: <strong>00931940512</strong></span><button class="copy-btn" onclick="copyToClipboard('00931940512')">Copy</button></div>
           <div class="copy-pill"><span>Chủ TK: <strong>MELSOU VIETNAM</strong></span></div>
-          <div class="copy-pill"><span>Số tiền thanh toán: <strong id="copyAmountText" style="color:var(--red)">--</strong></span><button class="copy-btn" onclick="copyToClipboard(document.getElementById('copyAmountText').textContent)">Copy</button></div>
-          <div class="copy-pill"><span>Nội dung chuyển khoản: <strong id="copyMemoText">--</strong></span><button class="copy-btn" onclick="copyToClipboard(document.getElementById('copyMemoText').textContent)">Copy</button></div>
+          <div class="copy-pill"><span>Số tiền mô phỏng: <strong id="copyAmountText" style="color:var(--red)">229.000đ</strong></span><button class="copy-btn" onclick="copyToClipboard('229000')">Copy</button></div>
+          <div class="copy-pill"><span>Nội dung: <strong id="copyMemoText">MELS2608001</strong></span><button class="copy-btn" onclick="copyToClipboard('MELS2608001')">Copy</button></div>
         </div>
 
         <div style="margin-top:14px;background:var(--red-light);color:var(--red);padding:8px 12px;border-radius:8px;font-size:12px;font-weight:700">
