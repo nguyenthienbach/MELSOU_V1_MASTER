@@ -31,7 +31,13 @@ http.createServer(async (request, response) => {
     return;
   }
 
-  const requestPath = url.pathname === '/' ? 'index.html' : url.pathname.replace(/^\//, '');
+  if (url.pathname === '/') {
+    response.writeHead(302, { 'Location': '/recovery_fb38/index.html' });
+    response.end();
+    return;
+  }
+
+  const requestPath = url.pathname.replace(/^\//, '');
   const filePath = normalize(join(root, requestPath));
   if (!filePath.startsWith(root)) { response.writeHead(403).end('Forbidden'); return; }
   try {

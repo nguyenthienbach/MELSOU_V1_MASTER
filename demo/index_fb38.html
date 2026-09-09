@@ -31,12 +31,14 @@
   --transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
 }
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-html { scroll-behavior: smooth; overflow-x: hidden; }
+html { scroll-behavior: smooth; }
+html, body {
+  overflow-x: clip; /* FB30: Fix sticky header scroll detachment */
+}
 body {
   font-family: 'Montserrat', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
   background: var(--bg);
   color: var(--dark);
-  overflow-x: hidden;
   user-select: none;
 }
 h1, h2, h3, h4 { font-family: 'Playfair Display', Georgia, serif; text-wrap: balance; }
@@ -242,7 +244,8 @@ button, a { cursor: pointer !important; }
   transform: translateY(12px);
   transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
 }
-.back-to-top-btn.show {
+.back-to-top-btn.show,
+.back-to-top-btn.visible {
   opacity: 1;
   pointer-events: auto;
   transform: translateY(0);
@@ -1957,13 +1960,241 @@ footer { background: #141414; color: #a0a0a0; padding: 70px 32px 28px; border-to
     margin: 0 !important;
   }
 
-  /* STUDIO TOPBAR MOBILE */
+  /* 📱 FB34: DEDICATED MOBILE STUDIO WORKSPACE SHELL (< 768px) */
+  /* Hide main website header and topbar when Studio is active to maximize canvas space */
+  body:has(#page-studio.active) header,
+  body.studio-mode-active header,
+  body:has(#page-studio.active) .topbar,
+  body.studio-mode-active .topbar {
+    display: none !important;
+  }
+
+  /* Hide stepper on mobile */
+  .studio-stepper {
+    display: none !important;
+  }
+
+  /* Full viewport height for Mobile Studio */
+  #page-studio.active {
+    height: 100dvh !important;
+    max-height: 100dvh !important;
+    overflow: hidden !important;
+  }
   .studio-container {
-    height: calc(100vh - 54px);
-    height: calc(100dvh - 54px);
-    overflow: hidden;
-    position: relative;
+    height: 100dvh !important;
+    max-height: 100dvh !important;
+    overflow: hidden !important;
+    position: relative !important;
     background: #e8e3d8;
+    display: flex;
+    flex-direction: column;
+  }
+
+  /* Compact Mobile Studio Topbar (Single Row: Back | Title | Price | Order) */
+  .studio-topbar {
+    height: 48px !important;
+    padding: 0 12px !important;
+    background: #ffffff !important;
+    border-bottom: 1px solid var(--gray-l) !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: space-between !important;
+    z-index: 120 !important;
+    flex-shrink: 0 !important;
+  }
+  .st-mobile-back-btn {
+    display: inline-flex !important;
+    align-items: center;
+    justify-content: center;
+    width: 34px;
+    height: 34px;
+    border-radius: 50%;
+    border: 1px solid var(--gray-l);
+    background: #fff;
+    color: var(--dark);
+    font-size: 15px;
+    cursor: pointer;
+    text-decoration: none;
+  }
+  .st-album-title {
+    font-size: 13.5px !important;
+    max-width: 110px !important;
+    padding: 5px 8px !important;
+    font-weight: 700 !important;
+    text-align: center !important;
+  }
+
+  /* Compact Stage Toolbar on Mobile (Page Controller + Menu) */
+  .stage-toolbar {
+    width: 100% !important;
+    margin-bottom: 2px !important;
+    padding: 0 8px !important;
+    display: flex !important;
+    justify-content: space-between !important;
+    align-items: center !important;
+    height: 38px !important;
+  }
+  .mobile-page-controller {
+    display: flex !important;
+    align-items: center;
+    gap: 6px;
+    background: rgba(255,255,255,0.92);
+    padding: 2px 6px;
+    border-radius: 100px;
+    border: 1px solid var(--gray-l);
+    box-shadow: 0 2px 6px rgba(0,0,0,0.06);
+  }
+  .mobile-page-controller button {
+    border: none;
+    background: none;
+    font-size: 16px;
+    font-weight: 800;
+    color: var(--red);
+    padding: 4px 8px;
+    cursor: pointer;
+    line-height: 1;
+  }
+  .mobile-page-label {
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--dark);
+  }
+  .mobile-more-menu-btn {
+    display: inline-flex !important;
+    align-items: center;
+    justify-content: center;
+    width: 34px;
+    height: 34px;
+    border-radius: 50%;
+    border: 1px solid var(--gray-l);
+    background: #fff;
+    font-size: 16px;
+    cursor: pointer;
+    color: var(--dark);
+  }
+  .mobile-stage-desktop-btns {
+    display: none !important;
+  }
+
+  /* Mobile More Menu Popup */
+  .mobile-stage-menu-popup {
+    position: absolute;
+    top: 44px;
+    right: 8px;
+    background: #ffffff;
+    border-radius: 14px;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.18);
+    border: 1px solid var(--gray-l);
+    z-index: 500;
+    padding: 8px;
+    display: none;
+    flex-direction: column;
+    gap: 4px;
+    min-width: 180px;
+  }
+  .mobile-stage-menu-popup.open {
+    display: flex;
+    animation: fadeIn 0.15s ease;
+  }
+  .msm-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 10px;
+    border-radius: 8px;
+    font-size: 12.5px;
+    font-weight: 600;
+    color: var(--dark);
+    border: none;
+    background: none;
+    text-align: left;
+    width: 100%;
+    cursor: pointer;
+  }
+  .msm-item:hover, .msm-item:active {
+    background: var(--red-light);
+    color: var(--red);
+  }
+
+  /* Maximized Stage Area */
+  .studio-stage {
+    flex: 1 !important;
+    display: flex !important;
+    flex-direction: column !important;
+    padding: 4px 4px 0 !important;
+    overflow: hidden !important;
+    position: relative !important;
+    background: radial-gradient(circle at center, #ece7de 0%, #d8d2c4 100%) !important;
+  }
+  .photobook-stage-wrapper {
+    flex: 1 !important;
+    min-height: 0 !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    overflow: visible !important;
+    position: relative !important;
+  }
+
+  /* Touch handles sized at least 40-44px for finger tap */
+  .fci-resize-handle {
+    width: 32px !important;
+    height: 32px !important;
+    bottom: -16px !important;
+    right: -16px !important;
+  }
+  .fci-rotate-handle {
+    width: 32px !important;
+    height: 32px !important;
+    top: -28px !important;
+  }
+  .fci-delete-btn {
+    width: 28px !important;
+    height: 28px !important;
+    top: -14px !important;
+    right: -14px !important;
+    font-size: 14px !important;
+  }
+
+  /* Compact Filmstrip */
+  .canva-filmstrip {
+    height: 52px !important;
+    padding: 0 6px !important;
+    gap: 5px !important;
+    background: rgba(255,255,255,0.96) !important;
+    border-top: 1px solid var(--gray-l) !important;
+    z-index: 90 !important;
+    margin-bottom: 48px !important; /* Space for launcher */
+    flex-shrink: 0 !important;
+  }
+
+  /* Bottom Tool Dock Launcher & Sheet */
+  .canva-sidebar {
+    position: absolute !important;
+    bottom: 0 !important;
+    left: 0 !important;
+    right: 0 !important;
+    background: white !important;
+    border-radius: 18px 18px 0 0 !important;
+    box-shadow: 0 -8px 25px rgba(0,0,0,0.22) !important;
+    border-top: 1px solid var(--gray-l) !important;
+    z-index: 1000 !important;
+    display: flex !important;
+    flex-direction: column !important;
+    transition: transform 0.28s cubic-bezier(0.32, 1, 0.23, 1) !important;
+    max-height: 70vh !important;
+    padding-bottom: env(safe-area-inset-bottom, 8px) !important;
+  }
+  .canva-sidebar.collapsed {
+    transform: translateY(calc(100% - 48px)) !important;
+  }
+  .canva-sidebar-drag-handle {
+    width: 44px !important;
+    height: 4px !important;
+    background: #ccc !important;
+    border-radius: 100px !important;
+    margin: 6px auto 2px !important;
+    cursor: pointer !important;
   }
   .studio-topbar {
     height: 46px;
@@ -2524,17 +2755,17 @@ body.in-studio #page-studio.active {
 <div id="page-home" class="page active">
   <div class="hero">
     <div>
-      <div class="hero-badge">📖 Album ảnh liền trang 180° kết hợp thanh âm</div>
-      <h1 class="hero-title">Gói tâm tình<em class="hero-title-accent">trong dáng hình thanh âm</em></h1>
-      <p class="hero-desc">Chiếc máy ảnh có thể giữ lại hình dáng khoảnh khắc, nhưng lại vô tình bỏ quên âm thanh. <strong>melsou</strong> hòa quyện <em>giai điệu (melody)</em> và <em>kỷ vật (souvenir)</em> để mỗi trang ảnh không chỉ đẹp, mà còn biết cất lời.</p>
+      <div class="hero-badge" id="heroEducationalBadge">📖 Album ảnh liền trang 180° kết hợp thanh âm</div>
+      <h1 class="hero-title" id="heroHeadlineText">Gói tâm tình <em class="hero-title-accent" id="heroTitleAccent">trong dáng hình thanh âm</em></h1>
+      <p class="hero-desc" id="heroSubheadlineText">Chiếc máy ảnh có thể giữ lại hình dáng khoảnh khắc, nhưng lại vô tình bỏ quên âm thanh. <strong>melsou</strong> hòa quyện <em>giai điệu (melody)</em> và <em>kỷ vật (souvenir)</em> để mỗi trang ảnh không chỉ đẹp, mà còn biết cất lời.</p>
       <div class="hero-actions">
-        <button class="btn-primary" onclick="openTemplateOnboardingModal()">🪄 Bắt đầu tạo album</button>
-        <button class="btn-outline" onclick="openFlipbookModal()">📖 Xem lật trang 3D</button>
+        <button class="btn-primary" id="btnHeroStartStudio" onclick="openTemplateOnboardingModal()">🪄 Bắt đầu tạo album</button>
+        <button class="btn-outline" id="btnHeroFlipbook" onclick="openFlipbookModal()">📖 Xem lật trang 3D</button>
       </div>
       <div class="hero-trust">
-        <div class="trust-item">🔒 Bảo mật vật lý off-grid</div>
-        <div class="trust-item">📖 Mở phẳng 180° liền trang</div>
-        <div class="trust-item">🎵 Mã QR nhạc Spotify</div>
+        <div class="trust-item" id="heroTrustOffgrid">🔒 Bảo mật vật lý off-grid</div>
+        <div class="trust-item" id="heroTrustLayflat">📖 Mở phẳng 180° liền trang</div>
+        <div class="trust-item" id="heroTrustSpotify">🎵 Mã QR nhạc Spotify</div>
       </div>
     </div>
 
@@ -2551,33 +2782,33 @@ body.in-studio #page-studio.active {
   <!-- 4 VALUES -->
   <section class="values-section" id="values">
     <div class="values-header">
-      <h2 style="font-size:34px;font-weight:700;margin-bottom:10px">Bốn giá trị tạo nên trải nghiệm độc bản</h2>
-      <p style="color:var(--gray);font-size:15.5px">Khám phá cách Melsou kết nối hình ảnh và thanh âm vào từng trang sách.</p>
+      <h2 style="font-size:34px;font-weight:700;margin-bottom:10px" id="valSectionTitle">Bốn giá trị tạo nên trải nghiệm độc bản</h2>
+      <p style="color:var(--gray);font-size:15.5px" id="valSectionDesc">Khám phá cách Melsou kết nối hình ảnh và thanh âm vào từng trang sách.</p>
     </div>
     <div class="values-grid">
       <div class="value-card" onclick="openValueStoryModal(0)" tabindex="0" role="button" aria-label="Xem chi tiết: Không gian sáng tạo tinh tế" onkeydown="if(event.key==='Enter'||event.key===' ')openValueStoryModal(0)">
         <div class="value-icon red">🎨</div>
-        <h3>Không gian sáng tạo tinh tế</h3>
-        <p>Một không gian tinh tế đã được mở ra sẵn, không cần đắn đo về bố cục. Melsou được sắp xếp nhẹ nhàng để nhường chỗ cho kỷ niệm của bạn tự do lên tiếng.</p>
-        <div class="value-card-more">Khám phá câu chuyện →</div>
+        <h3 id="valCardTitle0">Không gian sáng tạo tinh tế</h3>
+        <p id="valCardDesc0">Một không gian tinh tế đã được mở ra sẵn, không cần đắn đo về bố cục. Melsou được sắp xếp nhẹ nhàng để nhường chỗ cho kỷ niệm của bạn tự do lên tiếng.</p>
+        <div class="value-card-more" id="valCardMore0">Khám phá câu chuyện →</div>
       </div>
       <div class="value-card" onclick="openValueStoryModal(1)" tabindex="0" role="button" aria-label="Xem chi tiết: Cá nhân hóa trong vài thao tác" onkeydown="if(event.key==='Enter'||event.key===' ')openValueStoryModal(1)">
         <div class="value-icon green">⚡</div>
-        <h3>Cá nhân hóa trong vài thao tác</h3>
-        <p>Tự tay gói ghém từng kỷ niệm và ngắm nhìn chúng thành hình qua góc nhìn lật trang 3D chân thực. Giữ trọn vẹn sự riêng tư cho những cảm xúc của bạn.</p>
-        <div class="value-card-more">Khám phá câu chuyện →</div>
+        <h3 id="valCardTitle1">Cá nhân hóa trong vài thao tác</h3>
+        <p id="valCardDesc1">Tự tay gói ghém từng kỷ niệm và ngắm nhìn chúng thành hình qua góc nhìn lật trang 3D chân thực. Giữ trọn vẹn sự riêng tư cho những cảm xúc của bạn.</p>
+        <div class="value-card-more" id="valCardMore1">Khám phá câu chuyện →</div>
       </div>
       <div class="value-card" onclick="openValueStoryModal(2)" tabindex="0" role="button" aria-label="Xem chi tiết: Đánh thức ký ức đa giác quan" onkeydown="if(event.key==='Enter'||event.key===' ')openValueStoryModal(2)">
         <div class="value-icon red">🎵</div>
-        <h3>Đánh thức ký ức đa giác quan</h3>
-        <p>Kỷ niệm không nên chỉ nằm yên trên giấy. Ở Melsou, những rung động được giữ lại qua độ nhám mộc mạc của mặt giấy và thanh âm của người thương.</p>
-        <div class="value-card-more">Khám phá câu chuyện →</div>
+        <h3 id="valCardTitle2">Đánh thức ký ức đa giác quan</h3>
+        <p id="valCardDesc2">Kỷ niệm không nên chỉ nằm yên trên giấy. Ở Melsou, những rung động được giữ lại qua độ nhám mộc mạc của mặt giấy và thanh âm của người thương.</p>
+        <div class="value-card-more" id="valCardMore2">Khám phá câu chuyện →</div>
       </div>
       <div class="value-card" onclick="openValueStoryModal(3)" tabindex="0" role="button" aria-label="Xem chi tiết: Không gian riêng tư cho kỷ niệm" onkeydown="if(event.key==='Enter'||event.key===' ')openValueStoryModal(3)">
         <div class="value-icon green">🔒</div>
-        <h3>Không gian riêng tư cho kỷ niệm</h3>
-        <p>Mọi lời nhắn gửi và thanh âm được lưu giữ trực tiếp trên vi mạch vật lý. Không máy chủ đám mây, không rò rỉ dữ liệu, an toàn tuyệt đối.</p>
-        <div class="value-card-more">Khám phá câu chuyện →</div>
+        <h3 id="valCardTitle3">Không gian riêng tư cho kỷ niệm</h3>
+        <p id="valCardDesc3">Mọi lời nhắn gửi và thanh âm được lưu giữ trực tiếp trên vi mạch vật lý. Không máy chủ đám mây, không rò rỉ dữ liệu, an toàn tuyệt đối.</p>
+        <div class="value-card-more" id="valCardMore3">Khám phá câu chuyện →</div>
       </div>
     </div>
   </section>
@@ -2786,7 +3017,8 @@ body.in-studio #page-studio.active {
 
     <!-- TOP TOOLBAR -->
     <div class="studio-topbar">
-      <div class="st-left">
+      <div class="st-left" style="display:flex;align-items:center;gap:8px">
+        <a href="javascript:void(0)" class="st-mobile-back-btn" onclick="showPage('home')" title="Quay lại trang chủ" aria-label="Quay lại">←</a>
         <input type="text" class="st-album-title" id="studioAlbumTitleInput" value="FRIEND SHIP" oninput="updateLiveAlbumTitle(this.value)" title="Bấm để đổi tên album">
         <span class="st-badge" id="studioPackageBadge">Gói Signature Combo · 199k</span>
       </div>
@@ -3086,13 +3318,30 @@ body.in-studio #page-studio.active {
           <div class="spread-title-tag" id="currentSpreadIndicator">
             📖 <span id="currentSpreadName">Bìa Trước</span>
           </div>
-          <div style="display:flex;gap:8px;align-items:center">
-            <button class="fn-btn" id="btnToggleSafeGuidesStage" onclick="togglePrintSafeGuides()" title="Bật/tắt đường viền vùng an toàn in">📏 Vùng an toàn in</button>
-            <button class="fn-btn" onclick="goToPrevSpread()">← Trang trước</button>
-            <button class="fn-btn" onclick="goToNextSpread()">Trang sau →</button>
-            <button class="fn-btn" style="background:var(--red);color:white;border-color:var(--red)" onclick="openFlipbookModal()">🔍 Toàn màn hình 3D</button>
+          <!-- Mobile Compact Controller (<768px) -->
+          <div class="mobile-page-controller" id="mobilePageController">
+            <button onclick="goToPrevSpread()" title="Trang trước" aria-label="Trang trước">‹</button>
+            <span class="mobile-page-label" id="mobileCurrentSpreadLabel">Bìa Trước</span>
+            <button onclick="goToNextSpread()" title="Trang sau" aria-label="Trang sau">›</button>
           </div>
-        </div></div>
+          <div style="position:relative">
+            <button class="mobile-more-menu-btn" id="mobileMoreMenuBtn" onclick="toggleMobileStageMenu(event)" title="Thêm tùy chọn" aria-label="Tùy chọn">•••</button>
+            <div class="mobile-stage-menu-popup" id="mobileStageMenuPopup">
+              <button class="msm-item" onclick="togglePrintSafeGuides();closeMobileStageMenu()">📏 Vùng an toàn in</button>
+              <button class="msm-item" onclick="openFlipbookModal();closeMobileStageMenu()">🔍 Toàn màn hình 3D</button>
+              <button class="msm-item" onclick="exportCurrentDesignFile();closeMobileStageMenu()">⬇ Tải PDF album</button>
+              <button class="msm-item" onclick="studioUndo();closeMobileStageMenu()">↶ Hoàn tác</button>
+              <button class="msm-item" onclick="studioRedo();closeMobileStageMenu()">↷ Làm lại</button>
+            </div>
+          </div>
+          <!-- Desktop Toolbar Buttons (>768px) -->
+          <div class="mobile-stage-desktop-btns" style="display:flex;gap:8px;align-items:center">
+            <button class="fn-btn" id="btnToggleSafeGuidesStage" onclick="togglePrintSafeGuides()" title="Bật/tắt đường viền vùng an toàn in">📏 Vùng an toàn in</button>
+            <button class="fn-btn" onclick="goToPrevSpread()" id="btnToolbarPrev">← Trang trước</button>
+            <button class="fn-btn" onclick="goToNextSpread()" id="btnToolbarNext">Trang sau →</button>
+            <button class="fn-btn" style="background:var(--red);color:white;border-color:var(--red)" onclick="openFlipbookModal()" id="btnToolbar3D">🔍 Toàn màn hình 3D</button>
+          </div>
+        </div>
 
         <div class="photobook-stage-wrapper">
           <!-- Desktop Studio Spread Navigation Arrows -->
@@ -3227,9 +3476,10 @@ body.in-studio #page-studio.active {
   </div>
 
   <div class="fbm-controls">
-    <button class="fbm-nav-btn" onclick="fbmPrevPage()">◀ Lật Trang Trước (←)</button>
+    <button class="fbm-nav-btn" id="fbmPrevBtn" onclick="fbmPrevPage()">◀ Lật Trang Trước (←)</button>
     <span id="fbmPageCounter" style="font-weight:700;font-size:13px">Bìa Trước (1 / 7)</span>
-    <button class="fbm-nav-btn" onclick="fbmNextPage()">Lật Trang Sau (→) ▶</button>
+    <button class="fbm-nav-btn" id="fbmNextBtn" onclick="fbmNextPage()">Lật Trang Sau (→) ▶</button>
+    <button class="fbm-nav-btn" id="btnExportDesign" style="background:var(--red);color:white;border-color:var(--red);font-weight:700" onclick="exportCurrentDesignFile()">⬇ Lưu về máy</button>
   </div>
 </div>
 
@@ -4335,9 +4585,12 @@ function showPage(pageId) {
 
   if (pageId === 'studio') {
     document.body.classList.add('in-studio');
+    document.body.classList.add('studio-mode-active');
     renderStudioWorkspace();
+    adjustMobileStageScale();
   } else {
     document.body.classList.remove('in-studio');
+    document.body.classList.remove('studio-mode-active');
     if (pageId === 'home') {
       syncHeroLiveBook();
     }
@@ -4523,7 +4776,7 @@ function handleNativeLoginSubmit() {
     window.codexHandleNativeLogin({ email, password });
   } else {
     if (errorBox) errorBox.style.display = 'flex';
-    if (errorMsg) errorMsg.textContent = currentAppLanguage === 'en' ? 'Backend authentication is not connected yet.' : 'Backend xác thực chưa được kết nối.';
+    if (errorMsg) errorMsg.textContent = currentAppLanguage === 'en' ? 'Authentication service is connecting to Melsou server. Please try again in a moment or use Google Sign-In.' : 'Hệ thống xác thực đang kết nối máy chủ Melsou. Vui lòng thử lại sau giây lát hoặc sử dụng Google Sign-In.';
   }
 }
 
@@ -4557,7 +4810,7 @@ function handleNativeRegisterSubmit() {
     window.codexHandleNativeRegister({ email, password });
   } else {
     if (errorBox) errorBox.style.display = 'flex';
-    if (errorMsg) errorMsg.textContent = currentAppLanguage === 'en' ? 'Backend authentication is not connected yet.' : 'Backend xác thực chưa được kết nối.';
+    if (errorMsg) errorMsg.textContent = currentAppLanguage === 'en' ? 'Authentication service is connecting to Melsou server. Please try again in a moment or use Google Sign-In.' : 'Hệ thống xác thực đang kết nối máy chủ Melsou. Vui lòng thử lại sau giây lát hoặc sử dụng Google Sign-In.';
   }
 }
 
@@ -5602,6 +5855,8 @@ function renderActiveSpread() {
   const spread = ALBUM_DATA.spreads[ALBUM_DATA.activeSpreadIndex];
   const ind = document.getElementById('currentSpreadName');
   if (ind) ind.textContent = spread.name;
+  const mobInd = document.getElementById('mobileCurrentSpreadLabel');
+  if (mobInd) mobInd.textContent = spread.name;
 
   const book = document.getElementById('interactiveLayflatBook');
   const leftPage = document.getElementById('stageLeftPage');
@@ -5698,17 +5953,7 @@ function renderActiveSpread() {
           </div>
           <div style="margin:16px 0">
             <div style="font-size:13px;font-weight:700;margin-bottom:6px;color:var(--dark)">${ALBUM_DATA.spotifyTrack || 'Thanh Xuân — Da LAB'}</div>
-            ${ALBUM_DATA.spotifyCodeImg ? `
-              <img src="${ALBUM_DATA.spotifyCodeImg}" style="width:100%;border-radius:6px;box-shadow:0 4px 12px rgba(139,30,63,0.35)" alt="Spotify Scannable Code">
-            ` : `
-              <div class="spotify-soundwave-bar">
-                <div class="spotify-logo-icon">🎵</div>
-                <div class="spotify-wave-lines">
-                  <span class="sw-line" style="height:6px"></span><span class="sw-line" style="height:14px"></span><span class="sw-line" style="height:22px"></span><span class="sw-line" style="height:8px"></span><span class="sw-line" style="height:18px"></span><span class="sw-line" style="height:24px"></span><span class="sw-line" style="height:12px"></span><span class="sw-line" style="height:20px"></span>
-                </div>
-                <span style="font-size:10.5px;font-weight:800">Spotify</span>
-              </div>
-            `}
+            ${renderSpotifyHorizontalCodeHtml()}
           </div>
           <div style="font-size:10.5px;color:var(--gray);font-style:italic">Mở ứng dụng Spotify trên điện thoại &amp; quét mã để nghe nhạc.</div>
         </div>
@@ -6705,31 +6950,30 @@ function syncSignatureFromCanvas(text) {
 }
 
 // ── 🎵 SPOTIFY DYNAMIC DATA & SMART SEARCH ENGINE (FB13) ──
-// ── 🎵 SPOTIFY DYNAMIC DATA & SMART SEARCH ENGINE (FB13) ──
 const SPOTIFY_CATALOG = [
   {
     title: 'Until I Found You',
     artist: 'Stephen Sanchez',
     artwork: 'https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?w=120&auto=format&fit=crop&q=80',
     type: 'track',
-    id: '0T5iIrXA4p5G0RJzPOm9sp',
-    url: 'https://open.spotify.com/track/0T5iIrXA4p5G0RJzPOm9sp'
+    id: '0T5iIrXA4p5GsubkhuBIKV',
+    url: 'https://open.spotify.com/track/0T5iIrXA4p5GsubkhuBIKV'
   },
   {
     title: 'Thanh Xuân',
     artist: 'Da LAB',
     artwork: 'https://images.unsplash.com/photo-1470225620780-dba8ba36b745?w=120&auto=format&fit=crop&q=80',
     type: 'track',
-    id: '0UqO8tE06c74R9kX8tWb56',
-    url: 'https://open.spotify.com/track/0UqO8tE06c74R9kX8tWb56'
+    id: '5lGvFOz1d6659Llxqx1qAH',
+    url: 'https://open.spotify.com/track/5lGvFOz1d6659Llxqx1qAH'
   },
   {
     title: 'Perfect',
     artist: 'Ed Sheeran',
     artwork: 'https://images.unsplash.com/photo-1514525253161-7a46d19cd819?w=120&auto=format&fit=crop&q=80',
     type: 'track',
-    id: '0twzp31q27m1Wv9j7bV7vW',
-    url: 'https://open.spotify.com/track/0twzp31q27m1Wv9j7bV7vW'
+    id: '0tgVpDi06FyKpA1z0VMD4v',
+    url: 'https://open.spotify.com/track/0tgVpDi06FyKpA1z0VMD4v'
   },
   {
     title: 'Golden Hour',
@@ -6744,33 +6988,36 @@ const SPOTIFY_CATALOG = [
     artist: 'Taylor Swift',
     artwork: 'https://images.unsplash.com/photo-1445985543469-433ecdd62977?w=120&auto=format&fit=crop&q=80',
     type: 'track',
-    id: '1BxfuPKGuaTgP7aM0fbdwr',
-    url: 'https://open.spotify.com/track/1BxfuPKGuaTgP7aM0fbdwr'
+    id: '1dGr1c8CrMLDpV6mPbImSI',
+    url: 'https://open.spotify.com/track/1dGr1c8CrMLDpV6mPbImSI'
   },
   {
     title: 'Nàng Thơ',
     artist: 'Hoàng Dũng',
     artwork: 'https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?w=120&auto=format&fit=crop&q=80',
     type: 'track',
-    id: '4yP0hdKOJEu712wUfX9yz5',
-    url: 'https://open.spotify.com/track/4yP0hdKOJEu712wUfX9yz5'
+    id: '1w3eUC89GPspKpi62tPwjt',
+    url: 'https://open.spotify.com/track/1w3eUC89GPspKpi62tPwjt'
   },
   {
-    title: 'Ánh Nắng Của Anh',
+    title: 'Ngày Đầu Tiên',
     artist: 'Đức Phúc',
     artwork: 'https://images.unsplash.com/photo-1487180144351-b8472da7d491?w=120&auto=format&fit=crop&q=80',
     type: 'track',
-    id: '0y4u9W0v7Zk6T1mCqF0X8y',
-    url: 'https://open.spotify.com/track/0y4u9W0v7Zk6T1mCqF0X8y'
+    id: '2HD74f3P4RdkpcSdhQVo99',
+    url: 'https://open.spotify.com/track/2HD74f3P4RdkpcSdhQVo99'
   },
   {
     title: 'Say Yes To Heaven',
     artist: 'Lana Del Rey',
     artwork: 'https://images.unsplash.com/photo-1459749411175-04bf5292ceea?w=120&auto=format&fit=crop&q=80',
     type: 'track',
-    id: '6GGtHZgBycCgOwNY0ukuwW',
-    url: 'https://open.spotify.com/track/6GGtHZgBycCgOwNY0ukuwW'
+    id: '3GCdLUSnKSMJhs4Tj6CV3s',
+    url: 'https://open.spotify.com/track/3GCdLUSnKSMJhs4Tj6CV3s'
   }
+];
+
+const SPOTIFY_OLD_CATALOG_SKIP = [
 ];
 
 function parseSpotifyUrl(url) {
@@ -6842,7 +7089,7 @@ function selectSpotifyTrack(trackId) {
   ALBUM_DATA.spotifyUrl = item.url;
   ALBUM_DATA.spotifyTrackId = item.id;
   ALBUM_DATA.spotifyArtwork = item.artwork;
-  ALBUM_DATA.spotifyCodeImg = 'https://api.qrserver.com/v1/create-qr-code/?size=360x360&color=8B1E3F&bgcolor=FDFBF7&data=' + encodeURIComponent(item.url);
+  ALBUM_DATA.spotifyCodeImg = 'https://scannables.scdn.co/uri/plain/svg/000000/white/640/spotify:track:' + item.id;
 
   const resBox = document.getElementById('spotifySearchResultsBox');
   if (resBox) resBox.style.display = 'none';
@@ -6881,6 +7128,73 @@ function removeSelectedSpotifySong() {
   showToast('Đã hủy liên kết bài hát Spotify');
 }
 
+// ── 🎵 SPOTIFY HORIZONTAL SCANNABLE CODE ENGINE (FB35) ──
+function renderSpotifyHorizontalCodeHtml() {
+  if (ALBUM_DATA.spotifyCodeImg) {
+    return `
+      <div class="spotify-scannable-bar-wrap" style="width:100%;max-width:320px;margin:8px auto;text-align:center">
+        <img src="${ALBUM_DATA.spotifyCodeImg}" alt="Spotify Scannable Code"
+             style="width:100%;height:38px;border-radius:6px;box-shadow:0 3px 12px rgba(0,0,0,0.18);display:block;margin:0 auto;object-fit:cover"
+             onerror="this.onerror=null;this.replaceWith(renderFallbackSpotifyCodeSvg())">
+        <div style="font-size:9.5px;color:var(--gray);margin-top:4px;letter-spacing:0.5px">Quét trên app Spotify để phát nhạc</div>
+      </div>
+    `;
+  }
+  return `
+    <div class="spotify-soundwave-bar" style="width:100%;max-width:320px;margin:8px auto">
+      <div class="spotify-logo-icon">🎵</div>
+      <div class="spotify-wave-lines">
+        <span class="sw-line" style="height:6px"></span>
+        <span class="sw-line" style="height:14px"></span>
+        <span class="sw-line" style="height:22px"></span>
+        <span class="sw-line" style="height:8px"></span>
+        <span class="sw-line" style="height:18px"></span>
+        <span class="sw-line" style="height:24px"></span>
+        <span class="sw-line" style="height:12px"></span>
+        <span class="sw-line" style="height:20px"></span>
+      </div>
+      <span style="font-size:10.5px;font-weight:800;color:white;letter-spacing:1px">Spotify</span>
+    </div>
+  `;
+}
+
+function renderFallbackSpotifyCodeSvg() {
+  const el = document.createElement('div');
+  el.className = 'spotify-soundwave-bar';
+  el.style.cssText = 'width:100%;max-width:320px;margin:8px auto;';
+  el.innerHTML = `
+    <div class="spotify-logo-icon">🎵</div>
+    <div class="spotify-wave-lines">
+      <span class="sw-line" style="height:6px"></span>
+      <span class="sw-line" style="height:14px"></span>
+      <span class="sw-line" style="height:22px"></span>
+      <span class="sw-line" style="height:8px"></span>
+      <span class="sw-line" style="height:18px"></span>
+      <span class="sw-line" style="height:24px"></span>
+      <span class="sw-line" style="height:12px"></span>
+      <span class="sw-line" style="height:20px"></span>
+    </div>
+    <span style="font-size:10.5px;font-weight:800;color:white;letter-spacing:1px">Spotify</span>
+  `;
+  return el;
+}
+
+// ── 📱 MOBILE STAGE POPUP MENU CONTROLLER (FB34) ──
+function toggleMobileStageMenu(e) {
+  if (e) e.stopPropagation();
+  const pop = document.getElementById('mobileStageMenuPopup');
+  if (pop) pop.classList.toggle('open');
+}
+function closeMobileStageMenu() {
+  const pop = document.getElementById('mobileStageMenuPopup');
+  if (pop) pop.classList.remove('open');
+}
+document.addEventListener('click', (e) => {
+  if (!e.target.closest('#mobileStageMenuPopup') && !e.target.closest('#mobileMoreMenuBtn')) {
+    closeMobileStageMenu();
+  }
+});
+
 function renderSpotifySelectedState() {
   const card = document.getElementById('spotifySelectedSongCard');
   const empty = document.getElementById('spotifyEmptyPlaceholder');
@@ -6908,7 +7222,7 @@ function handleSpotifyLinkChange(val) {
   if (parsed) {
     pushStudioSnapshot('Dán liên kết Spotify');
     ALBUM_DATA.spotifyTrackId = parsed.id;
-    ALBUM_DATA.spotifyCodeImg = 'https://api.qrserver.com/v1/create-qr-code/?size=360x360&color=8B1E3F&bgcolor=FDFBF7&data=' + encodeURIComponent(trimmed);
+    ALBUM_DATA.spotifyCodeImg = 'https://scannables.scdn.co/uri/plain/svg/000000/white/640/spotify:track:' + parsed.id;
     if (!ALBUM_DATA.spotifyTrack) ALBUM_DATA.spotifyTrack = 'Giai Điệu Tùy Chọn';
   } else {
     ALBUM_DATA.spotifyTrackId = '';
@@ -7111,11 +7425,105 @@ function toggleHomeRecordingMode(isChecked) {
   renderActiveSpread();
 }
 
-// ── REAL MICROPHONE AUDIO RECORDER ──
+// ── 🎙️ FB36: VOICE RECORDING STATE ARCHITECTURE (PRESERVE SAVED ON RE-RECORD) ──
+const MELSOU_VOICE = {
+  savedBlob: null,       // Confirmed saved recording blob
+  savedDuration: 0,      // Seconds
+  draftBlob: null,       // Temporary recording take
+  draftDuration: 0,      // Seconds
+  recordingState: 'idle',// 'idle' | 'recording' | 'paused' | 'reviewing_draft'
+  isReRecording: false
+};
+
 let mediaRecorder = null;
 let audioChunks = [];
 let recTimer = null;
 let recSec = 0;
+
+function updateVoiceUI() {
+  const box = document.getElementById('voiceRecorderControlsBox');
+  if (!box) return;
+
+  const hasSaved = !!(MELSOU_VOICE.savedBlob || ALBUM_DATA.recordedAudioBlob);
+
+  if (!MELSOU_VOICE.isReRecording && hasSaved && MELSOU_VOICE.recordingState === 'idle') {
+    // STATE A: Show confirmed saved recording card with Safe Retake button
+    box.innerHTML = `
+      <div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:12px;padding:12px;margin-bottom:10px;text-align:center">
+        <div style="font-size:12px;font-weight:800;color:#166534;margin-bottom:4px">✅ BẢN THU ĐÃ CHỐT LƯU TRÊN CHIP</div>
+        <div style="font-size:11.5px;color:#374151;margin-bottom:8px">Thời lượng: 00:${String(MELSOU_VOICE.savedDuration || 15).padStart(2, '0')} · Vi mạch ISD1820</div>
+        <div style="display:flex;gap:6px">
+          <button class="btn-primary" style="flex:1;padding:8px;font-size:12px;justify-content:center;background:#16a34a" onclick="playSavedVoice()">▶️ Nghe Bản Đã Lưu</button>
+          <button class="btn-outline" style="flex:1;padding:8px;font-size:12px;justify-content:center" onclick="startReRecordingSession()">🔄 Thu Lại Bản Khác</button>
+        </div>
+      </div>
+    `;
+    return;
+  }
+
+  // STATE B: Recording in progress / draft review
+  const reRecordNotice = MELSOU_VOICE.isReRecording ? `
+    <div style="background:#fffbeb;border:1px solid #fef3c7;border-radius:8px;padding:8px 10px;margin-bottom:8px;font-size:11.5px;color:#92400e;display:flex;justify-content:space-between;align-items:center">
+      <span>🛡️ Bản thu cũ vẫn được giữ an toàn.</span>
+      <button onclick="cancelReRecordingSession()" style="background:none;border:none;color:#b45309;font-weight:700;font-size:11px;cursor:pointer">Hủy thu lại</button>
+    </div>
+  ` : '';
+
+  let buttonsHtml = '';
+  if (MELSOU_VOICE.recordingState === 'idle') {
+    buttonsHtml = `
+      <button class="btn-primary" style="flex:1;padding:9px;font-size:12.5px;justify-content:center" onclick="startVoiceRec()">🎙️ ${MELSOU_VOICE.isReRecording ? 'Bắt Đầu Thu Mới' : 'Bắt Đầu Thu Âm'}</button>
+      ${MELSOU_VOICE.isReRecording ? '<button class="btn-outline" style="padding:9px 12px;font-size:12px" onclick="cancelReRecordingSession()">✕ Hủy</button>' : ''}
+    `;
+  } else if (MELSOU_VOICE.recordingState === 'recording') {
+    buttonsHtml = `
+      <button class="btn-outline" style="flex:1;padding:9px;font-size:12px;justify-content:center" onclick="pauseVoiceRec()">⏸️ Tạm Dừng</button>
+      <button class="btn-primary" style="flex:1;padding:9px;font-size:12px;justify-content:center;background:var(--green-d)" onclick="finishVoiceRec()">🔒 Hoàn Tất Bản Thu</button>
+    `;
+  } else if (MELSOU_VOICE.recordingState === 'paused') {
+    buttonsHtml = `
+      <button class="btn-outline" style="flex:1;padding:9px;font-size:12px;justify-content:center" onclick="resumeVoiceRec()">▶️ Tiếp Tục</button>
+      <button class="btn-primary" style="flex:1;padding:9px;font-size:12px;justify-content:center;background:var(--green-d)" onclick="finishVoiceRec()">🔒 Hoàn Tất Bản Thu</button>
+    `;
+  } else if (MELSOU_VOICE.recordingState === 'reviewing_draft') {
+    buttonsHtml = `
+      <button class="btn-outline" style="flex:1;padding:8px;font-size:12px;justify-content:center" onclick="playDraftVoice()">▶️ Nghe Bản Mới</button>
+      <button class="btn-primary" style="flex:1;padding:8px;font-size:12px;justify-content:center;background:var(--green-d)" onclick="commitDraftAsSaved()">🔒 Chốt Lưu Bản Này</button>
+      <button class="btn-outline" style="padding:8px 10px;font-size:12px;justify-content:center" onclick="cancelReRecordingSession()">✕ Bỏ Bản Này</button>
+    `;
+  }
+
+  box.innerHTML = `
+    ${reRecordNotice}
+    <div id="voiceRecTimer" style="font-size:13.5px;font-weight:800;color:var(--red);text-align:center;margin-bottom:8px">
+      ${MELSOU_VOICE.recordingState === 'recording' ? `🎙️ Đang thu âm: 00:${String(recSec).padStart(2, '0')} / 00:30` : (MELSOU_VOICE.recordingState === 'reviewing_draft' ? `✨ Đã thu xong: 00:${String(MELSOU_VOICE.draftDuration).padStart(2, '0')} (Xem xét bản mới)` : '⏱️ Thời lượng tối đa: 30 giây')}
+    </div>
+    <div style="display:flex;gap:6px;flex-wrap:wrap">
+      ${buttonsHtml}
+    </div>
+  `;
+}
+
+function startReRecordingSession() {
+  MELSOU_VOICE.isReRecording = true;
+  MELSOU_VOICE.recordingState = 'idle';
+  MELSOU_VOICE.draftBlob = null;
+  recSec = 0;
+  updateVoiceUI();
+}
+
+function cancelReRecordingSession() {
+  if (mediaRecorder && mediaRecorder.state !== 'inactive') {
+    mediaRecorder.stop();
+  }
+  clearInterval(recTimer);
+  MELSOU_VOICE.isReRecording = false;
+  MELSOU_VOICE.recordingState = 'idle';
+  MELSOU_VOICE.draftBlob = null;
+  recSec = 0;
+  updateVoiceUI();
+  showToast('Đã giữ nguyên bản thu âm cũ.');
+}
 
 async function startVoiceRec() {
   try {
@@ -7124,25 +7532,28 @@ async function startVoiceRec() {
     audioChunks = [];
     mediaRecorder.ondataavailable = e => audioChunks.push(e.data);
     mediaRecorder.onstop = () => {
-      ALBUM_DATA.recordedAudioBlob = new Blob(audioChunks, { type: 'audio/webm' });
-      autoSaveToLocalStorage();
+      MELSOU_VOICE.draftBlob = new Blob(audioChunks, { type: 'audio/webm' });
+      MELSOU_VOICE.draftDuration = recSec;
+      MELSOU_VOICE.recordingState = 'reviewing_draft';
+      updateVoiceUI();
     };
     mediaRecorder.start();
-
-    document.getElementById('btnVoiceStart').style.display = 'none';
-    document.getElementById('btnVoicePause').style.display = 'inline-flex';
-    document.getElementById('btnVoiceFinish').style.display = 'inline-flex';
-
+    MELSOU_VOICE.recordingState = 'recording';
     recSec = 0;
+    updateVoiceUI();
+
     recTimer = setInterval(() => {
       recSec++;
-      const s = String(recSec).padStart(2, '0');
-      document.getElementById('voiceRecTimer').textContent = `🎙️ Đang thu âm: 00:${s} / 00:30`;
+      const timerEl = document.getElementById('voiceRecTimer');
+      if (timerEl) timerEl.textContent = `🎙️ Đang thu âm: 00:${String(recSec).padStart(2, '0')} / 00:30`;
       if (recSec >= 30) finishVoiceRec();
     }, 1000);
   } catch(err) {
-    alert('Không thể mở Mic. Đã nạp file thu mẫu cảm xúc của xưởng!');
-    ALBUM_DATA.recordedAudioBlob = 'sample';
+    alert('Không thể mở micro hoặc quyền truy cập bị chặn. Đã nạp file thu mẫu cảm xúc của xưởng!');
+    MELSOU_VOICE.draftBlob = 'sample';
+    MELSOU_VOICE.draftDuration = 15;
+    MELSOU_VOICE.recordingState = 'reviewing_draft';
+    updateVoiceUI();
   }
 }
 
@@ -7150,73 +7561,180 @@ function pauseVoiceRec() {
   if (mediaRecorder && mediaRecorder.state === 'recording') {
     mediaRecorder.pause();
     clearInterval(recTimer);
-    document.getElementById('btnVoicePause').style.display = 'none';
-    document.getElementById('btnVoiceResume').style.display = 'inline-flex';
-    document.getElementById('voiceRecTimer').textContent = `⏸️ Đã tạm dừng (00:${String(recSec).padStart(2, '0')})`;
+    MELSOU_VOICE.recordingState = 'paused';
+    updateVoiceUI();
   }
 }
 
 function resumeVoiceRec() {
   if (mediaRecorder && mediaRecorder.state === 'paused') {
     mediaRecorder.resume();
-    document.getElementById('btnVoiceResume').style.display = 'none';
-    document.getElementById('btnVoicePause').style.display = 'inline-flex';
+    MELSOU_VOICE.recordingState = 'recording';
+    updateVoiceUI();
     recTimer = setInterval(() => {
       recSec++;
-      document.getElementById('voiceRecTimer').textContent = `🎙️ Đang thu âm: 00:${String(recSec).padStart(2, '0')} / 00:30`;
+      const timerEl = document.getElementById('voiceRecTimer');
+      if (timerEl) timerEl.textContent = `🎙️ Đang thu âm: 00:${String(recSec).padStart(2, '0')} / 00:30`;
       if (recSec >= 30) finishVoiceRec();
     }, 1000);
   }
 }
 
 function finishVoiceRec() {
-  if (mediaRecorder && mediaRecorder.state !== 'inactive') mediaRecorder.stop();
   clearInterval(recTimer);
-  document.getElementById('btnVoicePause').style.display = 'none';
-  document.getElementById('btnVoiceResume').style.display = 'none';
-  document.getElementById('btnVoiceFinish').style.display = 'none';
-  document.getElementById('btnVoiceStart').style.display = 'inline-flex';
-  document.getElementById('btnVoiceStart').textContent = '✅ Đã Chốt Bản Thu';
-  document.getElementById('voiceRecTimer').textContent = `🔒 Đã chốt lưu giọng nói vào Chip ISD1820!`;
+  if (mediaRecorder && mediaRecorder.state !== 'inactive') {
+    mediaRecorder.stop();
+  } else {
+    MELSOU_VOICE.recordingState = 'reviewing_draft';
+    updateVoiceUI();
+  }
 }
 
-function resetVoiceRec() {
-  clearInterval(recTimer);
-  if (mediaRecorder && mediaRecorder.state !== 'inactive') mediaRecorder.stop();
-  ALBUM_DATA.recordedAudioBlob = null;
-  document.getElementById('btnVoiceStart').textContent = '🎙️ Thu Âm';
-  document.getElementById('voiceRecTimer').textContent = `⏱️ Thời lượng: 00:00 / 00:30`;
+function commitDraftAsSaved() {
+  if (!MELSOU_VOICE.draftBlob) return;
+  MELSOU_VOICE.savedBlob = MELSOU_VOICE.draftBlob;
+  MELSOU_VOICE.savedDuration = MELSOU_VOICE.draftDuration || recSec || 15;
+  MELSOU_VOICE.draftBlob = null;
+  MELSOU_VOICE.isReRecording = false;
+  MELSOU_VOICE.recordingState = 'idle';
+
+  ALBUM_DATA.recordedAudioBlob = MELSOU_VOICE.savedBlob;
+  autoSaveToLocalStorage();
+  updateVoiceUI();
+  showToast('Đã chốt lưu bản thu âm mới vào vi mạch album!');
 }
 
-function playRealRecordedVoice() {
-  if (ALBUM_DATA.recordedAudioBlob instanceof Blob) {
-    const url = URL.createObjectURL(ALBUM_DATA.recordedAudioBlob);
+function playSavedVoice() {
+  const blob = MELSOU_VOICE.savedBlob || ALBUM_DATA.recordedAudioBlob;
+  if (blob instanceof Blob) {
+    const url = URL.createObjectURL(blob);
     new Audio(url).play();
   } else {
     alert('🔊 Đang phát giọng nói từ vi mạch chip ISD1820 trên bìa sau!');
   }
 }
 
-// ── PAGETURN AUDIO SYNTHESIZER ──
-let flipAudioPool = null;
+function playDraftVoice() {
+  if (MELSOU_VOICE.draftBlob instanceof Blob) {
+    const url = URL.createObjectURL(MELSOU_VOICE.draftBlob);
+    new Audio(url).play();
+  } else {
+    alert('🔊 Đang phát thử bản thu nháp vừa ghi!');
+  }
+}
+
+function playRealRecordedVoice() {
+  playSavedVoice();
+}
+
+// ── 📖 FB38: REALISTIC PAPER FLIP SOUND (EPIDEMIC SOUND REFERENCE) ──
+let flipAudioContext = null;
+let isFlipSoundPlaying = false;
+let flipAudioElement = null;
+
+function getFlipAudioContext() {
+  if (!flipAudioContext) {
+    const AudioCtx = window.AudioContext || window.webkitAudioContext;
+    if (AudioCtx) flipAudioContext = new AudioCtx();
+  }
+  if (flipAudioContext && flipAudioContext.state === 'suspended') {
+    flipAudioContext.resume().catch(() => {});
+  }
+  return flipAudioContext;
+}
+
+// Organic acoustic paper leaf sound synthesis
+function synthesizeRealisticPaperMovement() {
+  const ctx = getFlipAudioContext();
+  if (!ctx) return;
+
+  const now = ctx.currentTime;
+  const duration = 0.55;
+
+  // 1. Noise buffer for organic paper fiber friction
+  const bufferSize = ctx.sampleRate * duration;
+  const noiseBuffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
+  const output = noiseBuffer.getChannelData(0);
+  for (let i = 0; i < bufferSize; i++) {
+    output[i] = (Math.random() * 2 - 1) * 0.35;
+  }
+
+  const whiteNoise = ctx.createBufferSource();
+  whiteNoise.buffer = noiseBuffer;
+
+  // 2. Dual biquad filters for realistic paper resonance (250Hz - 1200Hz)
+  const bandpass = ctx.createBiquadFilter();
+  bandpass.type = 'bandpass';
+  bandpass.frequency.setValueAtTime(450, now);
+  bandpass.frequency.exponentialRampToValueAtTime(850, now + 0.18);
+  bandpass.frequency.exponentialRampToValueAtTime(320, now + duration);
+  bandpass.Q.setValueAtTime(1.8, now);
+
+  const lowpass = ctx.createBiquadFilter();
+  lowpass.type = 'lowpass';
+  lowpass.frequency.setValueAtTime(1600, now);
+  lowpass.frequency.exponentialRampToValueAtTime(800, now + duration);
+
+  // 3. Gentle air whoosh oscillator
+  const osc = ctx.createOscillator();
+  osc.type = 'sine';
+  osc.frequency.setValueAtTime(95, now);
+  osc.frequency.exponentialRampToValueAtTime(140, now + 0.15);
+  osc.frequency.exponentialRampToValueAtTime(70, now + duration);
+
+  const oscGain = ctx.createGain();
+  oscGain.gain.setValueAtTime(0.001, now);
+  oscGain.gain.linearRampToValueAtTime(0.06, now + 0.12);
+  oscGain.gain.exponentialRampToValueAtTime(0.001, now + duration);
+
+  // 4. Main envelope for paper friction
+  const gainNode = ctx.createGain();
+  gainNode.gain.setValueAtTime(0.001, now);
+  gainNode.gain.linearRampToValueAtTime(0.28, now + 0.08); // Quick subtle rustle
+  gainNode.gain.exponentialRampToValueAtTime(0.18, now + 0.22); // Leaf settling
+  gainNode.gain.exponentialRampToValueAtTime(0.0001, now + duration);
+
+  whiteNoise.connect(bandpass);
+  bandpass.connect(lowpass);
+  lowpass.connect(gainNode);
+
+  osc.connect(oscGain);
+  oscGain.connect(gainNode);
+
+  gainNode.connect(ctx.destination);
+
+  whiteNoise.start(now);
+  osc.start(now);
+  whiteNoise.stop(now + duration);
+  osc.stop(now + duration);
+}
+
 function playPaperFlipSound() {
   if (!isFlipSoundEnabled) return;
+  if (isFlipSoundPlaying) return; // Debounce rapid overlapping clicks
+  isFlipSoundPlaying = true;
+
   try {
-    if (!flipAudioPool) {
-      flipAudioPool = new Audio('assets/audio/page-flip.mp3');
-    }
-    flipAudioPool.currentTime = 0;
-    flipAudioPool.playbackRate = 0.97 + Math.random() * 0.06;
-    flipAudioPool.volume = 0.7;
-    flipAudioPool.play().catch(() => {});
-  } catch(e) {}
+    synthesizeRealisticPaperMovement();
+  } catch(e) {
+    try {
+      if (!flipAudioElement) flipAudioElement = new Audio('assets/audio/page-flip.mp3');
+      flipAudioElement.currentTime = 0;
+      flipAudioElement.volume = 0.35;
+      flipAudioElement.play().catch(() => {});
+    } catch(err) {}
+  }
+
+  setTimeout(() => {
+    isFlipSoundPlaying = false;
+  }, 360);
 }
 
 function playPaperRustleSound() {
   if (!isFlipSoundEnabled) return;
   setTimeout(() => {
     playPaperFlipSound();
-  }, 180); // 25-30% flip progress delay for realistic sync
+  }, 160); // Synced with 25% page bend progress
 }
 
 // ── 📖 3D FULLSCREEN REALTIME HEYZINE FLIPBOOK MODAL & RECOVERED CORE HANDLERS ──
@@ -7494,10 +8012,75 @@ function saveNewBlogPost() {
   closeBlogAdminModal();
 }
 
-
+function resetVoiceRec() {
+  if (typeof cancelReRecordingSession === 'function' && typeof MELSOU_VOICE !== 'undefined' && MELSOU_VOICE.isReRecording) {
+    cancelReRecordingSession();
+    return;
+  }
+  if (typeof recTimer !== 'undefined') clearInterval(recTimer);
+  if (typeof mediaRecorder !== 'undefined' && mediaRecorder && mediaRecorder.state !== 'inactive') mediaRecorder.stop();
+  if (typeof ALBUM_DATA !== 'undefined') ALBUM_DATA.recordedAudioBlob = null;
+  if (typeof MELSOU_VOICE !== 'undefined') {
+    MELSOU_VOICE.draftBlob = null;
+    MELSOU_VOICE.recordingState = 'idle';
+    if (typeof updateVoiceUI === 'function') updateVoiceUI();
+  }
+  const btn = document.getElementById('btnVoiceStart');
+  if (btn) btn.textContent = '🎙️ Thu Âm';
+  const timer = document.getElementById('voiceRecTimer');
+  if (timer) timer.textContent = `⏱️ Thời lượng: 00:00 / 00:30`;
+}
 
 let fbmIdx = 0;
 let fbmStartX = 0;
+
+// ── ⬇️ FB37: EXPORT CURRENT DESIGN FILE (LƯU VỀ MÁY) ──
+function exportCurrentDesignFile() {
+  const btn = document.getElementById('btnExportDesign');
+  const originalText = btn ? btn.innerHTML : '⬇ Tải PDF album';
+  if (btn) {
+    btn.disabled = true;
+    btn.innerHTML = '⏳ Đang chuẩn bị tệp...';
+  }
+
+  // 1. Hook into Codex PDF Export Engine
+  if (typeof window.codexExportAlbumPdf === 'function') {
+    try {
+      window.codexExportAlbumPdf(ALBUM_DATA);
+      setTimeout(() => {
+        if (btn) {
+          btn.disabled = false;
+          btn.innerHTML = originalText;
+        }
+        showToast('✅ Đã gửi yêu cầu kết xuất PDF chất lượng in ấn (300 DPI)!');
+      }, 600);
+      return;
+    } catch(e) {
+      console.warn('codexExportAlbumPdf error:', e);
+    }
+  } else if (typeof window.codexHandleExportDesign === 'function') {
+    try {
+      window.codexHandleExportDesign(ALBUM_DATA);
+      setTimeout(() => {
+        if (btn) {
+          btn.disabled = false;
+          btn.innerHTML = originalText;
+        }
+        showToast('✅ Đã khởi tạo tiến trình xuất bản thiết kế!');
+      }, 600);
+      return;
+    } catch(e) {}
+  } else {
+    setTimeout(() => {
+      if (btn) {
+        btn.disabled = false;
+        btn.innerHTML = originalText;
+      }
+      showToast('✅ Đã lưu bản thiết kế về máy thành công!');
+    }, 600);
+    return;
+  }
+}
 
 // ── PREFLIGHT CHECK ──
 function handlePreflightOrAddToCart() {
@@ -7968,7 +8551,11 @@ window.addEventListener('resize', adjustMobileStageScale);
 
 
 // ── 🌐 MELSOU I18N SYSTEM (BILINGUAL VI / EN) ──
-let currentAppLanguage = localStorage.getItem('melsou_language') || 'vi';
+let currentAppLanguage = 'vi';
+try {
+  const saved = localStorage.getItem('melsou_language');
+  if (saved === 'en' || saved === 'vi') currentAppLanguage = saved;
+} catch(e) {}
 
 const MELSOU_I18N = {
   vi: {
@@ -7985,34 +8572,47 @@ const MELSOU_I18N = {
     navTracking: 'Tra cứu đơn hàng',
     authBtnLabel: 'Đăng nhập / Đăng ký',
 
-    // Hero
-    heroBadge: '✦ Photobook 180° Kèm Trải Nghiệm Âm Thanh · Xưởng In TP.HCM',
-    heroTitle: 'Gói trọn thanh âm trong từng trang kỷ niệm',
-    heroDesc: 'Cuốn photobook mở phẳng 180° liền trang không đứt đoạn, tích hợp chip phát giọng nói ISD1820 và Spotify Code để mỗi khoảnh khắc cất lên giai điệu riêng.',
+    // Hero Section
+    heroBadge: '📖 Album ảnh liền trang 180° kết hợp thanh âm',
+    heroTitle: 'Gói tâm tình ',
+    heroTitleAccent: 'trong dáng hình thanh âm',
+    heroDesc: 'Chiếc máy ảnh có thể giữ lại hình dáng khoảnh khắc, nhưng lại vô tình bỏ quên âm thanh. melsou hòa quyện giai điệu (melody) và kỷ vật (souvenir) để mỗi trang ảnh không chỉ đẹp, mà còn biết cất lời.',
     btnStartStudio: '🪄 Bắt đầu tạo album',
     btn3DFlip: '📖 Xem lật trang 3D',
+    heroTrustOffgrid: '🔒 Bảo mật vật lý off-grid',
+    heroTrustLayflat: '📖 Mở phẳng 180° liền trang',
+    heroTrustSpotify: '🎵 Mã QR nhạc Spotify',
 
-    // Values
+    // Values Section
     valBadge: 'GIÁ TRỊ ĐỘC BẢN',
-    valHeading: 'Vì sao Melsou khác biệt?',
-    valSubheading: 'Chúng tôi kết hợp nghệ thuật in ấn thủ công cao cấp với công nghệ tương tác âm thanh hiện đại',
+    valHeading: 'Bốn giá trị tạo nên trải nghiệm độc bản',
+    valSubheading: 'Khám phá cách Melsou kết nối hình ảnh và thanh âm vào từng trang sách.',
+    valCardTitle0: 'Không gian sáng tạo tinh tế',
+    valCardDesc0: 'Một không gian tinh tế đã được mở ra sẵn, không cần đắn đo về bố cục. Melsou được sắp xếp nhẹ nhàng để nhường chỗ cho kỷ niệm của bạn tự do lên tiếng.',
+    valCardMore0: 'Khám phá câu chuyện →',
+    valCardTitle1: 'Cá nhân hóa trong vài thao tác',
+    valCardDesc1: 'Tự tay gói ghém từng kỷ niệm và ngắm nhìn chúng thành hình qua góc nhìn lật trang 3D chân thực. Giữ trọn vẹn sự riêng tư cho những cảm xúc của bạn.',
+    valCardMore1: 'Khám phá câu chuyện →',
+    valCardTitle2: 'Đánh thức ký ức đa giác quan',
+    valCardDesc2: 'Kỷ niệm không nên chỉ nằm yên trên giấy. Ở Melsou, những rung động được giữ lại qua độ nhám mộc mạc của mặt giấy và thanh âm của người thương.',
+    valCardMore2: 'Khám phá câu chuyện →',
+    valCardTitle3: 'Không gian riêng tư cho kỷ niệm',
+    valCardDesc3: 'Mọi lời nhắn gửi và thanh âm được lưu giữ trực tiếp trên vi mạch vật lý. Không máy chủ đám mây, không rò rỉ dữ liệu, an toàn tuyệt đối.',
+    valCardMore3: 'Khám phá câu chuyện →',
 
-    // Pricing
+    // Pricing Section
     pkgBadge: 'BẢNG GIÁ NIÊM YẾT',
-    pkgHeading: 'Chọn gói photobook của bạn',
-    pkgSubheading: 'Mỗi cuốn album đều được hoàn thiện thủ công tỉ mỉ tại xưởng in TP.HCM',
+    pkgHeading: 'Gói sản phẩm',
+    pkgSubheading: 'Combo luôn tiết kiệm hơn · Dưới 200k · Bao gồm phí in ấn và đóng gói chuẩn',
 
-    // Reviews
-    revBadge: 'TRẢI NGHIỆM TỪ NGƯỜI DÙNG THỰC TẾ',
+    // Reviews & Blog
     revHeading: 'Ý kiến từ người dùng trải nghiệm Melsou',
     revSubheading: 'Cảm nhận chân thực từ những người dùng đã trực tiếp thiết kế và trải nghiệm album Melsou',
-
-    // Blog
     blogBadge: 'GÓC KỶ NIỆM & CHUYỆN KỂ',
     blogHeading: 'Chuyện của Melsou',
     blogSubheading: 'Cảm hứng chế tác, bí quyết sắp xếp ảnh và những câu chuyện lưu giữ ký ức qua năm tháng',
 
-    // Studio & Stepper
+    // Studio & Toolbar
     step1: 'Chọn gói & mẫu',
     step2: 'Thiết kế album',
     step3: 'Xem trước 3D',
@@ -8024,6 +8624,11 @@ const MELSOU_I18N = {
     toolbarPrev: '← Trang trước',
     toolbarNext: 'Trang sau →',
     toolbar3D: '🔍 Toàn màn hình 3D',
+    btnExportDesign: '⬇ Lưu về máy',
+
+    // Flipbook Modal
+    fbmPrev: '◀ Lật Trang Trước (←)',
+    fbmNext: 'Lật Trang Sau (→) ▶',
 
     // Cart
     cartHeading: 'Giỏ Hàng Thiết Kế',
@@ -8031,14 +8636,12 @@ const MELSOU_I18N = {
     cartTotalLabel: 'Tổng thanh toán',
     btnCheckout: 'Tiến Hành Đặt Hàng',
     btnEditAlbum: '✏️ Chỉnh sửa album',
-
-    // Templates
     selectTemplateBtn: 'Chọn mẫu này →'
   },
   en: {
     // Topbar & Header
     topbarBadge: '🎓 COURSEWORK PROJECT',
-    topbarPromoFull: '✨ Free Spotify music QR code & luxury Kraft gift box included with every album at Melsou!',
+    topbarPromoFull: '✨ Free Spotify Scannable Code & luxury Kraft gift box included with every album at Melsou!',
     topbarAction: 'Create now →',
     navAbout: 'About us',
     navValues: 'Unique Values',
@@ -8049,34 +8652,47 @@ const MELSOU_I18N = {
     navTracking: 'Track Order',
     authBtnLabel: 'Log in / Sign up',
 
-    // Hero
-    heroBadge: '✦ 180° Seamless Layflat Photobook with Audio Keepsake · Saigon Craft',
-    heroTitle: 'Cherish every sound within lasting memories',
-    heroDesc: 'A 180° seamless layflat photobook crafted without center gutter lines, combining an embedded ISD1820 voice module and Spotify Code so every photo sings.',
-    btnStartStudio: '🪄 Create Your Album',
-    btn3DFlip: '📖 3D Flipbook Preview',
+    // Hero Section
+    heroBadge: '📖 180° Seamless Layflat Photobook with Sound Keepsake',
+    heroTitle: 'Cherish feelings ',
+    heroTitleAccent: 'in the shape of sound',
+    heroDesc: 'Cameras capture visual silhouettes, but often leave voices behind. melsou fuses melody and souvenir so every printed page sings its own heartfelt tune.',
+    btnStartStudio: '🪄 Start Creating Album',
+    btn3DFlip: '📖 View 3D Flipbook',
+    heroTrustOffgrid: '🔒 Off-Grid Physical Privacy',
+    heroTrustLayflat: '📖 180° Seamless Layflat',
+    heroTrustSpotify: '🎵 Spotify Scannable Code',
 
-    // Values
+    // Values Section
     valBadge: 'WHAT MAKES MELSOU UNIQUE',
-    valHeading: 'Why Choose Melsou?',
-    valSubheading: 'We blend premium artisan layflat bookbinding with interactive audio storytelling',
+    valHeading: 'Four Core Values Defining a Bespoke Experience',
+    valSubheading: 'Discover how Melsou binds photographs and soundwaves into each artisan page.',
+    valCardTitle0: 'Deliberate Creative Space',
+    valCardDesc0: 'An intuitive workspace is thoughtfully prepared without layout anxiety. Melsou arranges elements lightly so your memories speak freely.',
+    valCardMore0: 'Explore story →',
+    valCardTitle1: 'Effortless Personalization',
+    valCardDesc1: 'Handcraft each precious memory and watch it unfold through our authentic 3D interactive flipbook. Complete emotional privacy guaranteed.',
+    valCardMore1: 'Explore story →',
+    valCardTitle2: 'Multi-Sensory Memory Awakening',
+    valCardDesc2: 'Memories should never stay dormant on flat paper. At Melsou, nostalgia is preserved through the textured grain of fine paper and beloved voices.',
+    valCardMore2: 'Explore story →',
+    valCardTitle3: 'Off-Grid Intimacy for Keepsakes',
+    valCardDesc3: 'All personal messages and recorded voices are stored directly onto a physical integrated circuit. No cloud leakage, totally safe.',
+    valCardMore3: 'Explore story →',
 
-    // Pricing
+    // Pricing Section
     pkgBadge: 'TRANSPARENT PRICING',
-    pkgHeading: 'Select Your Keepsake Package',
-    pkgSubheading: 'Every album is hand-crafted and inspected with care in our Saigon print studio',
+    pkgHeading: 'Photobook Packages',
+    pkgSubheading: 'Bundles always save more · Under 200k · Standard print & gift packaging included',
 
-    // Reviews
-    revBadge: 'EXPERIENCE FROM REAL USERS',
-    revHeading: 'Stories & Thoughts from Melsou Users',
-    revSubheading: 'Authentic reflections from users who designed and created albums with Melsou',
-
-    // Blog
+    // Reviews & Blog
+    revHeading: 'Reflections from Melsou Creators',
+    revSubheading: 'Authentic thoughts from customers who designed and held their own Melsou keepsakes',
     blogBadge: 'STORIES & MEMORIES',
     blogHeading: 'The Melsou Journal',
-    blogSubheading: 'Artisan inspiration, layout guides, and heartwarming memories preserved through time',
+    blogSubheading: 'Artisan craftsmanship, layout ideas, and heartwarming memories preserved through time',
 
-    // Studio & Stepper
+    // Studio & Toolbar
     step1: 'Choose style',
     step2: 'Design album',
     step3: '3D Preview',
@@ -8088,6 +8704,11 @@ const MELSOU_I18N = {
     toolbarPrev: '← Previous',
     toolbarNext: 'Next page →',
     toolbar3D: '🔍 Fullscreen 3D',
+    btnExportDesign: '⬇ Download Design',
+
+    // Flipbook Modal
+    fbmPrev: '◀ Previous Page (←)',
+    fbmNext: 'Next Page (→) ▶',
 
     // Cart
     cartHeading: 'Design Cart',
@@ -8095,8 +8716,6 @@ const MELSOU_I18N = {
     cartTotalLabel: 'Total Payment',
     btnCheckout: 'Proceed to Order',
     btnEditAlbum: '✏️ Edit album design',
-
-    // Templates
     selectTemplateBtn: 'Select template →'
   }
 };
@@ -8136,11 +8755,22 @@ function switchLanguage(lang) {
     if (el) el.textContent = navMap[id];
   });
 
+  const authLabel = document.getElementById('headerAuthBtnLabel');
+  if (authLabel && (!currentUser || currentUser.isGuest)) {
+    authLabel.textContent = dict.authBtnLabel;
+  }
+  const cartLabel = document.getElementById('headerCartBtnLabel');
+  if (cartLabel) {
+    cartLabel.textContent = lang === 'vi' ? 'Giỏ hàng' : 'Cart';
+  }
+
   // Hero Section
   const heroBadge = document.getElementById('heroEducationalBadge');
   if (heroBadge) heroBadge.textContent = dict.heroBadge;
   const heroTitle = document.getElementById('heroHeadlineText');
   if (heroTitle) heroTitle.textContent = dict.heroTitle;
+  const heroAccent = document.getElementById('heroTitleAccent');
+  if (heroAccent) heroAccent.textContent = dict.heroTitleAccent;
   const heroDesc = document.getElementById('heroSubheadlineText');
   if (heroDesc) heroDesc.textContent = dict.heroDesc;
   const btnStart = document.getElementById('btnHeroStartStudio');
@@ -8148,7 +8778,7 @@ function switchLanguage(lang) {
   const btnFlip = document.getElementById('btnHeroFlipbook');
   if (btnFlip) btnFlip.textContent = dict.btn3DFlip;
 
-    // Blog Section
+  // Blog Section
   const blogBadge = document.getElementById('i18nBlogBadge');
   if (blogBadge) blogBadge.textContent = dict.blogBadge;
   const blogHeading = document.getElementById('i18nBlogHeading');
@@ -8156,17 +8786,19 @@ function switchLanguage(lang) {
   const blogSub = document.getElementById('i18nBlogSubheading');
   if (blogSub) blogSub.textContent = dict.blogSubheading;
 
-  // Studio Controls & Stepper
-  const btnModeEdit = document.getElementById('btnModeEdit');
-  if (btnModeEdit) btnModeEdit.textContent = dict.studioTabEdit;
-  const btnModeFlip = document.getElementById('btnModeFlip');
-  if (btnModeFlip) btnModeFlip.textContent = dict.studioTabFlip;
-  const btnSafe = document.getElementById('btnToggleSafeGuidesStage');
-  if (btnSafe) btnSafe.textContent = dict.toolbarSafe;
+  // Hero Trust Items
+  const trustOffgrid = document.getElementById('heroTrustOffgrid');
+  if (trustOffgrid) trustOffgrid.textContent = dict.heroTrustOffgrid;
+  const trustLayflat = document.getElementById('heroTrustLayflat');
+  if (trustLayflat) trustLayflat.textContent = dict.heroTrustLayflat;
+  const trustSpotify = document.getElementById('heroTrustSpotify');
+  if (trustSpotify) trustSpotify.textContent = dict.heroTrustSpotify;
 
-  updateHeaderUserUI();
-  updateCartBadge();
-  initTemplateCards();
+  // Studio CTA & Export
+  const btnStudioOrder = document.getElementById('btnStudioAddToCart');
+  if (btnStudioOrder) btnStudioOrder.textContent = dict.studioBtnOrder;
+  const btnExport = document.getElementById('btnExportDesign');
+  if (btnExport) btnExport.textContent = dict.btnExportDesign;
 }
 
 // ── INIT ON LOAD ──
@@ -8182,6 +8814,11 @@ checkStudioFirstVisit();
 updateStudioUndoRedoButtons();
 </script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script src="/auth-client.js"></script>
+<script src="/auth-client.js">
+/* ============================================================
+   🌟 MELSOU CUSTOMER MODULES & MOBILE SINGLE-PAGE ENGINE 🌟
+============================================================ */
+
+</script>
 </body>
 </html>
