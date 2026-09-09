@@ -2,13 +2,16 @@
 
 This log prevents accidental overlap. Add the newest entry at the top.
 
-## IN PROGRESS — Codex — FB90 private asset preflight binding
+## DONE — Codex — FB90 private asset preflight binding
 
 - **When / agent:** 2026-09-10 — Codex
 - **Files reserved:** `demo/recovery_fb38/auth-client.js`, `COLLABORATION_LOG.md`
 - **Purpose:** Upload the first real FB90 customer image to private storage, persist its asset ID in the canonical document, and wait for its approved derivative before checkout.
 - **Protected contracts:** FB90 presentation, private asset validation, content preflight, server pricing, SePay, and golden checkpoints remain unchanged.
-- **Status:** IN PROGRESS
+- **Result:** Vercel now serves the integration; a real PNG passed private upload, derivative processing and canonical `image_01` binding, then production checkout created an `AWAITING_PAYMENT` order for 229,000 VND.
+- **Checks:** `auth-client.js` syntax passed; `npm test` passed 72/72; production upload/preview/save/preflight/order flow passed.
+- **Limitation:** QR payment instructions remain fail-closed until `SEPAY_BANK_ACCOUNT` and `SEPAY_BANK_CODE` are configured on the Worker.
+- **Status:** DONE
 
 ## DONE — Codex — decouple V1 checkout from tracking verification
 
