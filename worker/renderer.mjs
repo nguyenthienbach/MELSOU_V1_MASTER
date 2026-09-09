@@ -20,9 +20,18 @@ const points = (millimeters) => Number(millimeters) * MM_TO_POINTS;
 const color = (hex, rgb) => rgb(Number.parseInt(hex.slice(1, 3), 16) / 255, Number.parseInt(hex.slice(3, 5), 16) / 255, Number.parseInt(hex.slice(5, 7), 16) / 255);
 const xml = (value) => String(value || '').replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;').replaceAll('"', '&quot;');
 
-async function templateFor(id) {
+export async function templateFor(id, version = 1) {
   const loader = templateLoaders[id]; if (!loader) throw new Error('TEMPLATE_VERSION_UNAVAILABLE');
-  return (await loader()).default;
+  const template = (await loader()).default;
+  if (Number(template.version) !== Number(version)) throw new Error('TEMPLATE_VERSION_UNAVAILABLE');
+  return template;
+}
+
+export async function templateCatalog({ size = null, pages = null } = {}) {
+  const templates = await Promise.all(Object.keys(templateLoaders).map((id) => templateFor(id)));
+  return templates.filter((template) => template.compatible?.some((entry) =>
+    (!size || entry.album_size === size) && (!pages || entry.page_counts?.includes(Number(pages)))
+  ));
 }
 function printGeometry(profile) {
   const c = profile?.configuration || {};
@@ -69,7 +78,7 @@ function renderPreviewSvg(orderCode, template, title, palette) {
 
 export async function renderOrder({ order, snapshot, profile, assets, env }) {
   const { PDFDocument, StandardFonts, rgb } = await import('pdf-lib');
-  const template = await templateFor(snapshot.template_id); const geometry = printGeometry(profile);
+  const template = await templateFor(snapshot.template_id, snapshot.template_version); const geometry = printGeometry(profile);
   const palette = palettes[template.template_id] || palettes['quiet-moments']; const paper = color(palette[0], rgb); const ink = color(palette[1], rgb);
   const pdf = await PDFDocument.create(); const serif = await pdf.embedFont(StandardFonts.TimesRoman); const sans = await pdf.embedFont(StandardFonts.Helvetica);
   const bindings = snapshot.document?.content_bindings || {}; const assetsById = new Map(assets.map((asset) => [asset.id, asset])); const imageCache = new Map();

@@ -4,7 +4,7 @@
 
 - A fresh visitor creates/edits multiple drafts, sees autosave and quote with no login.
 - Guest activity extends only its own 14-day expiry; valid same-browser recovery works.
-- Google login at checkout claims all and only the guest session’s drafts idempotently.
+- Native username/password login (and optional Google login if enabled) at checkout claims all and only the guest session’s drafts idempotently.
 - Studio keeps canonical normalized document, pinned template version and data-driven slots; mobile/desktop preview agrees semantically.
 - Switching templates never discards customer content; surplus appears unplaced.
 - Offline/reconnect cannot silently overwrite a newer revision; checkpoints cap at ten.
@@ -13,6 +13,7 @@
 
 - Private R2 rejects unauthorized access and signed URLs expire; unsupported/spoofed file types are rejected; previews lack EXIF geolocation.
 - Limits enforce 40 assets/150 MB per draft.
+- Web voice upload is private and container-validated; cancel re-record keeps the prior voice, commit replaces it atomically, and checkout pins either that asset or `RECORD_AT_HOME` immutably.
 - Preflight blocks required missing content, invalid QR, unsafe critical placement and profile incompleteness; warnings are captured.
 - Production rendering is server-side from immutable snapshot/template/assets/profile. It cannot become production-approved without all `TBD_PRINT_VENDOR` values confirmed.
 - Only owner can approve prepress. Rerender does not mutate snapshot.

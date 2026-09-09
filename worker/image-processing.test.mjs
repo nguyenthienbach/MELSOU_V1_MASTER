@@ -203,7 +203,8 @@ test('preview endpoint remains authenticated and serves only the private derivat
   t.mock.method(globalThis, 'fetch', async (url) => {
     const target = String(url);
     if (target.includes('/auth/v1/user')) return new Response(JSON.stringify({ id: 'user-1' }));
-    if (target.includes('/rest/v1/project_assets?')) return new Response(JSON.stringify([{ id: assetId, preview_key: `projects/p/assets/${assetId}/preview.webp`, preview_mime_type: 'image/webp', processing_state: 'READY', project: { owner_user_id: 'user-1' } }]));
+    if (target.includes('/rest/v1/project_assets?')) return new Response(JSON.stringify([{ id: assetId, project_id: '11111111-1111-4111-8111-111111111111', preview_key: `projects/p/assets/${assetId}/preview.webp`, preview_mime_type: 'image/webp', processing_state: 'READY' }]));
+    if (target.includes('/rest/v1/projects?')) return new Response(JSON.stringify([{ id: '11111111-1111-4111-8111-111111111111', revision: 1, document: {}, template_id: 'first-love', template_version: 1 }]));
     throw new Error(`unexpected fetch: ${target}`);
   });
   const env = { SUPABASE_URL: 'https://db.test', SUPABASE_SERVICE_ROLE_KEY: 'service', SUPABASE_ANON_KEY: 'anon', MELSOU_ASSETS: { async get() { return { body: preview }; } } };

@@ -11,18 +11,18 @@ You are the lead product engineer and design engineer for **Melsou V1**. Work di
 
 ## Product
 
-Melsou is a premium Vietnamese e-commerce and Web-to-Print experience for **180° seamless layflat photo albums**. It turns photos, a written message, a Spotify QR and—on eligible packages—a physical post-delivery voice module into a personal keepsake. The feeling must be intimate, tactile, calm, editorial, refined and emotionally warm; never generic SaaS, harsh AI UI, or a freeform design tool.
+Melsou is a premium Vietnamese e-commerce and Web-to-Print experience for **180° seamless layflat photo albums**. It turns photos, a written message, a Spotify QR and—on eligible packages—a voice module loaded from a private web recording or recorded by the customer at home into a personal keepsake. The feeling must be intimate, tactile, calm, editorial, refined and emotionally warm; never generic SaaS, harsh AI UI, or a freeform design tool.
 
 The primary customer journey is:
 
-`Landing page → template or Studio → select package/configuration → upload and arrange photos + message → preview and price → Google Sign-In → checkout → SePay payment → render/prepress → owner approval → production/shipping.`
+`Landing page → template or Studio → select package/configuration → upload and arrange photos + message (+ voice choice when eligible) → preview and price → account authentication → checkout → SePay payment → render/prepress → owner approval → production/shipping.`
 
 ## Non-negotiable product and commercial rules
 
 - Albums are layflat 180°; work in two-page spreads. Never introduce rings, perforation, or non-layflat product logic.
 - Studio is **guest-first**. A visitor can enter Studio, design, autosave, recover a draft and see pricing without login.
 - Ask for authentication only after **“Tiếp tục đặt hàng / Continue to order.”**
-- V1 authentication is **Google Sign-In only**. Do not build password, email OTP, traditional registration, or another customer login method.
+- V1 canonical authentication is unique normalized **username + password**. Email is optional and may be linked and verified later for notifications/recovery; recovery is unavailable without a verified email and must return an explicit state. Google OAuth, if retained, is additive rather than required. Never store plaintext passwords or raw session secrets; rate-limit and lock out brute-force attempts.
 - There are exactly two platform roles: `OWNER` and `CUSTOMER`. UI visibility is not authorization; server/RLS authorization is mandatory for every protected action. Owner identity is configured server-side only.
 - A guest can have multiple drafts. Drafts are retained for 14 days from last activity, recoverable on the same browser/device, and the newest one is marked as currently being edited. On Google login, claim all and only that guest session's drafts atomically and idempotently.
 - Account project deletion goes to trash for 30 days before lifecycle cleanup. Keep no more than 10 recent checkpoints per project. Checkpoint on Studio step change, Preview and before design lock.
@@ -34,7 +34,7 @@ The primary customer journey is:
   - Album Twin: second identical copy = **75% of the configured first-copy amount**
 - Prices must remain data/config driven, versioned and snapshotted onto the immutable order. Never trust client price arithmetic.
 - V1 uses **SePay only** for payments. Webhooks must be signature verified, replay protected, idempotent, matched to immutable payment expectation and audited. Payment mismatch requires owner resolution.
-- No web voice recording or voice upload in V1. The Voice module is recorded physically by the customer after delivery. Do not add cloud audio, transcoding, voice upload, merge, or Duo voice features.
+- Voice on the web is canonical for eligible V1 packages. `RECORD_ON_WEB` privately uploads a validated recording, keeps re-record drafts separate until commit, and snapshots the selected asset into the order. `RECORD_AT_HOME` stores the fulfilment choice without an upload. Voice objects stay private; project documents store only references; replacement/deletion cleanup is retryable and must retain any order-pinned asset.
 - Duo Sync edits one canonical project with at most **two** participants. Use ephemeral realtime presence and expiring per-slot soft locks; persist edits through the revision model. A design lock, review or checkout makes the room read-only.
 - Only `OWNER` may approve `PREPRESS_REVIEW → PRODUCTION`. Never silently alter an order snapshot; create a new project revision/snapshot instead.
 
@@ -106,7 +106,7 @@ Visual language:
 
 ## Current state: preserve and complete truthfully
 
-The repository already contains a locally verified landing page, guest Studio, IndexedDB drafts, opaque guest sessions, server quote logic, Google-only checkout gate, R2 validation endpoints, Supabase schema/RLS, SePay verification, render/prepress pipeline, archive/reporting jobs and server-side Duo constraints. Do not replace them casually.
+The repository already contains a locally verified landing page, guest Studio, IndexedDB drafts, opaque guest sessions, server quote logic, account checkout gate, private R2 validation endpoints, Supabase schema/RLS, SePay verification, render/prepress pipeline, archive/reporting jobs and server-side Duo constraints. Do not replace them casually.
 
 The current visual layer includes the brand refresh, sticky header, themed original template assets, updated pricing, coherent footer and responsive Studio preview. Preserve this design direction while making improvements.
 
@@ -115,7 +115,7 @@ Do **not** claim these are finished until they genuinely are:
 - Vendor-specific print profile and physical print sign-off (`TBD_PRINT_VENDOR` remains a mandatory production gate).
 - A production-grade R2 derivative pipeline for HEIC/WebP conversion and raster previews.
 - Customer-facing Duo invitation/realtime UI and order-history/tracking UI.
-- User-owned deployment/configuration: Supabase migrations, Cloudflare account/R2, SePay test-mode verification, Google OAuth, Drive/Sheets service accounts and real domain setup.
+- User-owned deployment/configuration: Supabase migrations, Cloudflare account/R2, native-auth rate limiting, optional email delivery/Google OAuth, SePay test-mode verification, voice decoder/probe, Drive/Sheets service accounts and real domain setup.
 
 Never enable paid orders or say the site is production ready until documented go-live gates pass.
 

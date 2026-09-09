@@ -6,11 +6,11 @@ Enforce RLS/ownership checks and server-side policy for all projects, assets, sn
 
 ## Input, endpoint and transport safety
 
-Use TLS in production; schema-validate all requests; apply output encoding/sanitization for text; use allowlists for URL/Spotify parsing; restrict CORS/origins; rate-limit login, guest creation, signed URL, invite, tracking and webhook endpoints. Do not log raw authorization headers, signed URLs, payment secrets, full PII, customer content or webhook credentials. Protect error displays from disclosing stack traces/internal keys.
+Use TLS in production; schema-validate all requests; apply output encoding/sanitization for text; use allowlists for URL/Spotify parsing; restrict CORS/origins; rate-limit registration/login/recovery, guest creation, upload, invite, tracking and webhook endpoints. Passwords use a slow password KDF with unique random salts and never appear in DB rows, logs or responses; session/recovery/email-verification secrets are random and stored only as hashes. Do not log raw authorization headers, signed URLs, payment secrets, full PII, customer content or webhook credentials. Protect error displays from disclosing stack traces/internal keys.
 
 ## Assets and external events
 
-Follow storage file validation rules in document 10. Signed object URLs expire quickly and are scoped to a single authorized object/action. SePay callbacks must verify signature and be idempotent. Drive/Sheets sync uses server-only credentials and an outbox/retry pattern. QR content is restricted to valid supported Spotify URLs; render escaped data only.
+Follow storage file validation rules in document 10 for images and voice recordings. Signed object URLs expire quickly and are scoped to a single authorized object/action. SePay callbacks must verify signature and be idempotent. Drive/Sheets sync uses server-only credentials and an outbox/retry pattern. QR content is restricted to valid supported Spotify URLs; render escaped data only.
 
 ## Privacy minimization
 

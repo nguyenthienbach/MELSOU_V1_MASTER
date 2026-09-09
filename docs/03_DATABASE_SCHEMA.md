@@ -5,15 +5,18 @@ Use UUID primary keys, UTC timestamps, `created_at`, `updated_at`, and explicit 
 | Entity | Critical fields / invariant |
 |---|---|
 | `profiles` | `user_id`, `role` (`OWNER`/`CUSTOMER`); role is server-owned |
+| `app_users`, `native_credentials`, `native_sessions`, `auth_email_challenges` | common principal, slow password verifier, hashed session and optional verified-email recovery |
 | `guest_sessions` | opaque, HttpOnly-safe identifier/hash, expiration, no PII path usage |
 | `projects` | owner user/guest, status, document JSON, `revision`, template id/version, last activity |
 | `project_checkpoints` | immutable document copies; retain newest 10 per project |
 | `project_assets` | project id, R2 keys, MIME, dimensions, bytes, checksum, status/quality; never binary in DB |
+| `voice_assets`, `voice_cleanup_jobs` | private recording metadata and bounded cleanup lifecycle; never binary in DB |
 | `duo_rooms`/`duo_members` | project id, owner, invite token hash, max 2 active members, read-only state |
 | `pricing_versions`/`pricing_rules` | versioned values/effective state; never edit a value referenced by an order |
 | `quotes` | priced configuration + expiry + pricing version; immutable after order creation |
 | `production_snapshots` | immutable project document/template/asset refs/print-profile reference |
 | `orders`/`order_lines` | code, status enum, customer, quote and price snapshot, snapshot id |
+| `order_voice_selections` | immutable web-recording reference/metadata or `RECORD_AT_HOME` choice |
 | `payment_attempts`/`payment_events` | provider ids, expected/received amount, idempotency key, raw payload protected |
 | `render_jobs` | snapshot id, attempts, status, artifact refs, error classification |
 | `shipments` | order id, independent status/carrier/tracking/address snapshot |

@@ -28,7 +28,10 @@ agent's files.
 Antigravity must preserve these UI-to-backend hooks while updating the UI:
 
 - `<script src="/auth-client.js"></script>` in `demo/index.html`.
-- `window.codexHandleGoogleSignIn()` called by the Google button.
+- `window.codexHandleNativeRegister({ username, password })` and
+  `window.codexHandleNativeLogin({ username, password })` for canonical V1 auth.
+- `window.codexHandleForgotPassword({ email })` only for a verified linked email.
+- `window.codexHandleGoogleSignIn()` if the optional Google button is retained.
 - `MelsouAuth.handleAuthSuccess({ id, name, email, avatar })` for an already
   verified Supabase session only.
 - `window.melsouGetActiveDraft()` and `window.melsouOnDraftChanged?.()` for
@@ -99,7 +102,7 @@ version merely because a new one exists.
 - Antigravity: UI/UX only in `demo/index.html`, `demo/styles.css`,
   `demo/app.js` and visual assets. Preserve the protected integration contract
   above.
-- Codex: Supabase, Google OAuth, API security, draft persistence, payment and
+- Codex: Supabase, native auth/optional Google OAuth, API security, draft persistence, payment and
   test infrastructure. Preserve Antigravity's presentation layer.
 - Owner: relays requests between agents until the shared GitHub repository is
   connected; do not share secrets in chat.

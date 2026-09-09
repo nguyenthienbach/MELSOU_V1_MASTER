@@ -1,5 +1,13 @@
 # Antigravity UI → Melsou backend integration status
 
+## Product Owner auth update
+
+Native `username + password` is now the canonical V1 account method. The Worker
+implements register, login, hashed HttpOnly session restore/logout, password
+change, 30-day username-change policy, optional verified email link and
+verified-email-only recovery. Google OAuth is optional and maps to the same
+application-principal model.
+
 ## Implemented in this package
 
 - Preserved the latest Antigravity `demo/index.html` visual UI as the starting
@@ -19,11 +27,22 @@
 
 ## Still required from the owner
 
-No user-owned Supabase project, Google OAuth client or Worker secrets were
-provided. Therefore a genuine Google redirect, database insert, claim and
-refresh cannot be run in this environment yet. Follow `GOOGLE_OAUTH_SETUP.md`;
-then this package can be tested against those real services.
+No user-owned Supabase project, email-delivery adapter or Worker secrets were
+provided. Therefore the native migration/session/RLS path and recovery email
+cannot be exercised against real services yet. Optional Google OAuth still
+requires the setup in `GOOGLE_OAUTH_SETUP.md` if Product Owner enables it.
 
-The Antigravity UI's freeform image uploads still require a separate migration
-to the existing private R2 asset API. This is deliberately not faked by storing
-photo binaries in localStorage or Postgres JSON.
+The Worker now exposes decoder-validated private R2 upload/preview routes for
+both guest and authenticated projects, including checksum deduplication and
+metadata-free derivatives. Antigravity still needs to hook the guest Studio
+picker to those routes before checkout; until then its local image copy is an
+offline-only UX cache, not durable server persistence. The main offline project
+document must move from localStorage to IndexedDB as documented in
+`BACKEND_INTEGRATION_CONTRACT.md`.
+
+Antigravity may now connect `codexHandleNativeLogin({ username, password })`,
+`codexHandleNativeRegister({ username, password })` and verified-email recovery
+to the endpoints in `BACKEND_INTEGRATION_CONTRACT.md`. It must also add the
+private voice draft/play/commit/cancel flow without putting audio blobs in
+localStorage. `codexHandleExportDesign` still needs an authenticated order ID
+and private server-rendered PDF artifact; raw `ALBUM_DATA` is not a final export.

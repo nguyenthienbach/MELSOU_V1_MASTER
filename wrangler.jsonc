@@ -15,7 +15,8 @@
   "images": { "binding": "IMAGES" },
   "vars": {
     "APP_ENV": "production",
-    "SEPAY_ALLOWED_CLOCK_SKEW_SECONDS": "300"
+    "SEPAY_ALLOWED_CLOCK_SKEW_SECONDS": "300",
+    "VOICE_MAX_BYTES": "5242880"
   },
   "triggers": { "crons": ["17,47 * * * *"] }
 }

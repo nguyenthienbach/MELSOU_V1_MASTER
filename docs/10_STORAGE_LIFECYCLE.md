@@ -6,6 +6,8 @@ Use one or more private R2 buckets. Keys must be opaque, for example `projects/p
 
 Limits: maximum 40 images and 150 MB total per draft; target normal post-processing about 2–4 MB/image. Accept JPEG/JPG, PNG, WebP, HEIC/HEIF only after magic-byte/MIME, byte-size, pixel dimension, decompression-bomb and quota checks. Reject SVG, archives, executables, HTML/JS, unknown binary and extension spoofing. Derived previews strip EXIF/location metadata and use safe image decoding. Originals remain protected.
 
+Voice recordings use separate opaque private keys and metadata rows. Accept only allowlisted WebM, Ogg, MP4/M4A or WAV containers after magic-byte/MIME validation and configured size/duration checks. Uploading a re-record creates a draft asset; cancellation retains the prior canonical voice, while commit atomically replaces the project reference. Superseded/cancelled objects are removed by bounded retry jobs only after confirming no immutable order snapshot references them.
+
 ## Lifecycle jobs
 
 Guest drafts/assets expire 14 days after last activity. Account projects move to trash on deletion and are permanently cleaned after 30 days. Delete previews, orphan multipart uploads, unreferenced assets and superseded derivatives only after reference/integrity checks. Retain order snapshots and production artifacts according to legal/operational policy; never delete a referenced render input while order reproducibility requires it.

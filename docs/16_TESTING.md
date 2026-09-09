@@ -10,11 +10,11 @@ Use `tests/fixtures/` only synthetic content. Provide fakes for R2, Drive, Sheet
 
 - Pricing table/property tests: package/modifiers, Twin 75%, shipment count, immutable order snapshots and VND integer arithmetic.
 - Project/document tests: schema validation, expected revision conflicts, checkpoints cap, template remap/unplaced content.
-- Auth/RLS integration: guest isolation, all-draft idempotent claim, customer boundary, owner-only actions, Duo scope/max two.
-- Upload security: magic bytes mismatch, extension spoof, SVG/archive/HTML rejection, quotas, EXIF stripping, signed URL expiry/authorization.
+- Auth/RLS integration: native register/login/session/logout, password hashing, brute-force lockout, verified-email-only recovery, optional Google identity, guest isolation/all-draft claim, customer boundary, owner-only actions and Duo scope/max two.
+- Upload security: image/audio magic bytes mismatch, extension spoof, SVG/archive/HTML rejection, quotas, EXIF stripping, private voice access, version-safe re-record and signed URL expiry/authorization.
 - Payment: signature verification, duplicate/order-independent webhooks, mismatch, expiry, concurrent delivery and render-job exactly-once enqueue.
 - Render/preflight: missing `TBD_PRINT_VENDOR` blocks approval, assets/slots/QR/safe zone checks, pinned template reproducibility and rerender invariance.
 - Lifecycle/jobs: 14-day guest expiry, 30-day trash, safe orphan cleanup, Drive/Sheets failure/retry, archive checksum-before-delete.
-- E2E: guest Studio → preflight/quote → Google callback mock → checkout → SePay verified mock → render → owner approval → two shipments → completion; plus failure/retry paths.
+- E2E: guest Studio → preflight/quote → native account auth (or optional Google callback) → guest claim → voice commit/at-home choice → checkout → SePay verified mock → render → owner approval → two shipments → completion; plus failure/retry paths.
 
 Run load/concurrency probes on autosave, same-project revision writes and webhook duplicate delivery before launch. Accessibility covers keyboard interactions, visible focus, form error semantics and reduced-motion behavior. Never pass a test by disabling security or production gates.
