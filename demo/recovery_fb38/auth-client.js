@@ -19,8 +19,10 @@
   let configPromise = null;
   let saveTimer = null;
   let saveInFlight = null;
+  let persistQueue = Promise.resolve();
   let nativeUser = null;
   let activeOrder = null;
+  const pendingSlotSources = new Map();
 
   const readBridge = () => {
     try {
@@ -46,6 +48,14 @@
     }
     return body;
   };
+  const supportedStudioSource = (value) => {
+    if (typeof value !== 'string') return false;
+    if (/^(?:data:image\/(?:jpeg|png|webp|heic|heif);base64,|blob:)/i.test(value)) return true;
+    try {
+      const url = new URL(value, window.location.origin);
+      return url.origin === window.location.origin || url.hostname === 'images.unsplash.com';
+    } catch { return false; }
+  };
   const studioImageSource = (draft) => {
     const candidates = [
       ...(Array.isArray(draft?.userGallery) ? draft.userGallery : []),
@@ -55,11 +65,7 @@
         ...(Array.isArray(spread?.elements) ? spread.elements.filter((item) => item?.type === 'photo').map((item) => item.img) : [])
       ]) : [])
     ];
-    return candidates.find((value) => {
-      if (typeof value !== 'string') return false;
-      if (/^(?:data:image\/(?:jpeg|png|webp|heic|heif);base64,|blob:)/i.test(value)) return true;
-      try { return new URL(value, window.location.origin).hostname === 'images.unsplash.com'; } catch { return false; }
-    }) || null;
+    return candidates.find(supportedStudioSource) || null;
   };
   const dataUriBody = (value) => {
     const match = /^data:([^;,]+);base64,(.+)$/i.exec(value || '');
@@ -70,6 +76,7 @@
     return { body: bytes, mimeType: match[1].toLowerCase() };
   };
   const studioImageBody = async (source) => {
+    if (!supportedStudioSource(source)) throw new Error('UNSUPPORTED_IMAGE_SOURCE');
     if (source.startsWith('data:')) return dataUriBody(source);
     const response = await fetch(source, { credentials: 'omit', referrerPolicy: 'no-referrer' });
     if (!response.ok) throw new Error('IMAGE_SOURCE_UNAVAILABLE');
@@ -77,13 +84,14 @@
     if (!['image/jpeg', 'image/png', 'image/webp', 'image/heic', 'image/heif'].includes(mimeType)) throw new Error('INVALID_IMAGE_TYPE');
     return { body: new Uint8Array(await response.arrayBuffer()), mimeType };
   };
+  const sha256Hex = async (bytes) => Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256', bytes))).map((value) => value.toString(16).padStart(2, '0')).join('');
   const showError = (message) => window.MelsouAuth?.setLoginState('error', message);
 
   function safeEditorPayload(value) {
     // Do not write a local binary/blob into Postgres JSON. Private Supabase Storage
     // remains the only long-term store for uploaded originals. Layout,
     // typography, text, transforms and remote image URLs are retained here.
-    if (typeof value === 'string') return value.startsWith('data:') ? null : value;
+    if (typeof value === 'string') return /^(?:data:|blob:)/i.test(value) ? null : value;
     if (Array.isArray(value)) return value.map(safeEditorPayload);
     if (!value || typeof value !== 'object') return value;
     if (value instanceof Blob || value instanceof File) return null;
@@ -96,16 +104,26 @@
     return output;
   }
 
-  function projectDocument() {
-    const draft = window.melsouGetActiveDraft?.() || {};
-    const bridge = readBridge();
+  function canonicalTemplate(draft) {
     const requestedTemplate = templateByPackage[draft.package] || 'melsou-editorial';
-    const pageCount = Math.min(24, Math.max(12, Array.isArray(draft.spreads) ? draft.spreads.length * 2 : 12));
-    const pages = pageCount <= 12 ? 12 : pageCount <= 16 ? 16 : 24;
     const sizeByClass = { 'ratio-portrait': 'A5_PORTRAIT', 'ratio-square': 'SQUARE', 'ratio-landscape': 'A5_LANDSCAPE', compact: 'A6' };
     const size = sizeByClass[draft.sizeClass] || 'A5_PORTRAIT';
     const templateId = size === 'A5_LANDSCAPE' ? 'melsou-editorial' : (requestedTemplate === 'melsou-editorial' ? 'memory-box' : requestedTemplate);
-    const contentBindings = bridge.primaryAssetId ? { image_01: { asset_id: bridge.primaryAssetId } } : {};
+    return { templateId, size };
+  }
+  const requiredImageSlots = (templateId) => ({
+    'first-love': ['image_01'], 'our-graduation': ['image_01', 'image_02'], 'besties-archive': ['image_01', 'image_02'],
+    'somewhere-together': ['panorama_01'], 'birthday-letters': ['image_01'], 'quiet-moments': ['image_01'],
+    'memory-box': ['image_01'], 'melsou-editorial': ['image_01']
+  }[templateId] || ['image_01']);
+  function projectDocument() {
+    const draft = window.melsouGetActiveDraft?.() || {};
+    const bridge = readBridge();
+    const { templateId, size } = canonicalTemplate(draft);
+    const pageCount = Math.min(24, Math.max(12, Array.isArray(draft.spreads) ? (draft.spreads.length - 2) * 2 + 2 : 12));
+    const pages = pageCount <= 12 ? 12 : pageCount <= 16 ? 16 : 24;
+    const contentBindings = Object.fromEntries(Object.entries(bridge.slotAssets || {}).filter(([, value]) => value?.assetId).map(([slotId, value]) => [slotId, { asset_id: value.assetId }]));
+    if (bridge.primaryAssetId && !contentBindings.image_01) contentBindings.image_01 = { asset_id: bridge.primaryAssetId };
     if (templateId === 'melsou-editorial') contentBindings.headline_01 = { text: String(draft.title || 'Album chưa đặt tên').slice(0, 120) };
     return {
       schema_version: 1,
@@ -113,6 +131,7 @@
       configuration: { size, pages },
       cover: { title: String(draft.title || 'Album chưa đặt tên').slice(0, 120), quote: String(draft.quote || '').slice(0, 500) },
       content_bindings: contentBindings,
+      editor_asset_slots: bridge.uiSlotMap || {},
       // The Studio payload is namespaced so the locked V1 document remains valid
       // while the Antigravity UI is progressively migrated to template slots.
       editor_payload: safeEditorPayload(draft)
@@ -153,16 +172,26 @@
     const result = await api('/guest/projects', {
       method: 'POST', body: JSON.stringify({ title: draftTitle(), document: projectDocument() })
     });
-    const next = { projectId: result.project.id, revision: result.project.revision, ownership: 'guest' };
+    const next = { ...bridge, projectId: result.project.id, revision: result.project.revision, ownership: 'guest' };
     writeBridge(next);
     return next;
   }
 
   async function ensurePrimaryAsset(bridge) {
-    if (bridge.primaryAssetId) return bridge;
-    const source = studioImageSource(window.melsouGetActiveDraft?.() || {});
+    const draft = window.melsouGetActiveDraft?.() || {};
+    const requiredSlots = requiredImageSlots(canonicalTemplate(draft).templateId);
+    const pending = pendingSlotSources.entries().next().value;
+    const slotId = pending?.[0] || requiredSlots[0];
+    const existing = bridge.slotAssets?.[slotId];
+    if (!pending && (existing?.assetId || (slotId === 'image_01' && bridge.primaryAssetId))) return bridge;
+    const source = pending?.[1] || studioImageSource(draft);
     if (!source) return bridge;
     const upload = await studioImageBody(source);
+    const fingerprint = await sha256Hex(upload.body);
+    if (existing?.assetId && existing.sourceFingerprint === fingerprint) {
+      if (pendingSlotSources.get(slotId) === source) pendingSlotSources.delete(slotId);
+      return bridge;
+    }
     const path = bridge.ownership === 'account' ? `/projects/${bridge.projectId}/assets` : `/guest/projects/${bridge.projectId}/assets`;
     const response = await fetch(`${apiBase}${path}`, { method: 'POST', credentials: 'include', headers: { 'Content-Type': upload.mimeType }, body: upload.body });
     const result = await response.json().catch(() => ({}));
@@ -171,14 +200,19 @@
       error.code = result.error || 'ASSET_UPLOAD_FAILED';
       throw error;
     }
-    const next = { ...bridge, primaryAssetId: result.asset.id };
+    const slotAssets = { ...(bridge.slotAssets || {}), [slotId]: { assetId: result.asset.id, sourceFingerprint: fingerprint } };
+    const next = { ...bridge, slotAssets, ...(slotId === 'image_01' ? { primaryAssetId: result.asset.id } : {}) };
     writeBridge(next);
+    if (pendingSlotSources.get(slotId) === source) pendingSlotSources.delete(slotId);
     return next;
   }
 
   async function waitForPrimaryAsset(bridge) {
-    if (!bridge.primaryAssetId) throw Object.assign(new Error('MISSING_REQUIRED_SLOT:image_01'), { code: 'MISSING_REQUIRED_SLOT:image_01' });
-    const path = bridge.ownership === 'account' ? `/assets/${bridge.primaryAssetId}/preview` : `/guest/assets/${bridge.primaryAssetId}/preview`;
+    const draft = window.melsouGetActiveDraft?.() || {};
+    const slotId = requiredImageSlots(canonicalTemplate(draft).templateId)[0];
+    const assetId = bridge.slotAssets?.[slotId]?.assetId || (slotId === 'image_01' ? bridge.primaryAssetId : null);
+    if (!assetId) throw Object.assign(new Error(`MISSING_REQUIRED_SLOT:${slotId}`), { code: `MISSING_REQUIRED_SLOT:${slotId}` });
+    const path = bridge.ownership === 'account' ? `/assets/${assetId}/preview` : `/guest/assets/${assetId}/preview`;
     for (let attempt = 0; attempt < 10; attempt += 1) {
       const response = await fetch(`${apiBase}${path}`, { credentials: 'include' });
       if (response.ok) { await response.body?.cancel(); return; }
@@ -189,7 +223,7 @@
     throw Object.assign(new Error('ASSET_PROCESSING_NOT_READY'), { code: 'ASSET_PROCESSING_NOT_READY' });
   }
 
-  async function persistDraft() {
+  async function persistDraftNow() {
     let bridge = await ensureGuestProject();
     bridge = await ensurePrimaryAsset(bridge);
     const token = nativeUser ? null : await sessionToken().catch(() => null);
@@ -202,6 +236,13 @@
     });
     writeBridge({ ...bridge, revision: result.project.revision, ownership: authenticated ? 'account' : 'guest' });
     return result.project;
+  }
+
+  function persistDraft() {
+    const task = persistQueue.catch(() => {}).then(persistDraftNow);
+    persistQueue = task;
+    saveInFlight = task;
+    return task;
   }
 
   function schedulePersist() {
@@ -243,15 +284,60 @@
     });
   }
 
+  function canonicalSlotForUiSlot(slotKey, bridge) {
+    const draft = window.melsouGetActiveDraft?.() || {};
+    const required = requiredImageSlots(canonicalTemplate(draft).templateId);
+    if (bridge.uiSlotMap?.[slotKey] && required.includes(bridge.uiSlotMap[slotKey])) return bridge.uiSlotMap[slotKey];
+    return required.find((slotId) => !bridge.slotAssets?.[slotId]?.assetId) || required[0];
+  }
+
+  window.melsouOnImageAssigned = ({ slotKey, source } = {}) => {
+    if (!slotKey || !supportedStudioSource(source)) return;
+    const bridge = readBridge();
+    const slotId = canonicalSlotForUiSlot(slotKey, bridge);
+    writeBridge({ ...bridge, uiSlotMap: { ...(bridge.uiSlotMap || {}), [slotKey]: slotId } });
+    pendingSlotSources.set(slotId, source);
+    persistDraft().catch((error) => console.warn('[Melsou] assigned image persistence unavailable:', error.code || error.message));
+  };
+
   async function restoreCanonicalProject(authenticated = false) {
     const bridge = readBridge();
     if (!bridge.projectId) return;
     const path = authenticated ? `/projects/${bridge.projectId}` : '/guest/projects';
     const result = await api(path);
-    const project = authenticated ? result.project : (result.projects || []).find((item) => item.id === bridge.projectId);
+    let project = authenticated ? result.project : (result.projects || []).find((item) => item.id === bridge.projectId);
+    const legacySource = studioImageSource(window.melsouGetActiveDraft?.() || {});
+    if (project && !project.document?.content_bindings?.image_01 && legacySource) {
+      pendingSlotSources.set(requiredImageSlots(canonicalTemplate(window.melsouGetActiveDraft?.() || {}).templateId)[0], legacySource);
+      await persistDraft();
+      const refreshed = await api(authenticated ? `/projects/${bridge.projectId}` : '/guest/projects');
+      project = authenticated ? refreshed.project : (refreshed.projects || []).find((item) => item.id === bridge.projectId);
+    }
     if (project?.document?.editor_payload) {
-      window.melsouApplyCanonicalDraft?.(project.document.editor_payload);
-      writeBridge({ ...bridge, revision: project.revision, ownership: authenticated ? 'account' : 'guest' });
+      const restoredSlots = Object.fromEntries(Object.entries(project.document.content_bindings || {}).filter(([, binding]) => binding?.asset_id).map(([slotId, binding]) => [slotId, { assetId: binding.asset_id }]));
+      const existingSlots = bridge.slotAssets || {};
+      const slotAssets = Object.fromEntries(Object.entries(restoredSlots).map(([slotId, value]) => [slotId, existingSlots[slotId]?.assetId === value.assetId ? existingSlots[slotId] : value]));
+      const nextBridge = { ...bridge, slotAssets, uiSlotMap: { ...(bridge.uiSlotMap || {}), ...(project.document.editor_asset_slots || {}) }, primaryAssetId: restoredSlots.image_01?.assetId || bridge.primaryAssetId, revision: project.revision, ownership: authenticated ? 'account' : 'guest' };
+      writeBridge(nextBridge);
+      const hydrated = structuredClone(project.document.editor_payload);
+      for (const [slotId, value] of Object.entries(restoredSlots)) {
+        const path = authenticated ? `/assets/${value.assetId}/preview` : `/guest/assets/${value.assetId}/preview`;
+        const response = await fetch(`${apiBase}${path}`, { credentials: 'include' });
+        if (!response.ok) continue;
+        const source = URL.createObjectURL(await response.blob());
+        const uiSlot = Object.entries(nextBridge.uiSlotMap || {}).find(([, mapped]) => mapped === slotId)?.[0] || (slotId === 'image_01' ? 'coverImg' : null);
+        if (uiSlot === 'coverImg' && hydrated.spreads?.[0]) hydrated.spreads[0].coverImg = source;
+        else if (uiSlot === 'backImg' && hydrated.spreads?.length) hydrated.spreads[hydrated.spreads.length - 1].backImg = source;
+        else if (uiSlot?.startsWith('el_')) {
+          const elementId = uiSlot.slice(3);
+          for (const spread of hydrated.spreads || []) {
+            const element = spread.elements?.find((item) => String(item.id) === elementId);
+            if (element) { element.img = source; break; }
+          }
+        }
+        hydrated.userGallery = [source, ...(hydrated.userGallery || []).filter((item) => !/^(?:data:|blob:)/i.test(item))];
+      }
+      window.melsouApplyCanonicalDraft?.(hydrated);
     }
   }
 

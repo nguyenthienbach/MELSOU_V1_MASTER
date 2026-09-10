@@ -951,6 +951,7 @@ function loadTemplateToStudio(name, quote, coverImg) {
   ALBUM_DATA.quote = quote || '';
   if (coverImg && ALBUM_DATA.spreads && ALBUM_DATA.spreads[0]) {
     ALBUM_DATA.spreads[0].coverImg = coverImg;
+    window.melsouOnImageAssigned?.({ slotKey: 'coverImg', source: coverImg });
   }
   // FB87: Hard Rule - All interior freestyle spreads must be BLANK for EVERY template
   if (Array.isArray(ALBUM_DATA.spreads)) {
@@ -2804,6 +2805,7 @@ function assignPhotoToSlot(slotKey, url) {
     }
   }
 
+  window.melsouOnImageAssigned?.({ slotKey, source: url });
   autoSaveToLocalStorage();
   renderActiveSpread();
 }

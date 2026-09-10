@@ -162,6 +162,25 @@ test('duplicate checkout requests use the same server-side idempotency key and a
   assert.match(keys[0], /^auto:[0-9a-f]{64}$/);
 });
 
+test('create order preserves a safe snapshot configuration error instead of generic 500', async (t) => {
+  const projectId = '33333333-3333-4333-8333-333333333333';
+  const assetId = '44444444-4444-4444-8444-444444444444';
+  const document = { template: { template_id: 'first-love', version: 1 }, configuration: { size: 'A5_PORTRAIT', pages: 12 }, content_bindings: { image_01: { asset_id: assetId } } };
+  const rules = { currency: 'VND', packages: { MELODY: 119000, VOICE: 159000, SIGNATURE: 199000 }, sizes: { A5_PORTRAIT: 0 }, pages: { 12: 0 }, twin_second_copy_ratio: 0.75, shipping_per_shipment: 30000 };
+  t.mock.method(globalThis, 'fetch', async (url) => {
+    const value = String(url);
+    if (value.includes('/auth/v1/user')) return new Response(JSON.stringify({ id: '11111111-1111-4111-8111-111111111111' }));
+    if (value.includes('/projects?')) return new Response(JSON.stringify([{ id: projectId, revision: 4, document, template_id: 'first-love', template_version: 1 }]));
+    if (value.includes('/pricing_versions?')) return new Response(JSON.stringify([{ version: 2, rules }]));
+    if (value.includes('/project_assets?')) return new Response(JSON.stringify([{ id: assetId, status: 'READY', processing_state: 'READY', normalized_key: 'normalized.png', normalized_mime_type: 'image/png', normalized_width_px: 100, normalized_height_px: 100 }]));
+    if (value.includes('/rpc/melsou_create_order_v3')) return new Response(JSON.stringify({ message: 'SNAPSHOT_CONFIGURATION_MISMATCH' }), { status: 400 });
+    throw new Error(`Unexpected fetch ${value}`);
+  });
+  const response = await worker.fetch(new Request('https://melsou.test/api/orders', { method: 'POST', headers: { Authorization: 'Bearer user-token', 'Content-Type': 'application/json' }, body: JSON.stringify({ projectId, configuration: { packageCode: 'MELODY', size: 'A5_PORTRAIT', pages: 12, twin: false, shipments: 1 }, shipments: [{ recipient: 'A', phone: '0912345678', address: 'Synthetic test address' }] }) }), { APP_ENV: 'production', SUPABASE_URL: 'https://db.test', SUPABASE_ANON_KEY: 'anon', SUPABASE_SERVICE_ROLE_KEY: 'service', SEPAY_MODE: 'TEST' });
+  assert.equal(response.status, 409);
+  assert.deepEqual(await response.json(), { error: 'SNAPSHOT_CONFIGURATION_MISMATCH' });
+});
+
 test('customer export streams only an owned completed private PDF artifact', async (t) => {
   const orderId = '22222222-2222-4222-8222-222222222222';
   t.mock.method(globalThis, 'fetch', async (url) => {
