@@ -46,7 +46,7 @@
     }
     return body;
   };
-  const imageDataUri = (draft) => {
+  const studioImageSource = (draft) => {
     const candidates = [
       ...(Array.isArray(draft?.userGallery) ? draft.userGallery : []),
       ...(Array.isArray(draft?.spreads) ? draft.spreads.flatMap((spread) => [
@@ -55,7 +55,11 @@
         ...(Array.isArray(spread?.elements) ? spread.elements.filter((item) => item?.type === 'photo').map((item) => item.img) : [])
       ]) : [])
     ];
-    return candidates.find((value) => typeof value === 'string' && /^data:image\/(?:jpeg|png|webp|heic|heif);base64,/i.test(value)) || null;
+    return candidates.find((value) => {
+      if (typeof value !== 'string') return false;
+      if (/^(?:data:image\/(?:jpeg|png|webp|heic|heif);base64,|blob:)/i.test(value)) return true;
+      try { return new URL(value, window.location.origin).hostname === 'images.unsplash.com'; } catch { return false; }
+    }) || null;
   };
   const dataUriBody = (value) => {
     const match = /^data:([^;,]+);base64,(.+)$/i.exec(value || '');
@@ -64,6 +68,14 @@
     const bytes = new Uint8Array(binary.length);
     for (let index = 0; index < binary.length; index += 1) bytes[index] = binary.charCodeAt(index);
     return { body: bytes, mimeType: match[1].toLowerCase() };
+  };
+  const studioImageBody = async (source) => {
+    if (source.startsWith('data:')) return dataUriBody(source);
+    const response = await fetch(source, { credentials: 'omit', referrerPolicy: 'no-referrer' });
+    if (!response.ok) throw new Error('IMAGE_SOURCE_UNAVAILABLE');
+    const mimeType = String(response.headers.get('Content-Type') || '').split(';')[0].toLowerCase();
+    if (!['image/jpeg', 'image/png', 'image/webp', 'image/heic', 'image/heif'].includes(mimeType)) throw new Error('INVALID_IMAGE_TYPE');
+    return { body: new Uint8Array(await response.arrayBuffer()), mimeType };
   };
   const showError = (message) => window.MelsouAuth?.setLoginState('error', window.getUserFriendlyErrorMessage ? window.getUserFriendlyErrorMessage(message) : message);
 
@@ -148,9 +160,9 @@
 
   async function ensurePrimaryAsset(bridge) {
     if (bridge.primaryAssetId) return bridge;
-    const source = imageDataUri(window.melsouGetActiveDraft?.() || {});
+    const source = studioImageSource(window.melsouGetActiveDraft?.() || {});
     if (!source) return bridge;
-    const upload = dataUriBody(source);
+    const upload = await studioImageBody(source);
     const path = bridge.ownership === 'account' ? `/projects/${bridge.projectId}/assets` : `/guest/projects/${bridge.projectId}/assets`;
     const response = await fetch(`${apiBase}${path}`, { method: 'POST', credentials: 'include', headers: { 'Content-Type': upload.mimeType }, body: upload.body });
     const result = await response.json().catch(() => ({}));
@@ -305,7 +317,7 @@
     const draft = window.melsouGetActiveDraft?.() || {};
     const packageCode = String(draft.package || 'signature').toUpperCase();
     const sizeByClass = { 'ratio-portrait': 'A5_PORTRAIT', 'ratio-square': 'SQUARE', 'ratio-landscape': 'A5_LANDSCAPE', compact: 'A6' };
-    const rawPages = Array.isArray(draft.spreads) ? draft.spreads.length * 2 : 12;
+    const rawPages = Array.isArray(draft.spreads) ? Math.max(12, (draft.spreads.length - 2) * 2 + 2) : 12;
     return { packageCode, size: sizeByClass[draft.sizeClass] || 'A5_PORTRAIT', pages: rawPages <= 12 ? 12 : rawPages <= 16 ? 16 : 24, twin: false, shipments: 1 };
   }
 
