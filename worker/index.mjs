@@ -730,6 +730,7 @@ async function handleCreateOrder(request, env) {
   });
   if (!response.ok) {
     const details = await response.text();
+    if (details.includes('SNAPSHOT_CONFIGURATION_MISMATCH')) return json({ error: 'SNAPSHOT_CONFIGURATION_MISMATCH' }, 409);
     if (details.includes('VOICE_SELECTION_REQUIRED')) return json({ error: 'VOICE_SELECTION_REQUIRED' }, 409);
     if (details.includes('VOICE_ASSET_NOT_READY')) return json({ error: 'VOICE_ASSET_NOT_READY' }, 409);
     return json({ error: 'ORDER_CREATION_FAILED', ...(env.APP_ENV === 'development' ? { diagnostic: details.slice(0, 500) } : {}) }, 500);
