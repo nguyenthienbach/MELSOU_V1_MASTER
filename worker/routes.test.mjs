@@ -283,15 +283,16 @@ test('native session cookie authorizes account restore without exposing its raw 
   assert.equal(response.status, 200); assert.equal((await response.json()).auth.provider, 'NATIVE');
 });
 
-test('native session accepts authenticated writes only from the configured proxy origin', async (t) => {
+test('native session accepts authenticated writes from canonical and legacy proxy origins only', async (t) => {
   const raw = 'b'.repeat(64);
   t.mock.method(globalThis, 'fetch', async (url) => {
     if (String(url).includes('/rpc/melsou_native_session_user')) return new Response(JSON.stringify({ id: '11111111-1111-4111-8111-111111111111', username: 'native.user', role: 'CUSTOMER', provider: 'NATIVE' }), { status: 200 });
     if (String(url).includes('/rpc/melsou_update_profile')) return new Response(JSON.stringify({ user_id: '11111111-1111-4111-8111-111111111111', display_name: 'Melsou User' }), { status: 200 });
     throw new Error(`Unexpected fetch ${url}`);
   });
-  const env = { SUPABASE_URL: 'https://db.test', SUPABASE_SERVICE_ROLE_KEY: 'service', APP_BASE_URL: 'https://melsou.vercel.app' };
+  const env = { SUPABASE_URL: 'https://db.test', SUPABASE_SERVICE_ROLE_KEY: 'service', APP_BASE_URL: 'https://melsou.com', APP_ALLOWED_ORIGINS: 'https://melsou.com,https://melsou.vercel.app' };
   const request = (origin) => new Request('https://melsou.workers.dev/api/account', { method: 'PATCH', headers: { Cookie: `melsou_session_v1=${raw}`, Origin: origin, 'Content-Type': 'application/json' }, body: JSON.stringify({ displayName: 'Melsou User' }) });
+  assert.equal((await worker.fetch(request('https://melsou.com'), env)).status, 200);
   assert.equal((await worker.fetch(request('https://melsou.vercel.app'), env)).status, 200);
   assert.equal((await worker.fetch(request('https://attacker.example'), env)).status, 401);
 });

@@ -19,7 +19,8 @@
   ],
   "vars": {
     "APP_ENV": "production",
-    "APP_BASE_URL": "https://melsou.vercel.app",
+    "APP_BASE_URL": "https://melsou.com",
+    "APP_ALLOWED_ORIGINS": "https://melsou.com,https://melsou.vercel.app",
     "SEPAY_ALLOWED_CLOCK_SKEW_SECONDS": "300",
     "VOICE_MAX_BYTES": "5242880",
     "SUPABASE_STORAGE_BUCKET": "melsou-assets"

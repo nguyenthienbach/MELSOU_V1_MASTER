@@ -55,8 +55,9 @@ async function activePricing(env) {
 async function nativeSessionUser(request, env) {
   const origin = request.headers.get('Origin');
   const trustedOrigins = new Set([new URL(request.url).origin]);
-  if (env.APP_BASE_URL) {
-    try { trustedOrigins.add(new URL(env.APP_BASE_URL).origin); } catch { return null; }
+  const configuredOrigins = [env.APP_BASE_URL, ...String(env.APP_ALLOWED_ORIGINS || '').split(',')].filter(Boolean);
+  for (const configuredOrigin of configuredOrigins) {
+    try { trustedOrigins.add(new URL(configuredOrigin.trim()).origin); } catch { return null; }
   }
   if (!['GET','HEAD','OPTIONS'].includes(request.method) && origin && !trustedOrigins.has(origin)) return null;
   const raw = readCookie(request, nativeCookieName);
