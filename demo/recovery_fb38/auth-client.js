@@ -317,7 +317,7 @@
     const draft = window.melsouGetActiveDraft?.() || {};
     const packageCode = String(draft.package || 'signature').toUpperCase();
     const sizeByClass = { 'ratio-portrait': 'A5_PORTRAIT', 'ratio-square': 'SQUARE', 'ratio-landscape': 'A5_LANDSCAPE', compact: 'A6' };
-    const rawPages = Array.isArray(draft.spreads) ? draft.spreads.length * 2 : 12;
+    const rawPages = Array.isArray(draft.spreads) ? Math.max(12, (draft.spreads.length - 2) * 2 + 2) : 12;
     return { packageCode, size: sizeByClass[draft.sizeClass] || 'A5_PORTRAIT', pages: rawPages <= 12 ? 12 : rawPages <= 16 ? 16 : 24, twin: false, shipments: 1 };
   }
 
