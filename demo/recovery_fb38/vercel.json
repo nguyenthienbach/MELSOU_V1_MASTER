@@ -1,5 +1,12 @@
 {
+  "cleanUrls": true,
+  "trailingSlash": false,
   "rewrites": [
+    { "source": "/ve-melsou", "destination": "/" },
+    { "source": "/goi-san-pham", "destination": "/" },
+    { "source": "/templates", "destination": "/" },
+    { "source": "/chinh-sach-bao-mat", "destination": "/" },
+    { "source": "/chinh-sach-bao-hanh", "destination": "/" },
     {
       "source": "/api/:path*",
       "destination": "https://melsou.nguyenthienbach18042007.workers.dev/api/:path*"

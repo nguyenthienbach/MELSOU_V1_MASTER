@@ -1,4 +1,13 @@
 User-agent: *
 Allow: /
+Disallow: /api/
+Disallow: /studio
+Disallow: /tai-khoan
+Disallow: /gio-hang
+Disallow: /checkout
+Disallow: /thanh-toan
+Disallow: /don-hang
+Disallow: /admin
+Disallow: /owner
 
 Sitemap: https://melsou.com/sitemap.xml
