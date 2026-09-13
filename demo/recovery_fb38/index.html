@@ -4,12 +4,15 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>melsou — Gói tâm tình trong dáng hình thanh âm</title>
+<meta name="description" content="Chiếc máy ảnh có thể giữ lại hình dáng khoảnh khắc, nhưng lại vô tình bỏ quên âm thanh. Melsou hòa quyện giai điệu và kỷ vật để mỗi trang ảnh biết cất lời.">
+<link rel="canonical" href="https://melsou.com/">
 <link rel="icon" type="image/png" href="/favicon.png">
 <link rel="apple-touch-icon" href="/favicon.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Dancing+Script:wght@600;700&family=Caveat:wght@600;700&family=Pacifico&family=Lora:ital,wght@0,400;0,500;0,600;1,400;1,500;1,600&family=Montserrat:ital,wght@0,300;0,400;0,500;0,600;0,700;0,800;1,400&family=Playfair+Display:ital,wght@0,600;0,700;1,400;1,600&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="./styles.css">
+<link rel="stylesheet" href="/styles.css">
+<script src="/seo-routes.js"></script>
 <script async src="https://www.googletagmanager.com/gtag/js?id=G-BLKYGSHG2N"></script>
 <script>
   window.dataLayer = window.dataLayer || [];
@@ -38,10 +41,10 @@
       <span class="logo-sub">melody &amp; souvenir</span>
     </a>
     <ul class="nav-links">
-      <li><a href="javascript:void(0)" onclick="showPage('home')" id="navLinkAbout">Về Melsou</a></li>
-      <li><a href="javascript:void(0)" onclick="scrollToSection('values')" id="navLinkValues">Giá trị độc bản</a></li>
-      <li><a href="javascript:void(0)" onclick="scrollToSection('pricing')" id="navLinkPricing">Gói sản phẩm</a></li>
-      <li><a href="javascript:void(0)" onclick="showPage('templates')" id="navLinkTemplates">Thư viện Template</a></li>
+      <li><a href="/ve-melsou" id="navLinkAbout">Về Melsou</a></li>
+      <li><a href="/ve-melsou" id="navLinkValues">Giá trị độc bản</a></li>
+      <li><a href="/goi-san-pham" id="navLinkPricing">Gói sản phẩm</a></li>
+      <li><a href="/templates" id="navLinkTemplates">Thư viện Template</a></li>
       <li><a href="javascript:void(0)" onclick="scrollToSection('reviews-section')" id="navLinkReviews">Đánh giá</a></li>
       <li><a href="javascript:void(0)" onclick="scrollToSection('blog-section')" id="navLinkBlog">Câu chuyện</a></li>
     </ul>
@@ -93,9 +96,9 @@
   </div>
   <ul class="mnd-list">
     <li><a href="javascript:void(0)" onclick="mobileNavGo('home')" id="mndLinkHome">🏠 Trang chủ</a></li>
-    <li><a href="javascript:void(0)" onclick="mobileNavScroll('values')" id="mndLinkValues">✨ Bốn giá trị độc bản</a></li>
-    <li><a href="javascript:void(0)" onclick="mobileNavScroll('pricing')" id="mndLinkPricing">🏷️ Gói sản phẩm</a></li>
-    <li><a href="javascript:void(0)" onclick="mobileNavGo('templates')" id="mndLinkTemplates">🎨 Thư viện Template</a></li>
+    <li><a href="/ve-melsou" id="mndLinkValues">✨ Bốn giá trị độc bản</a></li>
+    <li><a href="/goi-san-pham" id="mndLinkPricing">🏷️ Gói sản phẩm</a></li>
+    <li><a href="/templates" id="mndLinkTemplates">🎨 Thư viện Template</a></li>
     <li><a href="javascript:void(0)" onclick="mobileNavScroll('reviews-section')" id="mndLinkReviews">💬 Trải nghiệm người dùng</a></li>
     <li><a href="javascript:void(0)" onclick="mobileNavScroll('blog-section')" id="mndLinkBlog">📖 Câu chuyện</a></li>
     <li><a href="javascript:void(0)" onclick="mobileNavGo('tracking')" id="mndLinkTracking">🔍 Tra cứu đơn hàng</a></li>
@@ -1633,23 +1636,23 @@
         <li><a href="javascript:void(0)" id="footerLinkMelody" onclick="selectPackage('melody', 119000)">Gói Melody</a></li>
         <li><a href="javascript:void(0)" id="footerLinkVoice" onclick="selectPackage('voice', 159000)">Gói Voice</a></li>
         <li><a href="javascript:void(0)" id="footerLinkSignature" onclick="selectPackage('signature', 199000)">Gói Signature</a></li>
-        <li><a href="javascript:void(0)" id="footerLinkTemplates" onclick="showPage('templates')">Thư viện Template</a></li>
+        <li><a href="/templates" id="footerLinkTemplates">Thư viện Template</a></li>
       </ul>
     </div>
     <div class="footer-col">
       <h4 id="footerHeadingSupport">Hỗ Trợ</h4>
       <ul>
         <li><a href="javascript:void(0)" id="footerLinkTracking" onclick="showPage('tracking')">Tra cứu đơn hàng</a></li>
-        <li><a href="javascript:void(0)" id="footerLinkWarranty" onclick="openWarrantyPolicyModal()">Chính sách bảo hành</a></li>
-        <li><a href="javascript:void(0)" id="footerLinkPrivacy" onclick="openPrivacyPolicyModal()">Chính sách bảo mật</a></li>
+        <li><a href="/chinh-sach-bao-hanh" id="footerLinkWarranty">Chính sách bảo hành</a></li>
+        <li><a href="/chinh-sach-bao-mat" id="footerLinkPrivacy">Chính sách bảo mật</a></li>
         <li><a href="tel:0931940512" id="footerLinkContactPhone">Liên hệ xưởng (0931.940.512)</a></li>
       </ul>
     </div>
     <div class="footer-col">
       <h4 id="footerHeadingBrand">Thương Hiệu</h4>
       <ul>
-        <li><a href="javascript:void(0)" id="footerLinkAbout" onclick="showPage('home')">Về Melsou</a></li>
-        <li><a href="javascript:void(0)" id="footerLinkValues" onclick="scrollToSection('values')">Giá trị cốt lõi</a></li>
+        <li><a href="/ve-melsou" id="footerLinkAbout">Về Melsou</a></li>
+        <li><a href="/ve-melsou" id="footerLinkValues">Giá trị cốt lõi</a></li>
         <li><a href="javascript:void(0)" id="footerLinkWorkshop">Xưởng in TP.HCM</a></li>
       </ul>
     </div>
@@ -1920,8 +1923,8 @@
 <!-- 🌟 MELSOU CONTEXT MENU (CANVA-STYLE RIGHT-CLICK & MORE) 🌟 -->
 <div id="melsouContextMenu" class="melsou-context-menu"></div>
 
-<script src="./app.js"></script>
+<script src="/app.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script src="./auth-client.js"></script>
+<script src="/auth-client.js"></script>
 </body>
 </html>
