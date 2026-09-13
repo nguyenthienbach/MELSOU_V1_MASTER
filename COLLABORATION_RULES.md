@@ -15,8 +15,8 @@ owner is the final decision-maker.
 
 | Area | Primary editor | What the other agent may do |
 |---|---|---|
-| `demo/index.html`, `demo/styles.css`, `demo/app.js`, visual assets and responsive UX | Antigravity | Read, review, and add a minimal integration hook only after logging it. Do not redesign or replace UI. |
-| `demo/auth-client.js`, `demo/server.mjs` API bridge | Codex | Antigravity may keep the script include and named hooks intact, but must not alter auth/session logic. |
+| `demo/recovery_fb38/index.html`, `demo/recovery_fb38/styles.css`, `demo/recovery_fb38/app.js`, visual assets and responsive UX | Antigravity | Read, review, and add a minimal integration hook only after logging it. Do not redesign or replace UI. |
+| `demo/recovery_fb38/auth-client.js`, `demo/server.mjs` API bridge | Codex | Antigravity may keep the script include and named hooks intact, but must not alter auth/session logic. |
 | `worker/`, `supabase/`, `tests/`, `wrangler.jsonc`, secret/config documentation | Codex | Antigravity may read only; never replace with a mock Worker or browser-only database. |
 | Product/business documentation and locked template data | Owner + Codex | Antigravity must ask before changing rules, prices, or templates. |
 
@@ -27,7 +27,7 @@ agent's files.
 
 Antigravity must preserve these UI-to-backend hooks while updating the UI:
 
-- `<script src="/auth-client.js"></script>` in `demo/index.html`.
+- `<script src="./auth-client.js"></script>` in `demo/recovery_fb38/index.html`.
 - `window.codexHandleNativeRegister({ username, password })` and
   `window.codexHandleNativeLogin({ username, password })` for canonical V1 auth.
 - `window.codexHandleForgotPassword({ email })` only for a verified linked email.
@@ -99,8 +99,9 @@ version merely because a new one exists.
 
 ## 7. Immediate current assignment
 
-- Antigravity: UI/UX only in `demo/index.html`, `demo/styles.css`,
-  `demo/app.js` and visual assets. Preserve the protected integration contract
+- Antigravity: UI/UX only in `demo/recovery_fb38/index.html`,
+  `demo/recovery_fb38/styles.css`, `demo/recovery_fb38/app.js` and visual assets.
+  Preserve the protected integration contract
   above.
 - Codex: Supabase, native auth/optional Google OAuth, API security, draft persistence, payment and
   test infrastructure. Preserve Antigravity's presentation layer.

@@ -350,6 +350,16 @@ function autoSaveToLocalStorage() {
 // Explicit, narrow integration surface for the authentication/persistence bridge.
 // `let ALBUM_DATA` is not a window property, so do not access it indirectly.
 window.melsouGetActiveDraft = () => ALBUM_DATA;
+window.melsouApplyCanonicalDraft = (draft) => {
+  if (!draft || !Array.isArray(draft.spreads)) return false;
+  ALBUM_DATA = Object.assign(getFreshAlbumData(), draft);
+  ALBUM_DATA.spreads.forEach(s => normalizeElementsToSafeArea(s));
+  ALBUM_DATA.extraSpreadsCount = ALBUM_DATA.spreads.filter(s => s.isCustomAdded).length;
+  localStorage.setItem('melsou_active_draft', JSON.stringify(ALBUM_DATA));
+  if (typeof renderStudioWorkspace === 'function') renderStudioWorkspace();
+  if (typeof updateCartBadge === 'function') updateCartBadge();
+  return true;
+};
 
 function loadFromLocalStorage() {
   try {
@@ -390,6 +400,9 @@ function showPage(pageId) {
     document.body.classList.add('page-studio-active');
     renderStudioWorkspace();
     adjustMobileStageScale();
+    if (isMobileViewport()) {
+      collapseFilmstripTray();
+    }
   } else {
     document.body.classList.remove('in-studio');
     document.body.classList.remove('studio-mode-active');
@@ -590,17 +603,10 @@ function handleUsernameLoginSubmit() {
   }
 
   // Contract hook for Codex backend
-  if (typeof window.codexHandleUsernameLogin === 'function') {
-    window.codexHandleUsernameLogin({ username, password });
+  if (typeof window.codexHandleNativeLogin === 'function') {
+    window.codexHandleNativeLogin({ username, password }).catch(() => {});
   } else {
-    // Polite contract fallback: emulate session locally so PO can verify guest-first checkout continuity
-    currentUser = { loggedIn: true, isGuest: false, name: username, username: username, email: '' };
-    updateHeaderUserUI();
-    closeAuthModal();
-    showToast(currentAppLanguage === 'en' ? `Welcome, ${username}!` : `Chào mừng bạn, ${username}!`);
-    if (ALBUM_DATA.cart && ALBUM_DATA.cart.length > 0) {
-      openCheckoutModal();
-    }
+    window.codexOnAuthError(currentAppLanguage === 'en' ? 'Backend authentication is unavailable.' : 'Backend xác thực chưa sẵn sàng.');
   }
 }
 
@@ -631,9 +637,9 @@ function handleUsernameRegisterSubmit() {
     if (errorMsg) errorMsg.textContent = currentAppLanguage === 'en' ? 'Username contains invalid characters (letters, numbers, underscores and dots only)' : 'Tên tài khoản chỉ được chứa chữ cái, số, dấu gạch dưới hoặc dấu chấm';
     return;
   }
-  if (password.length < 6) {
+  if (password.length < 12 || !/[A-Za-z]/.test(password) || !/\d/.test(password)) {
     if (errorBox) errorBox.style.display = 'flex';
-    if (errorMsg) errorMsg.textContent = currentAppLanguage === 'en' ? 'Password must be at least 6 characters' : 'Mật khẩu phải có tối thiểu 6 ký tự';
+    if (errorMsg) errorMsg.textContent = currentAppLanguage === 'en' ? 'Password must be at least 12 characters and contain a letter and a number' : 'Mật khẩu phải có tối thiểu 12 ký tự, gồm chữ và số';
     return;
   }
   if (password !== confirmPassword) {
@@ -643,17 +649,10 @@ function handleUsernameRegisterSubmit() {
   }
 
   // Contract hook for Codex backend
-  if (typeof window.codexHandleUsernameRegister === 'function') {
-    window.codexHandleUsernameRegister({ username, password });
+  if (typeof window.codexHandleNativeRegister === 'function') {
+    window.codexHandleNativeRegister({ username, password }).catch(() => {});
   } else {
-    // Polite contract fallback: emulate session locally so PO can verify guest-first checkout continuity
-    currentUser = { loggedIn: true, isGuest: false, name: username, username: username, email: '' };
-    updateHeaderUserUI();
-    closeAuthModal();
-    showToast(currentAppLanguage === 'en' ? `Account created! Welcome, ${username}` : `Tạo tài khoản thành công! Chào mừng ${username}`);
-    if (ALBUM_DATA.cart && ALBUM_DATA.cart.length > 0) {
-      openCheckoutModal();
-    }
+    window.codexOnAuthError(currentAppLanguage === 'en' ? 'Backend authentication is unavailable.' : 'Backend xác thực chưa sẵn sàng.');
   }
 }
 
@@ -696,11 +695,106 @@ window.codexOnAuthSuccess = function(userData) {
   }
 };
 
+// ── 🛡️ USER-FRIENDLY ERROR MAPPING ENGINE (UI TASK 06) ──
+function getUserFriendlyErrorMessage(error, defaultFallback = '') {
+  let rawCode = '';
+  let rawMessage = '';
+
+  if (typeof error === 'string') {
+    rawCode = error.trim();
+    rawMessage = error.trim();
+  } else if (error && typeof error === 'object') {
+    rawCode = String(error.code || error.error || '').trim();
+    rawMessage = String(error.message || '').trim();
+    // If code is empty but message is an identifier like UNAUTHENTICATED or MISSING_REQUIRED_SLOT
+    if (!rawCode && rawMessage && /^[A-Za-z0-9_:-]+$/.test(rawMessage)) {
+      rawCode = rawMessage;
+    }
+  }
+
+  // Developer logging (never swallow)
+  console.error('[Melsou Technical Error]', {
+    code: rawCode,
+    message: rawMessage,
+    originalError: error
+  });
+
+  const isEn = (typeof currentAppLanguage !== 'undefined' && currentAppLanguage === 'en');
+  const codeUpper = (rawCode || rawMessage).toUpperCase();
+  const msgUpper = rawMessage.toUpperCase();
+  const matches = (target) => codeUpper === target || msgUpper === target || codeUpper.startsWith(target + ':') || msgUpper.startsWith(target + ':') || codeUpper.startsWith(target) || msgUpper.startsWith(target);
+
+  // Canonical Melsou Error Mappings
+  if (matches('INVALID_SHIPMENTS') || matches('INVALID_SHIPMENT')) {
+    return isEn ? 'Please check and verify your shipping details.' : 'Vui lòng kiểm tra lại thông tin giao hàng.';
+  }
+  if (matches('UNAUTHENTICATED') || matches('UNAUTHORIZED') || matches('AUTH_EXPIRED')) {
+    return isEn ? 'Your session has expired. Please log in again.' : 'Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.';
+  }
+  if (matches('PREFLIGHT_BLOCKING_ERROR')) {
+    return isEn ? 'Your design is missing some required content.' : 'Thiết kế của bạn còn thiếu một số nội dung bắt buộc.';
+  }
+  if (matches('MISSING_REQUIRED_SLOT')) {
+    return isEn ? 'A required slot in your design is still empty.' : 'Một vị trí bắt buộc trong thiết kế vẫn chưa có nội dung.';
+  }
+  if (codeUpper === 'PAYMENT_NOT_CONFIGURED' || codeUpper === 'PAYMENT_MODE_NOT_CONFIGURED') {
+    return isEn ? 'Payment system is currently under maintenance.' : 'Hệ thống thanh toán SePay đang được bảo trì.';
+  }
+  if (codeUpper === 'ORDER_NOT_CREATED') {
+    return isEn ? 'Order could not be created. Please try again.' : 'Đơn hàng chưa được tạo. Vui lòng thử lại.';
+  }
+  if (codeUpper === 'INVALID_CREDENTIALS' || codeUpper === 'INVALID_PASSWORD' || codeUpper === 'INVALID_USERNAME') {
+    return isEn ? 'Incorrect username or password.' : 'Tên đăng nhập hoặc mật khẩu không chính xác.';
+  }
+  if (codeUpper === 'USERNAME_EXISTS' || codeUpper === 'USER_ALREADY_EXISTS') {
+    return isEn ? 'This username is already taken. Please choose another.' : 'Tên đăng nhập này đã được sử dụng. Vui lòng chọn tên khác.';
+  }
+  if (codeUpper === 'RATE_LIMIT_NOT_CONFIGURED') {
+    return isEn ? 'Rate limit protection is not configured on server.' : 'Máy chủ chưa cấu hình bảo vệ chống brute-force.';
+  }
+  if (codeUpper === 'RATE_LIMITED' || codeUpper === 'TOO_MANY_REQUESTS') {
+    return isEn ? 'Too many requests. Please try again in a few moments.' : 'Bạn đã thao tác quá nhanh. Vui lòng thử lại sau giây lát.';
+  }
+  if (codeUpper === 'RECOVERY_EMAIL_REQUIRED') {
+    return isEn ? 'Account does not have a linked recovery email.' : 'Tài khoản chưa liên kết email khôi phục.';
+  }
+  if (codeUpper === 'PROJECT_DOCUMENT_TOO_LARGE' || codeUpper === 'PAYLOAD_TOO_LARGE') {
+    return isEn ? 'Design file is too large. Please reduce photo sizes.' : 'Kích thước tệp thiết kế quá lớn. Vui lòng giảm dung lượng ảnh.';
+  }
+  if (codeUpper === 'ASSET_UPLOAD_FAILED') {
+    return isEn ? 'Failed to upload photo to server. Please try again.' : 'Tải ảnh lên máy chủ không thành công. Vui lòng thử lại.';
+  }
+  if (codeUpper === 'INVALID_CART_CONFIGURATION') {
+    return isEn ? 'Invalid cart configuration.' : 'Thông tin cấu hình giỏ hàng không hợp lệ.';
+  }
+  if (codeUpper === 'INVALID_SPOTIFY_SELECTION') {
+    return isEn ? 'Selected Spotify song is invalid.' : 'Bài hát Spotify đã chọn không hợp lệ.';
+  }
+  if (codeUpper === 'INVALID_VOICE_SELECTION') {
+    return isEn ? 'Voice recording is invalid.' : 'Tệp thu âm giọng nói không hợp lệ.';
+  }
+  if (codeUpper.includes('NETWORK_ERROR') || rawMessage.includes('Failed to fetch')) {
+    return isEn ? 'Cannot connect to server. Please check your internet connection.' : 'Không thể kết nối máy chủ. Vui lòng kiểm tra lại đường truyền internet.';
+  }
+
+  // If rawCode/rawMessage looks like a technical error code (UPPERCASE, ContractError, etc.)
+  const isTechnicalCode = /^[A-Z0-9_:-]+$/.test(rawCode) || /^[A-Z0-9_:-]+$/.test(rawMessage) || /^(ContractError|Error|TypeError|SyntaxError):/.test(rawMessage);
+  if (isTechnicalCode) {
+    return defaultFallback || (isEn ? 'An error occurred while processing. Please try again.' : 'Đã có lỗi xảy ra trong quá trình xử lý. Vui lòng thử lại.');
+  }
+
+  // If already a human-friendly string (contains spaces and lowercase letters)
+  return rawMessage || defaultFallback || (isEn ? 'An error occurred. Please try again.' : 'Đã có lỗi xảy ra. Vui lòng thử lại.');
+}
+
+window.getUserFriendlyErrorMessage = getUserFriendlyErrorMessage;
+
 window.codexOnAuthError = function(errMsg) {
   const errorBox = document.getElementById('authModalErrorBox');
   const errorMsg = document.getElementById('authModalErrorMessage');
   if (errorBox) errorBox.style.display = 'flex';
-  if (errorMsg) errorMsg.textContent = errMsg || (currentAppLanguage === 'en' ? 'Authentication failed. Please try again.' : 'Không thể xác thực. Vui lòng thử lại.');
+  const friendly = getUserFriendlyErrorMessage(errMsg, currentAppLanguage === 'en' ? 'Authentication failed. Please try again.' : 'Không thể xác thực. Vui lòng thử lại.');
+  if (errorMsg) errorMsg.textContent = friendly;
 };
 
 function handleForgotPasswordSubmit() {
@@ -1373,7 +1467,8 @@ function checkElementSafeArea(domItem, el) {
   const curSpread = ALBUM_DATA.spreads ? ALBUM_DATA.spreads[ALBUM_DATA.activeSpreadIndex] : null;
   const isMobileSingle = (isMobileViewport() && curSpread && !curSpread.isClosedCover && !curSpread.isClosedBack);
 
-  const safeMargin = 20;
+  // Print safe boundary matches the red dashed safe-guides layer (inset: 16px)
+  const safeMargin = 16;
   const elW = el.width || (el.type === 'sticker' ? 50 : 200);
   const elH = el.frameStyle === 'oval' ? elW : (el.type === 'sticker' ? 50 : Math.round(elW * 0.65) + (el.frameStyle === 'clean' ? 0 : 30));
   const rad = Math.abs((el.rotate || 0) * Math.PI / 180);
@@ -1398,22 +1493,13 @@ function checkElementSafeArea(domItem, el) {
       const maxY = minY + boundH;
       isViolating = (minX < safeMargin || maxX > (440 - safeMargin) || minY < safeMargin || maxY > (460 - safeMargin));
     } else {
-      // FB63: 2-page desktop spread page-local clamping in canonical [0..860] coordinate system
-      const elMid = (el.x || 0) + (el.width || 220) / 2;
-      const isOnRight = (elMid >= 430);
+      // 180° seamless layflat interior spread (width 860px, height 460px)
+      // Visual safe-area guideline is marked by the red dashed boundary [16px .. 844px] horizontally and [16px .. 444px] vertically
       const minX = el.x - (boundW - elW) / 2;
       const maxX = minX + boundW;
       const minY = el.y - (boundH - elH) / 2;
       const maxY = minY + boundH;
-      const spineMargin = 8;
-
-      if (!isOnRight) {
-        // Left page: [safeMargin .. 430 - spineMargin]
-        isViolating = (minX < safeMargin || maxX > (430 - spineMargin) || minY < safeMargin || maxY > (460 - safeMargin));
-      } else {
-        // Right page: [430 + spineMargin .. 860 - safeMargin]
-        isViolating = (minX < (430 + spineMargin) || maxX > (860 - safeMargin) || minY < safeMargin || maxY > (460 - safeMargin));
-      }
+      isViolating = (minX < safeMargin || maxX > (860 - safeMargin) || minY < safeMargin || maxY > (460 - safeMargin));
     }
   }
 
@@ -1598,6 +1684,18 @@ function selectCanvasItem(id) {
   }
 }
 
+function deselectCanvasItem(event) {
+  if (event && typeof event.stopPropagation === 'function') {
+    event.stopPropagation();
+  }
+  document.querySelectorAll('.freeform-canvas-item').forEach(el => el.classList.remove('active'));
+  ALBUM_DATA.selectedElementId = null;
+  ALBUM_DATA.activePhotoSlot = null;
+  closeContextMenu();
+  clearStudioSelection();
+}
+window.deselectCanvasItem = deselectCanvasItem;
+
 function openMoreMenu(elId, event) {
   if (event) {
     event.preventDefault();
@@ -1744,6 +1842,7 @@ document.addEventListener('keydown', function(e) {
   if (e.key === 'Escape') {
     closeContextMenu();
     if (ALBUM_DATA.cropEditingId) exitImageAdjustmentMode();
+    deselectCanvasItem();
   } else if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'c') {
     if (ALBUM_DATA.selectedElementId && !document.activeElement.isContentEditable) {
       copyElement(ALBUM_DATA.selectedElementId);
@@ -1787,6 +1886,7 @@ function enterImageAdjustmentMode(elId, event) {
   closeContextMenu();
   ALBUM_DATA.cropEditingId = elId;
   ALBUM_DATA.activePhotoSlot = 'el_' + elId;
+  selectCanvasItem(elId);
   renderActiveSpread();
 }
 
@@ -1797,96 +1897,167 @@ function exitImageAdjustmentMode(event) {
   renderActiveSpread();
 }
 
-function resetFrameCrop(elId, event) {
-  if (event) event.stopPropagation();
-  const spread = ALBUM_DATA.spreads[ALBUM_DATA.activeSpreadIndex];
-  const el = spread.elements ? spread.elements.find(e => String(e.id) === String(elId)) : null;
-  if (el) {
-    el.crop = { zoom: 1.0, offsetX: 0, offsetY: 0, rotate: 0 };
-    autoSaveToLocalStorage();
-    renderActiveSpread();
+function updateCropZoom(elId, zoomVal) {
+  const spread = ALBUM_DATA.spreads ? ALBUM_DATA.spreads[ALBUM_DATA.activeSpreadIndex] : null;
+  const el = spread?.elements ? spread.elements.find(e => String(e.id) === String(elId)) : null;
+  if (!el) return;
+  if (!el.crop) el.crop = { zoom: 1.0, offsetX: 0, offsetY: 0, rotate: 0 };
+  el.crop.zoom = Math.max(1.0, Math.min(3.0, parseFloat(zoomVal) || 1.0));
+
+  const frameW = el.width || 220;
+  const frameH = el.frameStyle === 'oval' ? frameW : Math.round(frameW * 0.65);
+  const maxOffsetX = Math.max(0, ((el.crop.zoom - 1) * frameW) / 2);
+  const maxOffsetY = Math.max(0, ((el.crop.zoom - 1) * frameH) / 2);
+  el.crop.offsetX = Math.max(-maxOffsetX, Math.min(maxOffsetX, el.crop.offsetX || 0));
+  el.crop.offsetY = Math.max(-maxOffsetY, Math.min(maxOffsetY, el.crop.offsetY || 0));
+
+  const img = document.getElementById('photoImg_el_' + elId);
+  if (img) {
+    img.style.transform = `translate(${el.crop.offsetX}px, ${el.crop.offsetY}px) scale(${el.crop.zoom}) rotate(${el.crop.rotate || 0}deg)`;
   }
+
+  // Sync sliders and photoTransforms
+  if (ALBUM_DATA.activePhotoSlot === 'el_' + elId) {
+    const globalSlider = document.getElementById('photoZoomSlider');
+    if (globalSlider) globalSlider.value = el.crop.zoom;
+    if (!ALBUM_DATA.photoTransforms) ALBUM_DATA.photoTransforms = {};
+    ALBUM_DATA.photoTransforms['el_' + elId] = {
+      zoom: el.crop.zoom,
+      rotate: el.crop.rotate || 0,
+      x: el.crop.offsetX,
+      y: el.crop.offsetY
+    };
+  }
+  autoSaveToLocalStorage();
 }
+const applyFrameCropZoom = updateCropZoom;
 
-function rotateFrameCropImage(elId, event) {
+function rotateCropImage(elId, event) {
   if (event) event.stopPropagation();
-  const spread = ALBUM_DATA.spreads[ALBUM_DATA.activeSpreadIndex];
-  const el = spread.elements ? spread.elements.find(e => String(e.id) === String(elId)) : null;
-  if (el) {
-    if (!el.crop) el.crop = { zoom: 1.0, offsetX: 0, offsetY: 0, rotate: 0 };
-    el.crop.rotate = ((el.crop.rotate || 0) + 90) % 360;
-    el.crop.offsetX = 0;
-    el.crop.offsetY = 0;
-    autoSaveToLocalStorage();
-    renderActiveSpread();
+  const spread = ALBUM_DATA.spreads ? ALBUM_DATA.spreads[ALBUM_DATA.activeSpreadIndex] : null;
+  const el = spread?.elements ? spread.elements.find(e => String(e.id) === String(elId)) : null;
+  if (!el) return;
+  const preSnap = JSON.stringify(ALBUM_DATA);
+  if (!el.crop) el.crop = { zoom: 1.0, offsetX: 0, offsetY: 0, rotate: 0 };
+  el.crop.rotate = ((el.crop.rotate || 0) + 90) % 360;
+
+  const img = document.getElementById('photoImg_el_' + elId);
+  if (img) {
+    img.style.transform = `translate(${el.crop.offsetX || 0}px, ${el.crop.offsetY || 0}px) scale(${el.crop.zoom || 1}) rotate(${el.crop.rotate}deg)`;
   }
+  if (ALBUM_DATA.activePhotoSlot === 'el_' + elId) {
+    if (!ALBUM_DATA.photoTransforms) ALBUM_DATA.photoTransforms = {};
+    ALBUM_DATA.photoTransforms['el_' + elId] = {
+      zoom: el.crop.zoom,
+      rotate: el.crop.rotate,
+      x: el.crop.offsetX || 0,
+      y: el.crop.offsetY || 0
+    };
+  }
+  pushStudioSnapshotState(preSnap, currentAppLanguage === 'en' ? 'Rotate photo inside frame' : 'Xoay ảnh trong khung');
+  autoSaveToLocalStorage();
 }
+const rotateFrameCropImage = rotateCropImage;
 
-function applyFrameCropZoom(elId, zoomVal) {
-  const spread = ALBUM_DATA.spreads[ALBUM_DATA.activeSpreadIndex];
-  const el = spread.elements ? spread.elements.find(e => String(e.id) === String(elId)) : null;
-  if (el) {
-    if (!el.crop) el.crop = { zoom: 1.0, offsetX: 0, offsetY: 0, rotate: 0 };
-    el.crop.zoom = Math.max(1.0, parseFloat(zoomVal));
+function resetCropTransform(elId, event) {
+  if (event) event.stopPropagation();
+  const spread = ALBUM_DATA.spreads ? ALBUM_DATA.spreads[ALBUM_DATA.activeSpreadIndex] : null;
+  const el = spread?.elements ? spread.elements.find(e => String(e.id) === String(elId)) : null;
+  if (!el) return;
+  const preSnap = JSON.stringify(ALBUM_DATA);
+  el.crop = { zoom: 1.0, offsetX: 0, offsetY: 0, rotate: 0 };
 
-    // Giới hạn biên độ pan để tuyệt đối không lộ khoảng trống
-    const frameW = el.width || 220;
-    const frameH = Math.round(frameW * 0.65);
-    const maxOffsetX = Math.max(0, ((el.crop.zoom - 1) * frameW) / 2);
-    const maxOffsetY = Math.max(0, ((el.crop.zoom - 1) * frameH) / 2);
-    el.crop.offsetX = Math.max(-maxOffsetX, Math.min(maxOffsetX, el.crop.offsetX));
-    el.crop.offsetY = Math.max(-maxOffsetY, Math.min(maxOffsetY, el.crop.offsetY));
-
-    const img = document.getElementById('photoImg_el_' + elId);
-    if (img) {
-      img.style.transform = `rotate(${el.crop.rotate || 0}deg) scale(${el.crop.zoom}) translate(${el.crop.offsetX}px, ${el.crop.offsetY}px)`;
-    }
+  const img = document.getElementById('photoImg_el_' + elId);
+  if (img) {
+    img.style.transform = 'translate(0px, 0px) scale(1) rotate(0deg)';
   }
+  const itemEl = document.getElementById('canvaEl_' + elId);
+  const slider = itemEl?.querySelector('.cft-slider');
+  if (slider) slider.value = 1;
+  const globalSlider = document.getElementById('photoZoomSlider');
+  if (globalSlider && ALBUM_DATA.activePhotoSlot === 'el_' + elId) globalSlider.value = 1;
+
+  if (ALBUM_DATA.activePhotoSlot === 'el_' + elId) {
+    if (!ALBUM_DATA.photoTransforms) ALBUM_DATA.photoTransforms = {};
+    ALBUM_DATA.photoTransforms['el_' + elId] = { zoom: 1, rotate: 0, x: 0, y: 0 };
+  }
+  pushStudioSnapshotState(preSnap, currentAppLanguage === 'en' ? 'Center photo' : 'Căn giữa ảnh');
+  autoSaveToLocalStorage();
+}
+const resetFrameCrop = resetCropTransform;
+
+function handleCropWheelZoom(event, elId) {
+  const spread = ALBUM_DATA.spreads ? ALBUM_DATA.spreads[ALBUM_DATA.activeSpreadIndex] : null;
+  const el = spread?.elements ? spread.elements.find(e => String(e.id) === String(elId)) : null;
+  if (!el || ALBUM_DATA.cropEditingId !== elId) return;
+  const currentZoom = el.crop?.zoom || 1.0;
+  const delta = event.deltaY < 0 ? 0.08 : -0.08;
+  const newZoom = Math.max(1.0, Math.min(3.0, currentZoom + delta));
+  updateCropZoom(elId, newZoom);
+  const itemEl = document.getElementById('canvaEl_' + elId);
+  const slider = itemEl?.querySelector('.cft-slider');
+  if (slider) slider.value = newZoom;
 }
 
 function initImagePanningInsideFrame(e, elId) {
   e.stopPropagation();
-  const spread = ALBUM_DATA.spreads[ALBUM_DATA.activeSpreadIndex];
-  const el = spread.elements ? spread.elements.find(item => String(item.id) === String(elId)) : null;
+  e.preventDefault();
+  const spread = ALBUM_DATA.spreads ? ALBUM_DATA.spreads[ALBUM_DATA.activeSpreadIndex] : null;
+  const el = spread?.elements ? spread.elements.find(item => String(item.id) === String(elId)) : null;
   if (!el || ALBUM_DATA.cropEditingId !== elId) return;
 
   if (!el.crop) el.crop = { zoom: 1.0, offsetX: 0, offsetY: 0, rotate: 0 };
 
+  const panPreSnapshot = JSON.stringify(ALBUM_DATA);
   currentPanElement = el;
   panStartX = e.clientX;
   panStartY = e.clientY;
   panStartOffsetX = el.crop.offsetX || 0;
   panStartOffsetY = el.crop.offsetY || 0;
+  let hasPanned = false;
+
+  const viewport = document.getElementById('slot_el_' + elId);
+  try { if (viewport?.setPointerCapture) viewport.setPointerCapture(e.pointerId); } catch(err) {}
 
   function doPan(ev) {
     if (!currentPanElement) return;
-    const dx = ev.clientX - panStartX;
-    const dy = ev.clientY - panStartY;
+    const s = currentStageScale || 1;
+    const dx = (ev.clientX - panStartX) / s;
+    const dy = (ev.clientY - panStartY) / s;
+    if (Math.hypot(dx, dy) > 2) hasPanned = true;
 
     const frameW = currentPanElement.width || 220;
-    const frameH = Math.round(frameW * 0.65);
-    const maxOffsetX = Math.max(0, ((currentPanElement.crop.zoom - 1) * frameW) / 2);
-    const maxOffsetY = Math.max(0, ((currentPanElement.crop.zoom - 1) * frameH) / 2);
+    const frameH = currentPanElement.frameStyle === 'oval' ? frameW : Math.round(frameW * 0.65);
+    const zoom = Math.max(1.0, currentPanElement.crop.zoom || 1.0);
+    const maxOffsetX = Math.max(0, ((zoom - 1) * frameW) / 2);
+    const maxOffsetY = Math.max(0, ((zoom - 1) * frameH) / 2);
 
     currentPanElement.crop.offsetX = Math.max(-maxOffsetX, Math.min(maxOffsetX, panStartOffsetX + dx));
     currentPanElement.crop.offsetY = Math.max(-maxOffsetY, Math.min(maxOffsetY, panStartOffsetY + dy));
 
     const img = document.getElementById('photoImg_el_' + elId);
     if (img) {
-      img.style.transform = `rotate(${currentPanElement.crop.rotate || 0}deg) scale(${currentPanElement.crop.zoom}) translate(${currentPanElement.crop.offsetX}px, ${currentPanElement.crop.offsetY}px)`;
+      img.style.transform = `translate(${currentPanElement.crop.offsetX}px, ${currentPanElement.crop.offsetY}px) scale(${zoom}) rotate(${currentPanElement.crop.rotate || 0}deg)`;
     }
   }
 
-  function stopPan() {
+  function stopPan(ev) {
     document.removeEventListener('pointermove', doPan);
     document.removeEventListener('pointerup', stopPan);
+    document.removeEventListener('pointercancel', stopPan);
+    try { if (viewport?.releasePointerCapture) viewport.releasePointerCapture(e.pointerId); } catch(err) {}
     currentPanElement = null;
-    autoSaveToLocalStorage();
+    if (hasPanned) {
+      pushStudioSnapshotState(panPreSnapshot, currentAppLanguage === 'en' ? 'Reposition photo' : 'Căn chỉnh vị trí ảnh');
+      autoSaveToLocalStorage();
+    }
   }
 
   document.addEventListener('pointermove', doPan);
   document.addEventListener('pointerup', stopPan);
+  document.addEventListener('pointercancel', stopPan);
 }
+const initPanCropImage = initImagePanningInsideFrame;
 
 // ── RENDER PHYSICAL 3D ALBUM SPREAD ──
 
@@ -1921,9 +2092,61 @@ function normalizeElementsToSafeArea(spread, customFmt) {
   });
 }
 
+// ── ROBUST IMAGE PLACEHOLDER, LOADING & BROKEN-IMAGE HANDLERS ──
+function handleSlotImageLoad(imgEl) {
+  if (!imgEl) return;
+  imgEl.style.opacity = '1';
+  imgEl.style.display = 'block';
+  const container = imgEl.parentElement;
+  if (container) {
+    const loading = container.querySelector('.slot-loading-placeholder');
+    if (loading) loading.style.display = 'none';
+    const err = container.querySelector('.slot-error-placeholder');
+    if (err) err.remove();
+  }
+}
+
+function handleSlotImageError(imgEl, slotKey) {
+  if (!imgEl) return;
+  imgEl.style.display = 'none';
+  const container = imgEl.parentElement;
+  if (!container) return;
+  const loading = container.querySelector('.slot-loading-placeholder');
+  if (loading) loading.style.display = 'none';
+
+  if (!container.querySelector('.slot-error-placeholder')) {
+    const isEn = (currentAppLanguage === 'en');
+    const errDiv = document.createElement('div');
+    errDiv.className = 'slot-error-placeholder';
+    errDiv.innerHTML = `
+      <span style="font-size:20px;margin-bottom:2px">⚠️</span>
+      <span style="font-size:11px;font-weight:700">${isEn ? 'Unable to load photo' : 'Không thể tải ảnh'}</span>
+      <span style="font-size:10px;color:#be123c;margin:2px 0 6px">${isEn ? 'Link broken or awaiting private storage' : 'Liên kết hỏng hoặc chờ kho lưu trữ'}</span>
+      <button class="btn-primary" onclick="triggerDirectUpload('${slotKey}', event)" style="padding:5px 12px;font-size:11px;background:#e11d48;border-radius:6px;cursor:pointer;z-index:10;box-shadow:0 2px 6px rgba(0,0,0,0.15)">
+        ${isEn ? '📷 Replace photo' : '📷 Đổi ảnh khác'}
+      </button>
+    `;
+    container.appendChild(errDiv);
+  }
+}
+
+function checkCachedSlotImages() {
+  setTimeout(() => {
+    document.querySelectorAll('.photo-img-layer').forEach(img => {
+      const slotContainer = img.parentElement;
+      const slotId = slotContainer ? slotContainer.id.replace('slot_', '') : (img.id ? img.id.replace('photoImg_', '') : '');
+      if (img.complete) {
+        if (img.naturalWidth > 0) {
+          handleSlotImageLoad(img);
+        } else if (img.getAttribute('src')) {
+          handleSlotImageError(img, slotId);
+        }
+      }
+    });
+  }, 40);
+}
+
 function renderActiveSpread() {
-  const curSpread = ALBUM_DATA.spreads[ALBUM_DATA.activeSpreadIndex];
-  if (curSpread) normalizeElementsToSafeArea(curSpread);
   const spread = ALBUM_DATA.spreads[ALBUM_DATA.activeSpreadIndex];
   const isEn = (currentAppLanguage === 'en');
   const isMobile = isMobileViewport();
@@ -1962,15 +2185,36 @@ function renderActiveSpread() {
           <span style="font-size:9.5px;font-weight:800;letter-spacing:1.5px;color:var(--gray);background:white;padding:3px 8px;border-radius:100px">${isEn ? 'FRONT COVER (3D)' : 'BÌA TRƯỚC (COVER 3D)'}</span>
         </div>
 
-        <div class="interactive-photo-slot" id="slot_coverImg" style="height:240px;margin:10px 0"
-             onclick="openPhotoCropToolbar('coverImg', event)"
-             ondragover="handleSlotDragOver(event)" ondragleave="handleSlotDragLeave(event)" ondrop="handleSlotDrop(event, 'coverImg')">
-          <img src="${spread.coverImg || ''}" id="photoImg_coverImg" class="photo-img-layer" alt="Cover Photo">
+        ${spread.coverImg ? `
+          <div class="interactive-photo-slot" id="slot_coverImg" style="height:240px;margin:10px 0;position:relative;overflow:hidden;border-radius:8px"
+               onclick="openPhotoCropToolbar('coverImg', event)"
+               ondragover="handleSlotDragOver(event)" ondragleave="handleSlotDragLeave(event)" ondrop="handleSlotDrop(event, 'coverImg')">
+            <div class="slot-loading-placeholder">
+              <div class="slot-loading-spinner"></div>
+              <span>${isEn ? 'Loading photo...' : 'Đang tải ảnh...'}</span>
+            </div>
+            <img src="${spread.coverImg}" id="photoImg_coverImg" class="photo-img-layer" alt="Cover Photo"
+                 onload="handleSlotImageLoad(this)" onerror="handleSlotImageError(this, 'coverImg')">
 
-          <button class="btn-outline" onclick="triggerDirectUpload('coverImg', event)" style="position:absolute;bottom:10px;left:50%;transform:translateX(-50%);padding:6px 14px;font-size:12px;background:rgba(255,255,255,0.95);box-shadow:0 4px 10px rgba(0,0,0,0.2)">
-            ${isEn ? '📷 Change Front Photo' : '📷 Đổi Ảnh Bìa Trước'}
-          </button>
-        </div>
+            <button class="btn-outline" onclick="triggerDirectUpload('coverImg', event)" style="position:absolute;bottom:10px;left:50%;transform:translateX(-50%);padding:6px 14px;font-size:12px;background:rgba(255,255,255,0.95);box-shadow:0 4px 10px rgba(0,0,0,0.2);z-index:10">
+              ${isEn ? '📷 Change Front Photo' : '📷 Đổi Ảnh Bìa Trước'}
+            </button>
+          </div>
+        ` : `
+          <div class="canva-frame-placeholder" id="slot_coverImg" style="height:240px;margin:10px 0;border-radius:8px;position:relative"
+               onclick="triggerDirectUpload('coverImg', event)"
+               ondragover="handleSlotDragOver(event)" ondragleave="handleSlotDragLeave(event)" ondrop="handleSlotDrop(event, 'coverImg')"
+               title="${isEn ? 'Drop photo here or click to choose' : 'Thả ảnh vào đây hoặc bấm để chọn ảnh bìa trước'}">
+            <div class="cfp-cloud"></div>
+            <div class="cfp-hill"></div>
+            <span style="font-size:32px;z-index:2">🖼️</span>
+            <span style="font-size:12px;font-weight:800;z-index:2;margin-top:4px">${isEn ? 'Choose Front Cover Photo' : 'Chọn Ảnh Bìa Trước'}</span>
+            <button class="btn-primary" onclick="triggerDirectUpload('coverImg', event)" style="z-index:2;margin-top:8px;padding:6px 14px;font-size:11.5px">
+              ${isEn ? '📷 Upload Photo' : '📷 Tải ảnh lên'}
+            </button>
+            <div class="photo-drop-hint-overlay">${isEn ? '✨ Drop photo here' : '✨ Thả ảnh vào đây'}</div>
+          </div>
+        `}
 
         <div>
           <div class="pb-editable-text" contenteditable="true" onblur="updateLiveAlbumTitle(this.innerText)" style="font-family:'Lora',serif;font-size:24px;font-weight:800;color:var(--red)">
@@ -1996,14 +2240,35 @@ function renderActiveSpread() {
           <div style="font-size:9.5px;letter-spacing:1.5px;color:var(--gray);margin-top:2px">${isEn ? 'BACK COVER (ISD1820 VOICE CHIP)' : 'BÌA SAU (GẮN CHIP VOICE ISD1820)'}</div>
         </div>
 
-        <div class="interactive-photo-slot" id="slot_backImg" style="height:140px;margin:8px 0"
-             onclick="openPhotoCropToolbar('backImg', event)"
-             ondragover="handleSlotDragOver(event)" ondragleave="handleSlotDragLeave(event)" ondrop="handleSlotDrop(event, 'backImg')">
-          <img src="${spread.backImg || ''}" id="photoImg_backImg" class="photo-img-layer" alt="Back Cover Photo">
-          <button class="btn-outline" onclick="triggerDirectUpload('backImg', event)" style="position:absolute;bottom:6px;left:50%;transform:translateX(-50%);padding:4px 10px;font-size:11px;background:rgba(255,255,255,0.9)">
-            ${isEn ? '📷 Change Back Photo' : '📷 Đổi Ảnh Bìa Sau'}
-          </button>
-        </div>
+        ${spread.backImg ? `
+          <div class="interactive-photo-slot" id="slot_backImg" style="height:140px;margin:8px 0;position:relative;overflow:hidden;border-radius:8px"
+               onclick="openPhotoCropToolbar('backImg', event)"
+               ondragover="handleSlotDragOver(event)" ondragleave="handleSlotDragLeave(event)" ondrop="handleSlotDrop(event, 'backImg')">
+            <div class="slot-loading-placeholder">
+              <div class="slot-loading-spinner"></div>
+              <span>${isEn ? 'Loading photo...' : 'Đang tải ảnh...'}</span>
+            </div>
+            <img src="${spread.backImg}" id="photoImg_backImg" class="photo-img-layer" alt="Back Cover Photo"
+                 onload="handleSlotImageLoad(this)" onerror="handleSlotImageError(this, 'backImg')">
+            <button class="btn-outline" onclick="triggerDirectUpload('backImg', event)" style="position:absolute;bottom:6px;left:50%;transform:translateX(-50%);padding:4px 10px;font-size:11px;background:rgba(255,255,255,0.9);z-index:10">
+              ${isEn ? '📷 Change Back Photo' : '📷 Đổi Ảnh Bìa Sau'}
+            </button>
+          </div>
+        ` : `
+          <div class="canva-frame-placeholder" id="slot_backImg" style="height:140px;margin:8px 0;border-radius:8px;position:relative"
+               onclick="triggerDirectUpload('backImg', event)"
+               ondragover="handleSlotDragOver(event)" ondragleave="handleSlotDragLeave(event)" ondrop="handleSlotDrop(event, 'backImg')"
+               title="${isEn ? 'Drop photo here or click to choose' : 'Thả ảnh vào đây hoặc bấm để chọn ảnh bìa sau'}">
+            <div class="cfp-cloud"></div>
+            <div class="cfp-hill"></div>
+            <span style="font-size:24px;z-index:2">🖼️</span>
+            <span style="font-size:11px;font-weight:800;z-index:2;margin-top:2px">${isEn ? 'Choose Back Cover Photo' : 'Chọn Ảnh Bìa Sau'}</span>
+            <button class="btn-primary" onclick="triggerDirectUpload('backImg', event)" style="z-index:2;margin-top:6px;padding:4px 12px;font-size:11px">
+              ${isEn ? '📷 Upload Photo' : '📷 Tải ảnh lên'}
+            </button>
+            <div class="photo-drop-hint-overlay">${isEn ? '✨ Drop photo here' : '✨ Thả ảnh vào đây'}</div>
+          </div>
+        `}
 
         ${hasVoice ? `
           <div style="background:var(--red-light);border:2px solid var(--red);border-radius:14px;padding:14px;cursor:pointer" onclick="playRealRecordedVoice()">
@@ -2101,6 +2366,7 @@ function renderActiveSpread() {
   renderFilmstripTray();
   applyAllSavedTransforms();
   adjustMobileStageScale();
+  checkCachedSlotImages();
 }
 
 function renderElementsOnSpreadOverlay(spread) {
@@ -2143,27 +2409,30 @@ function renderElementsOnSpreadOverlay(spread) {
       if (isPhoto) {
         if (el.img) {
           compactToolbarHtml = `
-            <div class="element-action-toolbar" style="${counterRotateStyle}">
-              <button class="eat-btn" onclick="enterImageAdjustmentMode(${el.id}, event)" title="${isEn ? 'Adjust & Crop Photo' : 'Chỉnh sửa & Cắt ảnh'}">${isEn ? '✂️ Edit Photo' : '✂️ Chỉnh ảnh'}</button>
-              <button class="eat-btn" onclick="triggerDirectUpload('el_${el.id}', event)" title="${isEn ? 'Replace photo' : 'Đổi ảnh khác'}">${isEn ? '📷 Replace' : '📷 Đổi ảnh'}</button>
-              <button class="eat-btn" onclick="openMoreMenu(${el.id}, event)" title="${isEn ? 'More options (Layers, Align, Lock, Duplicate)' : 'Thêm tùy chọn (Lớp, Căn gióng, Khóa, Nhân bản)'}">${isEn ? '⋯ More' : '⋯ Thêm'}</button>
-              <button class="eat-btn danger" onclick="removeSpreadElement(${el.id})" title="${isEn ? 'Delete' : 'Xóa'}">✕</button>
+            <div class="element-action-toolbar" style="${counterRotateStyle}" onclick="event.stopPropagation()">
+              <button type="button" class="eat-btn" onclick="enterImageAdjustmentMode(${el.id}, event)" title="${isEn ? 'Adjust & Crop Photo' : 'Chỉnh sửa & Cắt ảnh'}">${isEn ? '✂️ Edit Photo' : '✂️ Chỉnh ảnh'}</button>
+              <button type="button" class="eat-btn" onclick="triggerDirectUpload('el_${el.id}', event)" title="${isEn ? 'Replace photo' : 'Đổi ảnh khác'}">${isEn ? '📷 Replace' : '📷 Đổi ảnh'}</button>
+              <button type="button" class="eat-btn" onclick="openMoreMenu(${el.id}, event)" title="${isEn ? 'More options (Layers, Align, Lock, Duplicate)' : 'Thêm tùy chọn (Lớp, Căn gióng, Khóa, Nhân bản)'}">${isEn ? '⋯ More' : '⋯ Thêm'}</button>
+              <button type="button" class="eat-btn danger delete-btn" onclick="removeSpreadElement(${el.id}); deselectCanvasItem(event);" title="${isEn ? 'Delete photo' : 'Xóa ảnh'}">🗑️ ${isEn ? 'Delete' : 'Xóa ảnh'}</button>
+              <button type="button" class="eat-btn close-btn" onclick="deselectCanvasItem(event)" title="${isEn ? 'Close toolbar' : 'Đóng toolbar'}">✕</button>
             </div>
           `;
         } else {
           compactToolbarHtml = `
-            <div class="element-action-toolbar" style="${counterRotateStyle}">
-              <button class="eat-btn" onclick="triggerDirectUpload('el_${el.id}', event)" title="${isEn ? 'Choose photo from device' : 'Chọn ảnh từ máy'}">${isEn ? '📷 Add photo' : '📷 Thêm ảnh'}</button>
-              <button class="eat-btn" onclick="openMoreMenu(${el.id}, event)" title="${isEn ? 'More options' : 'Thêm tùy chọn'}">${isEn ? '⋯ More' : '⋯ Thêm'}</button>
-              <button class="eat-btn danger" onclick="removeSpreadElement(${el.id})" title="${isEn ? 'Delete' : 'Xóa'}">✕</button>
+            <div class="element-action-toolbar" style="${counterRotateStyle}" onclick="event.stopPropagation()">
+              <button type="button" class="eat-btn" onclick="triggerDirectUpload('el_${el.id}', event)" title="${isEn ? 'Choose photo from device' : 'Chọn ảnh từ máy'}">${isEn ? '📷 Add photo' : '📷 Thêm ảnh'}</button>
+              <button type="button" class="eat-btn" onclick="openMoreMenu(${el.id}, event)" title="${isEn ? 'More options' : 'Thêm tùy chọn'}">${isEn ? '⋯ More' : '⋯ Thêm'}</button>
+              <button type="button" class="eat-btn danger delete-btn" onclick="removeSpreadElement(${el.id}); deselectCanvasItem(event);" title="${isEn ? 'Delete frame' : 'Xóa khung'}">🗑️ ${isEn ? 'Delete' : 'Xóa'}</button>
+              <button type="button" class="eat-btn close-btn" onclick="deselectCanvasItem(event)" title="${isEn ? 'Close toolbar' : 'Đóng toolbar'}">✕</button>
             </div>
           `;
         }
       } else {
         compactToolbarHtml = `
-          <div class="element-action-toolbar" style="${counterRotateStyle}">
-            <button class="eat-btn" onclick="openMoreMenu(${el.id}, event)" title="${isEn ? 'More options' : 'Thêm tùy chọn'}">${isEn ? '⋯ More' : '⋯ Thêm'}</button>
-            <button class="eat-btn danger" onclick="removeSpreadElement(${el.id})" title="${isEn ? 'Delete' : 'Xóa'}">✕</button>
+          <div class="element-action-toolbar" style="${counterRotateStyle}" onclick="event.stopPropagation()">
+            <button type="button" class="eat-btn" onclick="openMoreMenu(${el.id}, event)" title="${isEn ? 'More options' : 'Thêm tùy chọn'}">${isEn ? '⋯ More' : '⋯ Thêm'}</button>
+            <button type="button" class="eat-btn danger delete-btn" onclick="removeSpreadElement(${el.id}); deselectCanvasItem(event);" title="${isEn ? 'Delete' : 'Xóa'}">🗑️ ${isEn ? 'Delete' : 'Xóa'}</button>
+            <button type="button" class="eat-btn close-btn" onclick="deselectCanvasItem(event)" title="${isEn ? 'Close toolbar' : 'Đóng toolbar'}">✕</button>
           </div>
         `;
       }
@@ -2194,12 +2463,19 @@ function renderElementsOnSpreadOverlay(spread) {
         `;
       } else {
         innerContent = `
-          <div class="canva-frame-inner-viewport interactive-photo-slot" id="slot_el_${el.id}" style="height:${frameH}px;${isOval ? 'border-radius:999px;' : ''}"
+          <div class="canva-frame-inner-viewport interactive-photo-slot" id="slot_el_${el.id}" style="height:${frameH}px;${isOval ? 'border-radius:999px;' : ''};position:relative;overflow:hidden"
+               ondblclick="enterImageAdjustmentMode(${el.id}, event)"
+               onpointerdown="if (ALBUM_DATA.cropEditingId === ${el.id}) initImagePanningInsideFrame(event, ${el.id})"
+               onwheel="if (ALBUM_DATA.cropEditingId === ${el.id}) { event.preventDefault(); handleCropWheelZoom(event, ${el.id}); }"
                onclick="if (!ALBUM_DATA.cropEditingId) openPhotoCropToolbar('el_${el.id}', event)"
                ondragover="handleSlotDragOver(event)" ondragleave="handleSlotDragLeave(event)" ondrop="handleSlotDrop(event, 'el_${el.id}')">
-            <img src="${el.img}" id="photoImg_el_${el.id}" class="photo-img-layer" alt="Photo"
-                 style="transform: translate(${crop.offsetX || 0}px, ${crop.offsetY || 0}px) scale(${crop.zoom || 1}) rotate(${crop.rotate || 0}deg);"
-                 onpointerdown="initPanCropImage(event, ${el.id})">
+            <div class="slot-loading-placeholder">
+              <div class="slot-loading-spinner"></div>
+              <span>${isEn ? 'Loading photo...' : 'Đang tải ảnh...'}</span>
+            </div>
+            <img src="${el.img}" id="photoImg_el_${el.id}" class="photo-img-layer" alt="Photo" draggable="false"
+                 onload="handleSlotImageLoad(this)" onerror="handleSlotImageError(this, 'el_${el.id}')"
+                 style="transform: translate(${crop.offsetX || 0}px, ${crop.offsetY || 0}px) scale(${crop.zoom || 1}) rotate(${crop.rotate || 0}deg);">
             <div class="photo-drop-hint-overlay">${isEn ? '✨ Drop to replace photo' : '✨ Thả để đổi ảnh'}</div>
           </div>
         `;
@@ -2210,10 +2486,10 @@ function renderElementsOnSpreadOverlay(spread) {
         cropToolbarHtml = `
           <div class="canva-frame-toolbar" style="${counterRotateStyle}" onclick="event.stopPropagation()">
             <span style="font-size:11px;font-weight:700">${isEn ? 'Zoom:' : 'Thu phóng:'}</span>
-            <input type="range" class="cft-slider" min="0.8" max="2.5" step="0.05" value="${crop.zoom || 1}" oninput="updateCropZoom(${el.id}, this.value)">
-            <button class="cft-btn" onclick="rotateCropImage(${el.id})">${isEn ? '🔄 Rotate 90°' : '🔄 Xoay 90°'}</button>
-            <button class="cft-btn" onclick="resetCropTransform(${el.id})">${isEn ? '🎯 Center' : '🎯 Căn giữa'}</button>
-            <button class="cft-btn primary" onclick="exitImageAdjustmentMode()">${isEn ? '✓ Done' : '✓ Xong'}</button>
+            <input type="range" class="cft-slider" min="1.0" max="3.0" step="0.05" value="${crop.zoom || 1}" oninput="updateCropZoom(${el.id}, this.value)">
+            <button class="cft-btn" onclick="rotateCropImage(${el.id}, event)">${isEn ? '🔄 Rotate 90°' : '🔄 Xoay 90°'}</button>
+            <button class="cft-btn" onclick="resetCropTransform(${el.id}, event)">${isEn ? '🎯 Center' : '🎯 Căn giữa'}</button>
+            <button class="cft-btn primary" onclick="exitImageAdjustmentMode(event)">${isEn ? '✓ Done' : '✓ Xong'}</button>
           </div>
         `;
       }
@@ -2224,7 +2500,7 @@ function renderElementsOnSpreadOverlay(spread) {
         ${(!isLocked) ? `<div class="fci-resize-handle" onpointerdown="initResizeElement(event, ${el.id})" title="${isEn ? 'Drag to resize' : 'Kéo để đổi kích thước'}"></div>` : ''}
         ${(!isLocked) ? `<div class="fci-rotate-handle" onpointerdown="initRotateElement(event, ${el.id})" title="${isEn ? 'Drag to rotate 360°' : 'Kéo để xoay 360°'}">🔄</div>` : ''}
         <div class="safe-area-violation-badge">${isEn ? '⚠️ Exceeds safe print margin' : '⚠️ Vượt mép in (Có thể bị xén)'}</div>
-        <div class="canva-frame-container ${isClean ? 'clean-style' : ''} ${isOval ? 'oval-style' : ''}" style="width:${frameW}px">
+        <div class="canva-frame-container ${isClean ? 'clean-style' : ''} ${isOval ? 'oval-style' : ''}" style="width:${frameW}px" id="cFrame_${el.id}">
           ${innerContent}
         </div>
       `;
@@ -2284,6 +2560,11 @@ function makePointerDraggable(el, dataObj) {
       ALBUM_DATA.activePhotoSlot = 'el_' + dataObj.id;
     }
     if (e.target.closest('.fci-delete-btn') || e.target.closest('.fci-resize-handle') || e.target.closest('.fci-rotate-handle') || e.target.closest('.btn-outline') || e.target.closest('.canva-frame-toolbar') || e.target.closest('.element-action-toolbar')) return;
+
+    if (e.pointerType === 'mouse' && e.button !== 0) return;
+    if (!e.target.closest('[contenteditable="true"]') && e.target.tagName !== 'INPUT' && e.target.tagName !== 'BUTTON') {
+      e.preventDefault();
+    }
 
     dragPreSnapshot = JSON.stringify(ALBUM_DATA);
     initialElX = el.offsetLeft;
@@ -2354,9 +2635,13 @@ function makePointerDraggable(el, dataObj) {
 
 function initResizeElement(e, id) {
   e.stopPropagation();
+  e.preventDefault();
   const spread = ALBUM_DATA.spreads[ALBUM_DATA.activeSpreadIndex];
   const obj = spread.elements.find(el => el.id === id);
   if (!obj || obj.locked) return;
+
+  const handle = e.currentTarget || e.target;
+  try { if (handle?.setPointerCapture) handle.setPointerCapture(e.pointerId); } catch(err) {}
 
   const resizePreSnapshot = JSON.stringify(ALBUM_DATA);
   const startX = e.clientX;
@@ -2377,17 +2662,20 @@ function initResizeElement(e, id) {
     if (domEl) checkElementSafeArea(domEl, obj);
   }
 
-  function stopDrag() {
-    document.removeEventListener('mousemove', doDrag);
-    document.removeEventListener('mouseup', stopDrag);
+  function stopDrag(ev) {
+    document.removeEventListener('pointermove', doDrag);
+    document.removeEventListener('pointerup', stopDrag);
+    document.removeEventListener('pointercancel', stopDrag);
+    try { if (handle?.releasePointerCapture) handle.releasePointerCapture(e.pointerId); } catch(err) {}
     if (obj.width !== startW) {
       pushStudioSnapshotState(resizePreSnapshot, currentAppLanguage === 'en' ? 'Resize element' : 'Đổi kích thước');
     }
     autoSaveToLocalStorage();
   }
 
-  document.addEventListener('mousemove', doDrag);
-  document.addEventListener('mouseup', stopDrag);
+  document.addEventListener('pointermove', doDrag);
+  document.addEventListener('pointerup', stopDrag);
+  document.addEventListener('pointercancel', stopDrag);
 }
 
 // ── 🌟 XOAY KHUNG ẢNH 360 ĐỘ TỰ DO (CANVA 360° ROTATE ENGINE) ──
@@ -2398,6 +2686,9 @@ function initRotateElement(e, id) {
   const obj = spread.elements.find(el => el.id === id);
   const domEl = document.getElementById('canvaEl_' + id);
   if (!obj || !domEl || obj.locked) return;
+
+  const handle = e.currentTarget || e.target;
+  try { if (handle?.setPointerCapture) handle.setPointerCapture(e.pointerId); } catch(err) {}
 
   const rotatePreSnapshot = JSON.stringify(ALBUM_DATA);
   const startRot = obj.rotate || 0;
@@ -2435,9 +2726,11 @@ function initRotateElement(e, id) {
     checkElementSafeArea(domEl, obj);
   }
 
-  function stopRotate() {
+  function stopRotate(ev) {
     document.removeEventListener('pointermove', doRotate);
     document.removeEventListener('pointerup', stopRotate);
+    document.removeEventListener('pointercancel', stopRotate);
+    try { if (handle?.releasePointerCapture) handle.releasePointerCapture(e.pointerId); } catch(err) {}
     if ((obj.rotate || 0) !== startRot) {
       pushStudioSnapshotState(rotatePreSnapshot, currentAppLanguage === 'en' ? 'Rotate element' : 'Xoay đối tượng');
     }
@@ -2446,6 +2739,7 @@ function initRotateElement(e, id) {
 
   document.addEventListener('pointermove', doRotate);
   document.addEventListener('pointerup', stopRotate);
+  document.addEventListener('pointercancel', stopRotate);
 }
 
 // ── FILMSTRIP TRAY (MỤC TRANG & THÊM TRANG Ở DƯỚI ĐÁY) ──
@@ -2489,6 +2783,10 @@ function renderFilmstripTray() {
   const sumText = document.getElementById('filmstripSummaryText');
   if (sumText) {
     sumText.textContent = isEn ? `All pages (${ALBUM_DATA.spreads.length} items)` : `Tất cả các trang (${ALBUM_DATA.spreads.length} mục)`;
+  }
+  const pillText = document.getElementById('mobilePillText');
+  if (pillText) {
+    pillText.textContent = isEn ? `Pages (${ALBUM_DATA.spreads.length})` : `Các trang (${ALBUM_DATA.spreads.length})`;
   }
   scrollActiveFilmstripItemIntoView();
 }
@@ -2631,11 +2929,31 @@ function updateNavSpreadButtons() {
 function openPhotoCropToolbar(slotKey, event) {
   if (event) event.stopPropagation();
   ALBUM_DATA.activePhotoSlot = slotKey;
-  const toolbar = document.getElementById('photoCropToolbar');
-  if (toolbar) toolbar.classList.add('active');
+  if (!isMobileViewport()) {
+    const toolbar = document.getElementById('photoCropToolbar');
+    if (toolbar) toolbar.classList.add('active');
+  }
+  selectSpreadItem('photo', slotKey, document.getElementById('slot_' + slotKey) || (event ? event.target : null));
+
+  if (!ALBUM_DATA.photoTransforms) ALBUM_DATA.photoTransforms = {};
+  if (slotKey && slotKey.startsWith('el_')) {
+    const elId = parseInt(slotKey.replace('el_', ''));
+    const spread = ALBUM_DATA.spreads ? ALBUM_DATA.spreads[ALBUM_DATA.activeSpreadIndex] : null;
+    const el = spread?.elements ? spread.elements.find(e => String(e.id) === String(elId)) : null;
+    if (el) {
+      if (!el.crop) el.crop = { zoom: 1.0, offsetX: 0, offsetY: 0, rotate: 0 };
+      ALBUM_DATA.photoTransforms[slotKey] = {
+        zoom: el.crop.zoom || 1.0,
+        rotate: el.crop.rotate || 0,
+        x: el.crop.offsetX || 0,
+        y: el.crop.offsetY || 0
+      };
+    }
+  }
 
   if (!ALBUM_DATA.photoTransforms[slotKey]) ALBUM_DATA.photoTransforms[slotKey] = { zoom: 1, rotate: 0, x: 0, y: 0 };
-  document.getElementById('photoZoomSlider').value = ALBUM_DATA.photoTransforms[slotKey].zoom;
+  const slider = document.getElementById('photoZoomSlider');
+  if (slider) slider.value = ALBUM_DATA.photoTransforms[slotKey].zoom || 1;
 }
 
 function closePhotoToolbar() {
@@ -2644,9 +2962,12 @@ function closePhotoToolbar() {
 }
 
 function handleGlobalClick(e) {
-  if (!e.target.closest('.interactive-photo-slot') && !e.target.closest('#photoCropToolbar') && !e.target.closest('#studioContextualToolbar') && !e.target.closest('#mobileContextualBottomBar') && !e.target.closest('.freeform-canvas-item') && !e.target.closest('.pb-editable-text')) {
+  if (!e.target.closest('.interactive-photo-slot') && !e.target.closest('#photoCropToolbar') && !e.target.closest('#studioContextualToolbar') && !e.target.closest('#mobileContextualBottomBar') && !e.target.closest('.freeform-canvas-item') && !e.target.closest('.pb-editable-text') && !e.target.closest('#melsouContextMenu')) {
     closePhotoToolbar();
-    clearStudioSelection();
+    if (ALBUM_DATA.cropEditingId) {
+      exitImageAdjustmentMode();
+    }
+    deselectCanvasItem();
   }
   if (!e.target.closest('.user-menu-wrapper')) {
     const uMenu = document.getElementById('userDropdownMenu');
@@ -2663,6 +2984,12 @@ function handleGlobalClick(e) {
 function applyActivePhotoZoom(val) {
   const key = ALBUM_DATA.activePhotoSlot;
   if (!key) return;
+  if (key.startsWith('el_')) {
+    const elId = parseInt(key.replace('el_', ''));
+    updateCropZoom(elId, val);
+    return;
+  }
+  if (!ALBUM_DATA.photoTransforms) ALBUM_DATA.photoTransforms = {};
   if (!ALBUM_DATA.photoTransforms[key]) ALBUM_DATA.photoTransforms[key] = { zoom: 1, rotate: 0, x: 0, y: 0 };
   ALBUM_DATA.photoTransforms[key].zoom = parseFloat(val);
   applySinglePhotoTransform(key);
@@ -2671,6 +2998,12 @@ function applyActivePhotoZoom(val) {
 function rotateActivePhoto() {
   const key = ALBUM_DATA.activePhotoSlot;
   if (!key) return;
+  if (key.startsWith('el_')) {
+    const elId = parseInt(key.replace('el_', ''));
+    rotateCropImage(elId);
+    return;
+  }
+  if (!ALBUM_DATA.photoTransforms) ALBUM_DATA.photoTransforms = {};
   if (!ALBUM_DATA.photoTransforms[key]) ALBUM_DATA.photoTransforms[key] = { zoom: 1, rotate: 0, x: 0, y: 0 };
   ALBUM_DATA.photoTransforms[key].rotate = (ALBUM_DATA.photoTransforms[key].rotate + 90) % 360;
   applySinglePhotoTransform(key);
@@ -2679,16 +3012,23 @@ function rotateActivePhoto() {
 function resetActivePhotoTransform() {
   const key = ALBUM_DATA.activePhotoSlot;
   if (!key) return;
+  if (key.startsWith('el_')) {
+    const elId = parseInt(key.replace('el_', ''));
+    resetCropTransform(elId);
+    return;
+  }
+  if (!ALBUM_DATA.photoTransforms) ALBUM_DATA.photoTransforms = {};
   ALBUM_DATA.photoTransforms[key] = { zoom: 1, rotate: 0, x: 0, y: 0 };
-  document.getElementById('photoZoomSlider').value = 1;
+  const slider = document.getElementById('photoZoomSlider');
+  if (slider) slider.value = 1;
   applySinglePhotoTransform(key);
 }
 
 function applySinglePhotoTransform(key) {
   const img = document.getElementById('photoImg_' + key);
-  if (img && ALBUM_DATA.photoTransforms[key]) {
+  if (img && ALBUM_DATA.photoTransforms && ALBUM_DATA.photoTransforms[key]) {
     const t = ALBUM_DATA.photoTransforms[key];
-    img.style.transform = `scale(${t.zoom}) rotate(${t.rotate}deg) translate(${t.x}px, ${t.y}px)`;
+    img.style.transform = `translate(${t.x || 0}px, ${t.y || 0}px) scale(${t.zoom || 1}) rotate(${t.rotate || 0}deg)`;
   }
 }
 function applyAllSavedTransforms() {
@@ -3349,27 +3689,50 @@ function handleSpotifySongSearch(query) {
   }
 
   if (rawQuery.length < 2) {
-    resBox.style.display = 'none';
+    const isEn = (currentAppLanguage === 'en');
     if (spinner) spinner.style.display = 'none';
+    resBox.innerHTML = `
+      <div style="padding:12px 14px;text-align:center;font-size:11.5px;color:var(--gray);line-height:1.4">
+        ${isEn ? 'Type at least 2 characters to search...' : 'Nhập tối thiểu 2 ký tự để tìm kiếm...'}
+      </div>
+    `;
+    resBox.style.display = 'block';
     return;
   }
 
+  // Immediate loading state feedback so UI never hangs silently
+  const isEn = (currentAppLanguage === 'en');
   if (spinner) spinner.style.display = 'inline-block';
+  resBox.innerHTML = `
+    <div style="padding:16px 14px;text-align:center;font-size:12px;color:var(--gray);line-height:1.5">
+      <div style="font-size:18px;margin-bottom:4px">⏳</div>
+      <div>${isEn ? `Searching for "${escapeSpotifyAttr(rawQuery)}"...` : `Đang tìm bài hát "${escapeSpotifyAttr(rawQuery)}"...`}</div>
+    </div>
+  `;
+  resBox.style.display = 'block';
+
   const thisSeqId = ++spotifySearchSeqId;
 
   spotifySearchDebounce = setTimeout(async () => {
-    const isEn = (currentAppLanguage === 'en');
-
-    // FB75.1: If Codex/backend is not yet connected, do not fake results!
+    // 2. Check for backend API hook
+    // If Codex/backend hook is not yet available, provide clear, transparent status
     if (typeof window.codexSearchSpotifyTracks !== 'function') {
       if (thisSeqId !== spotifySearchSeqId) return;
       if (spinner) spinner.style.display = 'none';
       resBox.innerHTML = `
         <div style="padding:16px 14px;text-align:center;font-size:12px;color:var(--gray);line-height:1.5">
-          <div style="font-size:18px;margin-bottom:4px">📡</div>
-          <div>${isEn 
-            ? 'Spotify search is awaiting service connection. You can still paste a Spotify track link.' 
-            : 'Tìm kiếm Spotify đang chờ kết nối dịch vụ. Bạn vẫn có thể dán liên kết bài hát Spotify.'}</div>
+          <div style="font-size:20px;margin-bottom:6px">📡</div>
+          <div style="font-weight:700;color:var(--dark);margin-bottom:4px">
+            ${isEn ? 'Spotify Search API Unavailable' : 'Tính năng tìm kiếm Spotify chưa khả dụng'}
+          </div>
+          <div style="font-size:11.5px;color:var(--gray);margin-bottom:8px">
+            ${isEn 
+              ? 'Backend search API is not connected. You can still paste a direct Spotify song link (URL) below.' 
+              : 'Chưa có API kết nối tìm kiếm. Bạn vẫn có thể dán trực tiếp đường dẫn bài hát Spotify vào ô bên dưới.'}
+          </div>
+          <div style="font-size:10.5px;color:#94a3b8;font-family:monospace;background:#f1f5f9;padding:4px 8px;border-radius:6px;display:inline-block">
+            BLOCKED_BY_API: codexSearchSpotifyTracks hook required
+          </div>
         </div>
       `;
       resBox.style.display = 'block';
@@ -3378,18 +3741,36 @@ function handleSpotifySongSearch(query) {
 
     // Call real Codex search contract
     let matches = [];
+    let hasError = false;
     try {
       const remoteRes = await window.codexSearchSpotifyTracks(rawQuery);
       if (thisSeqId !== spotifySearchSeqId) return;
       if (Array.isArray(remoteRes)) {
         matches = remoteRes;
+      } else if (remoteRes && Array.isArray(remoteRes.tracks)) {
+        matches = remoteRes.tracks;
+      } else {
+        matches = [];
       }
     } catch (err) {
       console.warn('Codex Spotify search error:', err);
+      hasError = true;
     }
 
     if (thisSeqId !== spotifySearchSeqId) return;
     if (spinner) spinner.style.display = 'none';
+
+    if (hasError) {
+      resBox.innerHTML = `
+        <div style="padding:14px 16px;text-align:center;font-size:12px;color:#dc2626;line-height:1.5">
+          ⚠️ ${isEn 
+            ? 'Error searching Spotify tracks. Please try again or paste direct link below.' 
+            : 'Có lỗi xảy ra khi tìm kiếm bài hát. Vui lòng thử lại hoặc dán liên kết trực tiếp ở ô bên dưới.'}
+        </div>
+      `;
+      resBox.style.display = 'block';
+      return;
+    }
 
     if (matches.length === 0) {
       resBox.innerHTML = `
@@ -5372,7 +5753,7 @@ function toggleCart() {
 
 // ── CHECKOUT & SEPAY MB BANK (GUEST-FIRST WITH AUTH GATE) ──
 function openAuthOrCheckoutStep() {
-  if (!currentUser || currentUser.isGuest) {
+  if (!currentUser || !currentUser.loggedIn || currentUser.isGuest) {
     showToast(currentAppLanguage === 'en' ? 'Please log in or create an account to proceed with your order' : 'Vui lòng đăng nhập hoặc tạo tài khoản để tiếp tục thanh toán an toàn');
     openAuthModal('login');
     return;
@@ -5381,11 +5762,155 @@ function openAuthOrCheckoutStep() {
   openCheckoutModal();
 }
 
+// ── 📦 CHECKOUT FRONTEND VALIDATION ENGINE (UI TASK 05) ──
+function setFieldError(fieldId, errorId, errorMsg) {
+  const field = document.getElementById(fieldId);
+  const errorEl = document.getElementById(errorId);
+  if (field) {
+    if (errorMsg) {
+      field.classList.add('input-error');
+      field.setAttribute('aria-invalid', 'true');
+    } else {
+      field.classList.remove('input-error');
+      field.removeAttribute('aria-invalid');
+    }
+  }
+  if (errorEl) {
+    if (errorMsg) {
+      errorEl.innerHTML = `<span>⚠️</span> <span>${errorMsg}</span>`;
+      errorEl.classList.add('visible');
+    } else {
+      errorEl.innerHTML = '';
+      errorEl.classList.remove('visible');
+    }
+  }
+}
+
+function handleShipPhoneInput(input) {
+  if (!input) return;
+  // Giữ lại ký tự hợp lệ cho số điện thoại: chữ số, dấu +, khoảng trắng, gạch ngang, ngoặc đơn
+  const sanitized = input.value.replace(/[^0-9+\s().-]/g, '');
+  if (input.value !== sanitized) {
+    input.value = sanitized;
+  }
+}
+
+function validateShipNameField(showEmptyError = true) {
+  const isEn = (currentAppLanguage === 'en');
+  const input = document.getElementById('shipName');
+  if (!input) return true;
+  const val = input.value.trim();
+
+  if (!val) {
+    if (showEmptyError) {
+      setFieldError('shipName', 'shipNameError', isEn ? 'Please enter recipient name' : 'Vui lòng nhập họ và tên người nhận');
+      return false;
+    }
+    setFieldError('shipName', 'shipNameError', '');
+    return false;
+  }
+
+  if (val.length < 2) {
+    setFieldError('shipName', 'shipNameError', isEn ? 'Recipient name is too short (minimum 2 characters)' : 'Họ và tên quá ngắn (tối thiểu 2 ký tự)');
+    return false;
+  }
+
+  if (val.length > 100) {
+    setFieldError('shipName', 'shipNameError', isEn ? 'Recipient name cannot exceed 100 characters' : 'Họ và tên không được vượt quá 100 ký tự');
+    return false;
+  }
+
+  // Phải chứa ít nhất 1 ký tự chữ cái (không cho phép nhập toàn chữ số hoặc ký tự đặc biệt)
+  if (!/[a-zA-Z\u00C0-\u024F\u1EA0-\u1EF9]/.test(val)) {
+    setFieldError('shipName', 'shipNameError', isEn ? 'Recipient name must contain letters' : 'Họ và tên không hợp lệ (phải chứa chữ cái)');
+    return false;
+  }
+
+  setFieldError('shipName', 'shipNameError', '');
+  return true;
+}
+
+function validateShipPhoneField(showEmptyError = true) {
+  const isEn = (currentAppLanguage === 'en');
+  const input = document.getElementById('shipPhone');
+  if (!input) return true;
+  const val = input.value.trim();
+
+  if (!val) {
+    if (showEmptyError) {
+      setFieldError('shipPhone', 'shipPhoneError', isEn ? 'Please enter contact phone number' : 'Vui lòng nhập số điện thoại liên hệ');
+      return false;
+    }
+    setFieldError('shipPhone', 'shipPhoneError', '');
+    return false;
+  }
+
+  // Kiểm tra ký tự cho phép: số, +, (), ., khoảng trắng, -
+  if (!/^[0-9+().\s-]+$/.test(val)) {
+    setFieldError('shipPhone', 'shipPhoneError', isEn ? 'Phone number contains invalid characters' : 'Số điện thoại chứa ký tự không hợp lệ');
+    return false;
+  }
+
+  const digits = val.replace(/\D/g, '');
+
+  if (digits.length < 9) {
+    setFieldError('shipPhone', 'shipPhoneError', isEn ? 'Phone number too short (minimum 9 digits, e.g. 0901234567)' : 'Số điện thoại quá ngắn (tối thiểu 9 chữ số, ví dụ: 0901234567)');
+    return false;
+  }
+
+  if (digits.length > 15 || val.length > 30) {
+    setFieldError('shipPhone', 'shipPhoneError', isEn ? 'Phone number too long (maximum 15 digits)' : 'Số điện thoại quá dài (tối đa 15 chữ số)');
+    return false;
+  }
+
+  setFieldError('shipPhone', 'shipPhoneError', '');
+  return true;
+}
+
+function validateShipAddressField(showEmptyError = true) {
+  const isEn = (currentAppLanguage === 'en');
+  const input = document.getElementById('shipAddress');
+  if (!input) return true;
+  const val = input.value.trim();
+
+  if (!val) {
+    if (showEmptyError) {
+      setFieldError('shipAddress', 'shipAddressError', isEn ? 'Please enter shipping address' : 'Vui lòng nhập địa chỉ nhận hàng chi tiết');
+      return false;
+    }
+    setFieldError('shipAddress', 'shipAddressError', '');
+    return false;
+  }
+
+  if (val.length < 5) {
+    setFieldError('shipAddress', 'shipAddressError', isEn ? 'Address too short (minimum 5 characters, e.g. house number, street, ward...)' : 'Địa chỉ quá ngắn (tối thiểu 5 ký tự, ghi rõ số nhà, tên đường, phường/xã...)');
+    return false;
+  }
+
+  if (val.length > 500) {
+    setFieldError('shipAddress', 'shipAddressError', isEn ? 'Address cannot exceed 500 characters' : 'Địa chỉ không được vượt quá 500 ký tự');
+    return false;
+  }
+
+  setFieldError('shipAddress', 'shipAddressError', '');
+  return true;
+}
+
+window.validateShipNameField = validateShipNameField;
+window.validateShipPhoneField = validateShipPhoneField;
+window.validateShipAddressField = validateShipAddressField;
+window.handleShipPhoneInput = handleShipPhoneInput;
+
 function openCheckoutModal() {
   const modal = document.getElementById('checkoutModal');
   if (modal) modal.classList.add('open');
   document.getElementById('checkoutStep1').style.display = 'block';
   document.getElementById('checkoutStep2').style.display = 'none';
+
+  // Reset errors on open
+  setFieldError('shipName', 'shipNameError', '');
+  setFieldError('shipPhone', 'shipPhoneError', '');
+  setFieldError('shipAddress', 'shipAddressError', '');
 
   let totalCart = 0;
   ALBUM_DATA.cart.forEach(i => { if (i.selected) totalCart += i.price * i.qty; });
@@ -5404,103 +5929,80 @@ function openCheckoutModal() {
 
 function closeCheckoutModal() { document.getElementById('checkoutModal').classList.remove('open'); }
 
-function goToSepayVietQrStep() {
+async function goToSepayVietQrStep() {
+  const isEn = (currentAppLanguage === 'en');
+  const nameValid = validateShipNameField(true);
+  const phoneValid = validateShipPhoneField(true);
+  const addressValid = validateShipAddressField(true);
+
+  if (!nameValid) {
+    const el = document.getElementById('shipName');
+    if (el) el.focus();
+    return;
+  }
+  if (!phoneValid) {
+    const el = document.getElementById('shipPhone');
+    if (el) el.focus();
+    return;
+  }
+  if (!addressValid) {
+    const el = document.getElementById('shipAddress');
+    if (el) el.focus();
+    return;
+  }
+
+  const terms = document.getElementById('chkTermsAccept').checked;
+  if (!terms) {
+    showToast(isEn ? 'Please agree to Terms and Privacy Policy' : 'Vui lòng bấm tick đồng ý với Điều khoản dịch vụ & Chính sách bảo mật!');
+    const termsEl = document.getElementById('chkTermsAccept');
+    if (termsEl) termsEl.focus();
+    return;
+  }
+
   const name = document.getElementById('shipName').value.trim();
   const phone = document.getElementById('shipPhone').value.trim();
   const address = document.getElementById('shipAddress').value.trim();
-  const terms = document.getElementById('chkTermsAccept').checked;
 
-  if (!name || !phone || !address) {
-    alert('Vui lòng điền đầy đủ Họ tên, Số điện thoại và Địa chỉ nhận hàng!');
-    return;
+  if (typeof window.codexCreateOrder !== 'function') return showToast(getUserFriendlyErrorMessage('BACKEND_UNAVAILABLE', 'Backend đặt hàng chưa sẵn sàng.'));
+  try {
+    const result = await window.codexCreateOrder({ customer: { name, phone, address, email: currentUser?.email || '' } });
+    const payment = result.payment;
+    document.getElementById('vietQrImg').src = payment.qrImageUrl;
+    document.getElementById('copyAmountText').textContent = Number(payment.amount).toLocaleString('vi-VN') + 'đ';
+    document.getElementById('copyMemoText').textContent = payment.transferContent;
+    document.getElementById('paymentBankName').textContent = payment.bankCode;
+    document.getElementById('paymentBankAccount').textContent = payment.accountNumber;
+    document.getElementById('paymentAccountName').textContent = payment.accountName || '--';
+    document.getElementById('checkoutStep1').style.display = 'none';
+    document.getElementById('checkoutStep2').style.display = 'block';
+  } catch (error) {
+    const friendlyMessage = getUserFriendlyErrorMessage(error, isEn ? 'Unable to create order. Please try again.' : 'Không thể tạo đơn hàng. Vui lòng thử lại.');
+    showToast(friendlyMessage);
   }
-  if (!terms) {
-    alert('Vui lòng bấm tick đồng ý với Điều khoản dịch vụ & Chính sách bảo mật!');
-    return;
-  }
-
-  let totalCart = 0;
-  ALBUM_DATA.cart.forEach(i => { if (i.selected) totalCart += i.price * i.qty; });
-  if (totalCart === 0) totalCart = ALBUM_DATA.basePrice + ALBUM_DATA.sizeAdj + ((ALBUM_DATA.extraSpreadsCount || 0) * EXTRA_SPREAD_PRICE);
-
-  let discountAmt = 0;
-  if (appliedCartVoucher && appliedCartVoucher.discount) {
-    discountAmt = Math.min(totalCart, appliedCartVoucher.discount);
-  }
-  const finalPrice = Math.max(0, totalCart - discountAmt) + 30000;
-  const orderCode = 'MELS' + Date.now().toString().slice(-7);
-
-  const qrUrl = `https://api.vietqr.io/image/970422-00931940512-compact2.jpg?amount=${finalPrice}&addInfo=${orderCode}&accountName=MELSOU%20VIETNAM`;
-  document.getElementById('vietQrImg').src = qrUrl;
-  document.getElementById('copyAmountText').textContent = finalPrice.toLocaleString('vi-VN') + 'đ';
-  document.getElementById('copyMemoText').textContent = orderCode;
-
-  // Contract hook for Codex backend
-  if (typeof window.codexCreateOrder === 'function') {
-    try {
-      window.codexCreateOrder({
-        orderCode,
-        customer: { name, phone, address, email: currentUser?.email || '' },
-        items: ALBUM_DATA.cart.filter(i => i.selected),
-        totalAmount: finalPrice,
-        voucher: appliedCartVoucher
-      });
-    } catch(e) {}
-  }
-
-  document.getElementById('checkoutStep1').style.display = 'none';
-  document.getElementById('checkoutStep2').style.display = 'block';
 }
 
 function copyToClipboard(text) {
   navigator.clipboard.writeText(text).then(() => showToast(`Đã sao chép: ${text}`));
 }
 
-function simulateSuccessfulPayment() {
-  const memoEl = document.getElementById('copyMemoText');
-  const code = (memoEl && memoEl.textContent !== '--') ? memoEl.textContent : ('MELS' + Date.now().toString().slice(-7));
-  const nameEl = document.getElementById('shipName');
-  const phoneEl = document.getElementById('shipPhone');
-  const addressEl = document.getElementById('shipAddress');
-
-  const confirmedOrder = {
-    orderCode: code,
-    customer: {
-      name: (nameEl ? nameEl.value.trim() : '') || (currentAppLanguage === 'en' ? 'Customer' : 'Khách hàng'),
-      phone: (phoneEl ? phoneEl.value.trim() : '') || '',
-      address: (addressEl ? addressEl.value.trim() : '') || '',
-      email: currentUser?.email || ''
-    },
-    items: ALBUM_DATA.cart ? ALBUM_DATA.cart.filter(i => i.selected) : [],
-    totalAmount: ALBUM_DATA.cart ? ALBUM_DATA.cart.reduce((s, i) => s + (i.selected ? i.price * i.qty : 0), 0) + 30000 : 0,
-    status: 'confirmed',
-    statusText: currentAppLanguage === 'en' ? '✅ Payment Verified' : '✅ Đã xác nhận thanh toán',
-    createdAt: new Date().toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' }) + ' · Hôm nay'
-  };
-
-  if (!window.MELSOU_CONFIRMED_ORDERS) window.MELSOU_CONFIRMED_ORDERS = [];
-  window.MELSOU_CONFIRMED_ORDERS.unshift(confirmedOrder);
-
-  if (typeof window.codexCheckPaymentStatus === 'function') {
-    try {
-      window.codexCheckPaymentStatus(confirmedOrder);
-    } catch(e) {}
-  }
-
-  showToast(currentAppLanguage === 'en' ? '✅ Payment verified! Melsou is preparing your bespoke album.' : '✅ Đã ghi nhận chuyển khoản thành công! Melsou đang chuyển sang chế độ chuẩn bị ấn phẩm.');
-
-  // Clean cart of selected items
-  ALBUM_DATA.cart = ALBUM_DATA.cart.filter(i => !i.selected);
-  autoSaveToLocalStorage();
-  updateCartBadge();
-
-  setTimeout(() => {
+async function simulateSuccessfulPayment() {
+  if (typeof window.codexCheckPaymentStatus !== 'function') return showToast('Backend thanh toán chưa sẵn sàng.');
+  try {
+    const order = await window.codexCheckPaymentStatus();
+    if (order.status !== 'PAID') return showToast('Chưa nhận được xác nhận thanh toán từ SePay.');
+    ALBUM_DATA.cart = ALBUM_DATA.cart.filter(i => !i.selected);
+    autoSaveToLocalStorage();
+    updateCartBadge();
+    showToast('✅ SePay đã xác nhận thanh toán.');
     closeCheckoutModal();
     showPage('tracking');
     const trackInput = document.getElementById('trackQueryInput');
-    if (trackInput) trackInput.value = code;
+    if (trackInput) trackInput.value = order.order_code || '';
     performTrackingSearch();
-  }, 1000);
+  } catch (error) {
+    const friendlyMessage = getUserFriendlyErrorMessage(error, 'Không thể kiểm tra trạng thái thanh toán.');
+    showToast(friendlyMessage);
+  }
 }
 
 // ── 🌟 STUDIO ONBOARDING COACH MARK ENGINE (FB18) ──
@@ -5612,7 +6114,7 @@ function showToast(message, duration = 3000) {
   if (!toast) {
     toast = document.createElement('div');
     toast.id = 'melsouGlobalToast';
-    toast.style.cssText = 'position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:#1e293b;color:#f8fafc;padding:10px 20px;border-radius:30px;font-size:12.5px;font-weight:600;box-shadow:0 10px 25px rgba(0,0,0,0.25);z-index:99999;pointer-events:none;opacity:0;transition:opacity 0.25s ease, transform 0.25s ease;display:flex;align-items:center;gap:8px;';
+    toast.style.cssText = 'position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:#1e293b;color:#f8fafc;padding:10px 20px;border-radius:30px;font-size:12.5px;font-weight:600;box-shadow:0 10px 25px rgba(0,0,0,0.25);z-index:99999;pointer-events:none;opacity:0;transition:opacity 0.25s ease, transform 0.25s ease;display:flex;align-items:center;gap:8px;max-width:min(calc(100vw - 32px), 440px);box-sizing:border-box;';
     document.body.appendChild(toast);
   }
   toast.innerHTML = `<span>✨</span><span>${message}</span>`;
@@ -5750,23 +6252,13 @@ function adjustMobileStageScale() {
   const stageWrapper = document.querySelector('.photobook-stage-wrapper');
 
   if (isMobileViewport()) {
-    const isDrawerOpen = typeof isFlyoutDrawerOpen !== 'undefined' && isFlyoutDrawerOpen;
-    const drawer = document.getElementById('canvaSidebarEl');
-    let drawerHeight = 0;
-    if (isDrawerOpen && drawer && !drawer.classList.contains('collapsed')) {
-      drawerHeight = drawer.offsetHeight || (window.innerHeight * 0.33);
-    }
-
     if (stageWrapper) {
-      stageWrapper.style.paddingBottom = drawerHeight > 0 ? `${drawerHeight + 20}px` : '0px';
-      stageWrapper.style.transition = 'padding-bottom 0.25s ease';
+      stageWrapper.style.paddingBottom = '0px';
     }
 
     const fmt = getCurrentAlbumFormat();
     const availableWidth = stageWidth - 16;
-    const availableHeight = drawerHeight > 0 
-      ? Math.max(140, window.innerHeight - 176 - drawerHeight)
-      : Math.max(160, window.innerHeight - 170);
+    const availableHeight = Math.max(160, window.innerHeight - 170);
     const targetBaseWidth = fmt.singleWidth;
     const targetBaseHeight = fmt.singleHeight;
     const scale = Math.max(0.35, Math.min(availableWidth / targetBaseWidth, availableHeight / targetBaseHeight, 0.95));
@@ -5804,8 +6296,8 @@ function adjustMobileStageScale() {
 
     const filmstripEl = document.getElementById('studioFilmstripWrapper');
     const toolbarEl = document.querySelector('.stage-toolbar');
-    const isTrayCollapsed = filmstripEl ? filmstripEl.classList.contains('collapsed') : false;
-    const trayH = filmstripEl ? (isTrayCollapsed ? 32 : (filmstripEl.offsetHeight || 108)) : 0;
+    // Constant desktop tray reference height (108px) locks canvas scale invariant regardless of tray collapse/expand
+    const trayH = 108;
     const toolbarH = toolbarEl ? (toolbarEl.offsetHeight || 36) : 36;
 
     // Available rectangle inside stage area (since .studio-stage has margin-left: 320px when drawer is open, stage.clientWidth is already the true available width)
@@ -6032,7 +6524,7 @@ const MELSOU_I18N = {
     authForgotPwLink: 'Quên mật khẩu?',
     btnSubmitLogin: 'Đăng nhập',
     lblRegUsername: 'Tên tài khoản (tối thiểu 3 ký tự)',
-    lblRegPassword: 'Mật khẩu (tối thiểu 6 ký tự)',
+    lblRegPassword: 'Mật khẩu (tối thiểu 12 ký tự, gồm chữ và số)',
     lblRegConfirmPassword: 'Nhập lại mật khẩu',
     btnSubmitRegister: 'Tạo tài khoản',
     forgotPwHeading: 'Quên mật khẩu',
@@ -6185,7 +6677,7 @@ const MELSOU_I18N = {
     authForgotPwLink: 'Forgot password?',
     btnSubmitLogin: 'Log in',
     lblRegUsername: 'Username (minimum 3 characters)',
-    lblRegPassword: 'Password (minimum 6 characters)',
+    lblRegPassword: 'Password (minimum 12 characters, letters and numbers)',
     lblRegConfirmPassword: 'Confirm password',
     btnSubmitRegister: 'Create Account',
     forgotPwHeading: 'Forgot Password',
@@ -7188,6 +7680,27 @@ let chatState = {
   unreadCount: 0
 };
 
+function toggleSpeedDial() {
+  const panel = document.getElementById('customerChatPanel');
+  if (panel && panel.classList.contains('open')) {
+    closeCustomerChat();
+    return;
+  }
+  const m = document.getElementById('speedDialMenu');
+  if (m) m.classList.toggle('open');
+}
+
+// Close speed dial launcher menu when clicking outside
+document.addEventListener('click', function(e) {
+  const widget = document.getElementById('speedDialWidget');
+  const menu = document.getElementById('speedDialMenu');
+  if (widget && menu && menu.classList.contains('open')) {
+    if (!widget.contains(e.target)) {
+      menu.classList.remove('open');
+    }
+  }
+});
+
 function toggleCustomerChatWidget() {
   const panel = document.getElementById('customerChatPanel');
   if (!panel) return;
@@ -7244,10 +7757,14 @@ function initCustomerChatSession() {
   const guestForm = document.getElementById('chatGuestForm');
   const chatMessages = document.getElementById('customerChatMessages');
   const notice = document.getElementById('chatConnectionNotice');
+  const composer = document.querySelector('.chat-composer');
 
   // If user is logged in
   if (currentUser && currentUser.loggedIn) {
     if (guestForm) guestForm.style.display = 'none';
+    if (chatMessages) chatMessages.style.display = 'flex';
+    if (composer) composer.style.display = 'flex';
+    if (notice) notice.style.display = 'block';
     loadOrFetchConversation();
     return;
   }
@@ -7255,27 +7772,48 @@ function initCustomerChatSession() {
   // If guest with previous session
   if (chatState.guestInfo) {
     if (guestForm) guestForm.style.display = 'none';
+    if (chatMessages) chatMessages.style.display = 'flex';
+    if (composer) composer.style.display = 'flex';
+    if (notice) notice.style.display = 'block';
     loadOrFetchConversation();
     return;
   }
 
-  // Otherwise show friendly guest form before starting
+  // Otherwise show friendly guest onboarding form
   if (guestForm) guestForm.style.display = 'block';
-  if (chatMessages) chatMessages.innerHTML = '';
+  if (chatMessages) {
+    chatMessages.style.display = 'none';
+    chatMessages.innerHTML = '';
+  }
+  if (notice) notice.style.display = 'none';
+  if (composer) composer.style.display = 'none';
 }
 
 function submitGuestChatStart() {
-  const name = document.getElementById('chatGuestNameInput')?.value.trim();
-  const contact = document.getElementById('chatGuestContactInput')?.value.trim();
+  const nameInput = document.getElementById('chatGuestNameInput');
+  const contactInput = document.getElementById('chatGuestContactInput');
+  const name = nameInput ? nameInput.value.trim() : '';
+  const contact = contactInput ? contactInput.value.trim() : '';
 
   if (!name || !contact) {
     showToast('Vui lòng nhập tên và thông tin liên hệ');
+    if (!name && nameInput) nameInput.focus();
+    else if (!contact && contactInput) contactInput.focus();
     return;
   }
 
   chatState.guestInfo = { name, contact };
   const guestForm = document.getElementById('chatGuestForm');
   if (guestForm) guestForm.style.display = 'none';
+
+  const chatMessages = document.getElementById('customerChatMessages');
+  if (chatMessages) chatMessages.style.display = 'flex';
+
+  const composer = document.querySelector('.chat-composer');
+  if (composer) composer.style.display = 'flex';
+
+  const notice = document.getElementById('chatConnectionNotice');
+  if (notice) notice.style.display = 'block';
 
   if (typeof window.codexChatStartConversation === 'function') {
     try {
@@ -7286,11 +7824,13 @@ function submitGuestChatStart() {
   }
 
   // Add warm welcome message from Melsou
-  chatState.messages.push({
-    sender: 'melsou',
-    text: `Chào ${name}! Melsou rất vui được hỗ trợ bạn. Bạn đang quan tâm đến gói photobook nào hay cần xưởng hướng dẫn chọn ảnh?`,
-    time: getCurrentChatTime()
-  });
+  if (chatState.messages.length === 0) {
+    chatState.messages.push({
+      sender: 'melsou',
+      text: `Chào ${name}! Melsou rất vui được hỗ trợ bạn. Bạn đang quan tâm đến gói photobook nào hay cần xưởng hướng dẫn chọn ảnh?`,
+      time: getCurrentChatTime()
+    });
+  }
 
   renderChatMessages();
 }
@@ -7316,6 +7856,9 @@ function loadOrFetchConversation() {
       time: getCurrentChatTime()
     });
   }
+
+  const notice = document.getElementById('chatConnectionNotice');
+  if (notice) notice.style.display = 'block';
 
   renderChatMessages();
 }
@@ -7358,8 +7901,11 @@ function handleChatComposerKeyDown(e) {
 }
 
 function autoResizeChatComposer(textarea) {
+  if (!textarea) return;
   textarea.style.height = 'auto';
-  textarea.style.height = Math.min(100, Math.max(36, textarea.scrollHeight)) + 'px';
+  const newHeight = Math.min(100, Math.max(38, textarea.scrollHeight));
+  textarea.style.height = newHeight + 'px';
+  textarea.style.overflowY = textarea.scrollHeight > 100 ? 'auto' : 'hidden';
 }
 
 function handleChatFileSelect(e) {
@@ -7396,7 +7942,7 @@ function sendCustomerChatMessage() {
     text: text,
     imgUrl: file ? URL.createObjectURL(file) : null,
     time: getCurrentChatTime(),
-    status: 'Đang gửi...'
+    status: 'Đã gửi'
   };
 
   chatState.messages.push(msg);
@@ -7405,30 +7951,28 @@ function sendCustomerChatMessage() {
   // Reset composer
   if (input) {
     input.value = '';
-    input.style.height = '36px';
+    input.style.height = '38px';
+    input.style.overflowY = 'hidden';
   }
   clearChatAttachment();
+
+  // Keep notice visible
+  const notice = document.getElementById('chatConnectionNotice');
+  if (notice) notice.style.display = 'block';
 
   // Contract Hook for Codex Realtime
   if (typeof window.codexChatSendMessage === 'function') {
     try {
       window.codexChatSendMessage({ text, file }, (response) => {
-        msg.status = response?.status || 'Đã gửi';
-        renderChatMessages();
+        if (response?.status) {
+          msg.status = response.status;
+          renderChatMessages();
+        }
       });
-      return;
     } catch(e) {
       console.warn('codexChatSendMessage error:', e);
     }
   }
-
-  // Polite connection notice when backend contract is not yet active
-  setTimeout(() => {
-    msg.status = 'Đã gửi';
-    renderChatMessages();
-    const notice = document.getElementById('chatConnectionNotice');
-    if (notice) notice.style.display = 'block';
-  }, 400);
 }
 
 
@@ -7550,6 +8094,10 @@ function openFlyoutDrawer(tabIndex) {
   activeRailTabIndex = tabIndex;
   isFlyoutDrawerOpen = true;
 
+  if (isMobileViewport()) {
+    collapseFilmstripTray();
+  }
+
   document.body.classList.add('drawer-open');
   const drawer = document.getElementById('canvaSidebarEl');
   if (drawer) {
@@ -7557,10 +8105,11 @@ function openFlyoutDrawer(tabIndex) {
     if (isMobileViewport()) {
       drawer.classList.remove('snap-expanded', 'snap-full');
       drawer.classList.add('snap-compact', 'snap-half');
+    } else {
+      adjustMobileStageScale();
+      setTimeout(adjustMobileStageScale, 250);
+      recalculateDrawerAvailableHeight();
     }
-    adjustMobileStageScale();
-    setTimeout(adjustMobileStageScale, 250);
-    recalculateDrawerAvailableHeight();
   }
 
   const isEn = (currentAppLanguage === 'en');
@@ -7730,7 +8279,7 @@ function updateContextualToolbar() {
           <input type="file" accept="image/*" onchange="handleReplaceSpecificPhoto(event)" style="display:none">
           <span class="mc-icon">📷</span><span>Đổi ảnh</span>
         </label>
-        <button class="mc-btn" onclick="openPhotoCropToolbar('${slotKey}', event)"><span class="mc-icon">✂️</span><span>Cắt ảnh</span></button>
+        <button class="mc-btn" onclick="rotateActivePhoto()"><span class="mc-icon">🔄</span><span>Xoay</span></button>
         <button class="mc-btn" onclick="cyclePhotoFilter('${slotKey}')"><span class="mc-icon">🎨</span><span>Bộ lọc</span></button>
         <button class="mc-btn danger" onclick="clearPhotoSlot('${slotKey}')"><span class="mc-icon">🗑️</span><span>Xóa</span></button>
       `;
@@ -7766,19 +8315,44 @@ function updateContextualToolbar() {
   }
 }
 
-function toggleFilmstripCollapse() {
+function expandFilmstripTray() {
   const wrapper = document.getElementById('studioFilmstripWrapper');
   const icon = document.getElementById('filmstripToggleIcon');
   if (!wrapper) return;
-  wrapper.classList.toggle('collapsed');
+  wrapper.classList.remove('collapsed');
   if (icon) {
-    icon.textContent = wrapper.classList.contains('collapsed') ? '▲' : '▼';
+    icon.textContent = '▼';
   }
-  requestAnimationFrame(() => {
-    adjustMobileStageScale();
+  if (typeof recalculateDrawerAvailableHeight === 'function') {
     recalculateDrawerAvailableHeight();
-  });
+  }
 }
+
+function collapseFilmstripTray() {
+  const wrapper = document.getElementById('studioFilmstripWrapper');
+  const icon = document.getElementById('filmstripToggleIcon');
+  if (!wrapper) return;
+  wrapper.classList.add('collapsed');
+  if (icon) {
+    icon.textContent = '▲';
+  }
+  if (typeof recalculateDrawerAvailableHeight === 'function') {
+    recalculateDrawerAvailableHeight();
+  }
+}
+
+function toggleFilmstripCollapse() {
+  const wrapper = document.getElementById('studioFilmstripWrapper');
+  if (!wrapper) return;
+  if (wrapper.classList.contains('collapsed')) {
+    expandFilmstripTray();
+  } else {
+    collapseFilmstripTray();
+  }
+}
+window.expandFilmstripTray = expandFilmstripTray;
+window.collapseFilmstripTray = collapseFilmstripTray;
+window.toggleFilmstripCollapse = toggleFilmstripCollapse;
 
 function applySpreadBgColor(color) {
   const isEn = (currentAppLanguage === 'en');
@@ -7907,3 +8481,12 @@ function toggleTextItalic() {
   textEls.forEach(t => { t.style.fontStyle = ALBUM_DATA.letterFontStyle; });
   autoSaveToLocalStorage();
 }
+
+function initMobileFilmstripGestures() {
+  // Initial mobile check: start with tray collapsed on mobile so canvas has full space
+  if (isMobileViewport()) {
+    collapseFilmstripTray();
+  }
+}
+
+initMobileFilmstripGestures();

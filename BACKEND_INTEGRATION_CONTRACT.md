@@ -84,7 +84,7 @@ and before design lock. The server retains the newest ten. The browser offline
 copy belongs in IndexedDB. On reconnect, compare the local expected revision to
 the server revision and surface a conflict/rebase path; never overwrite silently.
 
-Current Antigravity dependency: `demo/app.js` still restores the main draft from
+Current Antigravity dependency: `demo/recovery_fb38/app.js` still restores the main draft from
 `localStorage`. Move the durable offline document to IndexedDB and use
 localStorage, if retained, only for small non-canonical bridge identifiers. Codex
 does not change this presentation-owned file.

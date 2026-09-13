@@ -1,0 +1,8 @@
+{
+  "rewrites": [
+    {
+      "source": "/api/:path*",
+      "destination": "https://melsou.nguyenthienbach18042007.workers.dev/api/:path*"
+    }
+  ]
+}

@@ -2,6 +2,11 @@
 
 This log prevents accidental overlap. Add the newest entry at the top.
 
+> Historical checkpoint paths below describe completed milestones, not active
+> working-tree dependencies. Removed checkpoints remain recoverable from Git
+> history and tag `pre-repo-cleanup-2026-09-13`; the current Golden is
+> `demo/checkpoint_fb91_golden/`.
+
 ## DONE — Codex — FB90 private asset preflight binding
 
 - **When / agent:** 2026-09-10 — Codex

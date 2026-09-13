@@ -4,6 +4,8 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>melsou — Gói tâm tình trong dáng hình thanh âm</title>
+<link rel="icon" type="image/png" href="/favicon.png">
+<link rel="apple-touch-icon" href="/favicon.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Dancing+Script:wght@600;700&family=Caveat:wght@600;700&family=Pacifico&family=Lora:ital,wght@0,400;0,500;0,600;1,400;1,500;1,600&family=Montserrat:ital,wght@0,300;0,400;0,500;0,600;0,700;0,800;1,400&family=Playfair+Display:ital,wght@0,600;0,700;1,400;1,600&display=swap" rel="stylesheet">
@@ -551,7 +553,7 @@
               <!-- DYNAMIC SONG SEARCH INPUT -->
               <label style="font-size:11.5px;font-weight:700;color:var(--gray);display:block;margin-bottom:4px">Tìm bài hát hoặc ca sĩ:</label>
               <div style="position:relative">
-                <input type="text" class="form-input" id="spotifySearchInput" placeholder="Gõ tên bài hát (vd: Until I Found You, Perfect...)" oninput="handleSpotifySongSearch(this.value)" autocomplete="off">
+                <input type="text" class="form-input" id="spotifySearchInput" placeholder="Gõ tên bài hát (vd: Until I Found You, Perfect...)" oninput="handleSpotifySongSearch(this.value)" onkeydown="if(event.key==='Enter'){handleSpotifySongSearch(this.value);}" autocomplete="off">
                 <div id="spotifySearchSpinner" style="display:none;position:absolute;right:12px;top:10px;font-size:12px">⏳</div>
               </div>
 
@@ -702,12 +704,12 @@
 
         <!-- ZONE 5: BOTTOM PAGE FILMSTRIP (HORIZONTAL THUMBNAILS + ADD SPREAD + COLLAPSE) -->
         <div class="studio-filmstrip-wrapper" id="studioFilmstripWrapper">
-          <div class="filmstrip-header-bar">
+          <div class="filmstrip-header-bar" id="filmstripHeaderBar" onclick="toggleFilmstripCollapse()">
             <div class="filmstrip-header-left">
               <span class="filmstrip-summary-icon">📑</span>
               <span class="filmstrip-summary" id="filmstripSummaryText">Tất cả các trang</span>
             </div>
-            <button class="filmstrip-toggle-btn" id="btnToggleFilmstrip" onclick="toggleFilmstripCollapse()" title="Thu gọn khay trang">
+            <button type="button" class="filmstrip-toggle-btn" id="btnToggleFilmstrip" onclick="event.stopPropagation(); toggleFilmstripCollapse();" title="Thu gọn / Mở rộng khay trang">
               <span id="filmstripToggleIcon">▼</span>
             </button>
           </div>
@@ -1003,7 +1005,7 @@
         <input type="text" class="form-input" id="regUsernameInput" placeholder="Chọn tên tài khoản..." autocomplete="username">
       </div>
       <div style="text-align:left;margin-bottom:12px">
-        <label style="font-size:12px;font-weight:700;color:var(--gray);display:block;margin-bottom:4px" id="lblRegPassword">Mật khẩu (ít nhất 12 ký tự, gồm chữ và số)</label>
+        <label style="font-size:12px;font-weight:700;color:var(--gray);display:block;margin-bottom:4px" id="lblRegPassword">Mật khẩu (tối thiểu 12 ký tự, gồm chữ và số)</label>
         <div style="position:relative">
           <input type="password" class="form-input" id="regPasswordInput" placeholder="Tạo mật khẩu an toàn..." autocomplete="new-password" style="padding-right:38px">
           <button type="button" class="pwd-toggle-btn" onclick="togglePasswordVisibility('regPasswordInput', this)" style="position:absolute;right:10px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;font-size:15px;color:var(--gray)" title="Hiện/ẩn mật khẩu">👁️</button>
@@ -1346,16 +1348,19 @@
       <!-- CLEAN FORM INPUTS WITHOUT HARDCODED PERSONAL VALUES (FB11) -->
       <div style="display:flex;flex-direction:column;gap:12px">
         <div>
-          <label style="font-size:12px;font-weight:700;color:var(--gray);display:block;margin-bottom:4px">Họ và tên người nhận *</label>
-          <input type="text" class="form-input" id="shipName" placeholder="Ví dụ: Nguyễn Văn A">
+          <label style="font-size:12px;font-weight:700;color:var(--gray);display:block;margin-bottom:4px" for="shipName">Họ và tên người nhận *</label>
+          <input type="text" class="form-input" id="shipName" placeholder="Ví dụ: Nguyễn Văn A" autocomplete="name" oninput="validateShipNameField(false)" onblur="validateShipNameField(false)">
+          <div class="field-error-msg" id="shipNameError"></div>
         </div>
         <div>
-          <label style="font-size:12px;font-weight:700;color:var(--gray);display:block;margin-bottom:4px">Số điện thoại liên hệ *</label>
-          <input type="tel" class="form-input" id="shipPhone" placeholder="Ví dụ: 0901 234 567">
+          <label style="font-size:12px;font-weight:700;color:var(--gray);display:block;margin-bottom:4px" for="shipPhone">Số điện thoại liên hệ *</label>
+          <input type="tel" class="form-input" id="shipPhone" placeholder="Ví dụ: 0901 234 567" autocomplete="tel" oninput="handleShipPhoneInput(this); validateShipPhoneField(false)" onblur="validateShipPhoneField(false)">
+          <div class="field-error-msg" id="shipPhoneError"></div>
         </div>
         <div>
-          <label style="font-size:12px;font-weight:700;color:var(--gray);display:block;margin-bottom:4px">Địa chỉ nhận hàng chi tiết *</label>
-          <input type="text" class="form-input" id="shipAddress" placeholder="Số nhà, tên đường, Phường/Xã, Quận/Huyện, Tỉnh/Thành...">
+          <label style="font-size:12px;font-weight:700;color:var(--gray);display:block;margin-bottom:4px" for="shipAddress">Địa chỉ nhận hàng chi tiết *</label>
+          <input type="text" class="form-input" id="shipAddress" placeholder="Số nhà, tên đường, Phường/Xã, Quận/Huyện, Tỉnh/Thành..." autocomplete="street-address" oninput="validateShipAddressField(false)" onblur="validateShipAddressField(false)">
+          <div class="field-error-msg" id="shipAddressError"></div>
         </div>
       </div>
 
@@ -1787,14 +1792,20 @@
 
   <!-- Guest Identity Capture (if not logged in & no previous thread) -->
   <div class="chat-guest-form" id="chatGuestForm" style="display:none">
-    <div style="text-align:center;padding:16px 12px">
-      <div style="font-size:32px;margin-bottom:8px">👋</div>
-      <h4 style="font-size:15px;font-weight:700;color:var(--dark);margin-bottom:4px">Chào bạn, Melsou có thể giúp gì cho bạn?</h4>
-      <p style="font-size:12px;color:var(--gray);margin-bottom:16px">Để lại tên và số điện thoại/email để tư vấn viên kết nối ngay nhé.</p>
-      <div style="display:flex;flex-direction:column;gap:10px;text-align:left">
-        <input type="text" id="chatGuestNameInput" placeholder="Tên của bạn *" style="padding:9px 12px;border:1.5px solid var(--gray-l);border-radius:8px;font-size:13px;outline:none" />
-        <input type="text" id="chatGuestContactInput" placeholder="Số điện thoại hoặc Email *" style="padding:9px 12px;border:1.5px solid var(--gray-l);border-radius:8px;font-size:13px;outline:none" />
-        <button class="btn-primary" style="padding:10px;justify-content:center;font-size:13.5px;margin-top:4px" onclick="submitGuestChatStart()">Bắt đầu trò chuyện →</button>
+    <div style="text-align:center;padding:24px 20px;max-width:320px;margin:0 auto">
+      <div style="font-size:36px;margin-bottom:8px">👋</div>
+      <h4 style="font-size:16px;font-weight:700;color:var(--dark);margin-bottom:6px">Chào bạn, Melsou có thể giúp gì cho bạn?</h4>
+      <p style="font-size:12.5px;color:var(--gray);margin-bottom:20px;line-height:1.5">Để lại tên và số điện thoại/email để tư vấn viên kết nối ngay nhé.</p>
+      <div style="display:flex;flex-direction:column;gap:12px;text-align:left">
+        <div>
+          <label style="display:block;font-size:12px;font-weight:600;color:var(--dark);margin-bottom:4px">Tên của bạn *</label>
+          <input type="text" id="chatGuestNameInput" placeholder="Tên của bạn *" style="width:100%;box-sizing:border-box;padding:10px 14px;border:1.5px solid var(--gray-l);border-radius:10px;font-size:13.5px;outline:none" />
+        </div>
+        <div>
+          <label style="display:block;font-size:12px;font-weight:600;color:var(--dark);margin-bottom:4px">Số điện thoại hoặc Email *</label>
+          <input type="text" id="chatGuestContactInput" placeholder="Số điện thoại hoặc Email *" style="width:100%;box-sizing:border-box;padding:10px 14px;border:1.5px solid var(--gray-l);border-radius:10px;font-size:13.5px;outline:none" />
+        </div>
+        <button class="btn-primary" type="button" style="padding:11px;justify-content:center;font-size:14px;font-weight:700;margin-top:4px;border-radius:10px" onclick="submitGuestChatStart()">Bắt đầu trò chuyện →</button>
       </div>
     </div>
   </div>
@@ -1805,15 +1816,15 @@
   </div>
 
   <!-- Connection Status Notice (polite fallback) -->
-  <div id="chatConnectionNotice" style="display:none;background:#fef3c7;padding:8px 14px;font-size:11.5px;color:#92400e;text-align:center;border-top:1px solid #fde68a">
-    Chat trực tiếp đang được kết nối. Bạn vẫn có thể liên hệ qua <a href="https://zalo.me" target="_blank" style="color:var(--red);font-weight:700">Zalo</a> hoặc <a href="tel:0931940512" style="color:var(--red);font-weight:700">Hotline</a>.
+  <div id="chatConnectionNotice" style="display:none;background:#fef3c7;padding:10px 14px;font-size:12px;color:#92400e;text-align:center;border-top:1px solid #fde68a;line-height:1.4">
+    Chat trực tiếp đang được kết nối. Bạn vẫn có thể liên hệ qua <a href="https://zalo.me" target="_blank" style="color:var(--red);font-weight:700;text-decoration:underline">Zalo</a> hoặc <a href="tel:0931940512" style="color:var(--red);font-weight:700;text-decoration:underline">Hotline</a>.
   </div>
 
   <!-- Attachment Preview Strip -->
   <div id="chatAttachmentPreviewStrip" style="display:none;padding:6px 12px;background:#f9fafb;border-top:1px solid var(--gray-l);align-items:center;gap:8px">
     <div style="position:relative;display:inline-block">
       <img id="chatAttachmentThumb" src="" alt="preview" style="width:44px;height:44px;border-radius:6px;object-fit:cover;border:1px solid var(--gray-l)" />
-      <button onclick="clearChatAttachment()" style="position:absolute;top:-6px;right:-6px;background:rgba(0,0,0,0.65);color:white;border:none;border-radius:50%;width:16px;height:16px;font-size:10px;cursor:pointer;display:flex;align-items:center;justify-content:center">✕</button>
+      <button type="button" onclick="clearChatAttachment()" style="position:absolute;top:-6px;right:-6px;background:rgba(0,0,0,0.65);color:white;border:none;border-radius:50%;width:16px;height:16px;font-size:10px;cursor:pointer;display:flex;align-items:center;justify-content:center">✕</button>
     </div>
     <span style="font-size:11.5px;color:var(--gray)" id="chatAttachmentName">attachment.jpg</span>
   </div>
@@ -1821,9 +1832,9 @@
   <!-- Composer -->
   <div class="chat-composer">
     <input type="file" id="chatFileInput" accept="image/jpeg,image/png,image/webp" style="display:none" onchange="handleChatFileSelect(event)" />
-    <button class="chat-attach-btn" onclick="document.getElementById('chatFileInput').click()" title="Gửi ảnh">📷</button>
+    <button class="chat-attach-btn" type="button" onclick="document.getElementById('chatFileInput').click()" title="Gửi ảnh">📷</button>
     <textarea id="chatComposerInput" placeholder="Nhập tin nhắn..." rows="1" onkeydown="handleChatComposerKeyDown(event)" oninput="autoResizeChatComposer(this)"></textarea>
-    <button class="chat-send-btn" onclick="sendCustomerChatMessage()" title="Gửi">Gửi</button>
+    <button class="chat-send-btn" type="button" onclick="sendCustomerChatMessage()" title="Gửi">Gửi</button>
   </div>
 </div>
 
