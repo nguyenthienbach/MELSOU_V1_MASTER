@@ -1,5 +1,10 @@
 # Antigravity UI → Melsou backend integration status
 
+> **Status: ARCHIVE_CANDIDATE.** This is a historical integration snapshot.
+> Current implementation paths and contracts are documented in
+> `BACKEND_INTEGRATION_CONTRACT.md`; the active frontend is
+> `demo/recovery_fb38/`.
+
 ## Product Owner auth update
 
 Native `username + password` is now the canonical V1 account method. The Worker
@@ -10,9 +15,9 @@ application-principal model.
 
 ## Implemented in this package
 
-- Preserved the latest Antigravity `demo/index.html` visual UI as the starting
+- Preserved the latest Antigravity `demo/recovery_fb38/index.html` visual UI as the starting
   presentation layer.
-- Added `demo/auth-client.js`, which calls the existing canonical Worker guest
+- Added `demo/recovery_fb38/auth-client.js`, which calls the existing canonical Worker guest
   project APIs, performs real Supabase Google OAuth and claims the same guest
   draft once a verified Supabase session returns.
 - Removed the UI's former localStorage-based account restore. A displayed user

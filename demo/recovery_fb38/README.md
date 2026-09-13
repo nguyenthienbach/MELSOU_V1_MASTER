@@ -1,10 +1,10 @@
-# MELSOU V1 — CURRENT WORKING RECOVERY FB38 (FB90 MILESTONE)
+# MELSOU V1 — ACTIVE PRODUCTION FRONTEND (FB91 BASELINE)
 
-- **Designation:** `CURRENT ACTIVE WORKING DIRECTORY (FB90 MILESTONE)`
+- **Designation:** `CURRENT ACTIVE PRODUCTION DIRECTORY (FB91 BASELINE)`
 - **Target Timestamp:** `2026-09-10T00:20:00+07:00`
 - **Approved by Product Owner:** `2026-09-10` (Directive: "đặt phiên bản FB 90 này là tốt nhất, tạo folder riêng như các phiên bản khác, đồng thời tải lên github")
-- **Active Baseline Checkpoint:** `demo/checkpoint_fb90_golden/`
-- **Baseline Lineage:** Evolves cleanly from `checkpoint_fb87_golden` and integrates:
+- **Active Baseline Checkpoint:** `demo/checkpoint_fb91_golden/`
+- **Baseline Lineage:** Earlier Golden milestones remain preserved in Git history and tag `pre-repo-cleanup-2026-09-13`; the active frontend evolves from FB91 and integrates:
   - **FB88 (Page Management / Add–Remove Spread UX):**
     - 1 action = 1 spread = 2 pages = ± 15.000đ. Adding spread appends a 2-page interior spread before Back Cover, consecutively numbered.
     - Default spreads (Bìa Trước, Trang 2–3 through Trang 10–11, Bìa Sau) are strictly protected with 0 remove buttons.

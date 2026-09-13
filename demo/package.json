@@ -5,6 +5,6 @@
   "type": "module",
   "scripts": {
     "start": "node server.mjs",
-    "check": "node --check server.mjs && node --check auth-client.js"
+    "check": "node --check server.mjs && node --check recovery_fb38/auth-client.js && node --check recovery_fb38/app.js"
   }
 }
