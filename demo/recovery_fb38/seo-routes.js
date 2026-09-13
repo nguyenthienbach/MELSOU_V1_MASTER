@@ -70,7 +70,7 @@
       const home = document.getElementById('page-home');
       home?.classList.add('active');
       home?.querySelectorAll(':scope > .hero, :scope > section').forEach((section) => {
-        section.hidden = section.id !== route.view;
+        section.style.display = section.id === route.view ? '' : 'none';
       });
       promoteHeading(route.heading);
       return;
