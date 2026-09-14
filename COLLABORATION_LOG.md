@@ -453,6 +453,17 @@ This log prevents accidental overlap. Add the newest entry at the top.
 
 ---
 
+## DONE — Codex — WordPress headless Blog integration
+
+- **When / agent:** 2026-09-14 — Codex
+- **Files changed:** `demo/recovery_fb38/app.js`, `demo/recovery_fb38/auth-client.js`, `demo/recovery_fb38/seo-routes.js`, `demo/recovery_fb38/sitemap.xml`, `demo/recovery_fb38/vercel.json`, `worker/index.mjs`, `worker/wordpress-blog.test.mjs`
+- **Result:** WordPress published posts feed the Melsou Blog list/detail routes and dynamic sitemap through the Worker proxy with 30-second cache/revalidation.
+- **Protected contracts:** FB91 presentation, Studio, auth, cart, checkout, payment, and `demo/checkpoint_fb91_golden/` remain unchanged.
+- **Checks:** JavaScript syntax checks PASS; `node --test worker/wordpress-blog.test.mjs` PASS (3/3); `git diff --check` PASS; live WordPress publish/draft state verified at the source API.
+- **Status:** DONE — awaiting integration and production deployment.
+
+---
+
 ## DONE — Codex — shared-master setup
 
 - **When / agent:** 2026-08-27 — Codex
