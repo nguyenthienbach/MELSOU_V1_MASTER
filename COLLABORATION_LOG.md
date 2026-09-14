@@ -451,6 +451,15 @@ This log prevents accidental overlap. Add the newest entry at the top.
 - **Protected contracts:** hooks/API/data that will remain unchanged
 - **Status:** IN PROGRESS
 
+## DONE — Codex — native registration structured error mapping
+
+- **When / agent:** 2026-09-14 — Codex
+- **Files reserved:** `worker/index.mjs`, `worker/routes.test.mjs`, `demo/recovery_fb38/app.js`, `demo/recovery_fb38/auth-client.js`
+- **Purpose:** preserve structured native-register errors and map duplicate username, invalid username, weak password, and confirm mismatch to safe user-facing messages.
+- **Protected contracts:** preserve login, forgot password, guest claim, sessions, password hashing, and raw database error redaction.
+- **Checks:** production duplicate probe returned `409 USERNAME_TAKEN`; JavaScript syntax PASS; targeted native registration tests PASS (2/2); UI mapping assertions PASS; `git diff --check` PASS.
+- **Status:** DONE — awaiting PO review; not committed, pushed, or deployed.
+
 ## DONE — Codex — isolate cart state from canonical project drafts
 
 - **When / agent:** 2026-09-14 — Codex

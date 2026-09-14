@@ -363,7 +363,9 @@
       await applyNativeUser(result.user);
       return result.user;
     } catch (error) {
-      window.codexOnAuthError?.(error.code === 'RATE_LIMIT_NOT_CONFIGURED' ? 'Máy chủ chưa cấu hình chống brute-force.' : (error.message || 'Không thể xác thực.'));
+      // Preserve the structured API code for the UI mapper. The API bridge has
+      // already redacted database/provider details from the public response.
+      window.codexOnAuthError?.(error);
       throw error;
     }
   }

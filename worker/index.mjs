@@ -115,7 +115,12 @@ async function handleNativeRegister(request, env) {
   if (!nativeAuthConfigured(env)) return json({ error: 'AUTH_NOT_CONFIGURED' }, 503);
   let input; try { input = await request.json(); } catch { return json({ error: 'INVALID_JSON' }, 400); }
   let username; let password;
-  try { username = normalizeUsername(input?.username); password = assertPassword(input?.password); } catch (error) { return contractFailure(error); }
+  try { username = normalizeUsername(input?.username); } catch (error) { return contractFailure(error); }
+  try { password = assertPassword(input?.password); } catch (error) {
+    return error instanceof ContractError && error.code === 'INVALID_PASSWORD'
+      ? json({ error: 'WEAK_PASSWORD' }, 400)
+      : contractFailure(error);
+  }
   const limit = await allowRateLimitedAction(env, `native-register:${requestNetworkKey(request)}:${username}`);
   if (limit.configurationMissing) return json({ error: 'RATE_LIMIT_NOT_CONFIGURED' }, 503);
   if (!limit.allowed) return json({ error: 'RATE_LIMITED' }, 429);

@@ -254,6 +254,33 @@ test('native registration stores only a derived verifier and returns an HttpOnly
   assert.match(bodies[0].p_password_hash, /^[0-9a-f]{64}$/); assert.match(bodies[0].p_password_salt, /^[0-9a-f]{32}$/);
 });
 
+test('native registration returns safe structured username and password errors', async (t) => {
+  t.mock.method(globalThis, 'fetch', async (url) => {
+    if (String(url).includes('/rpc/melsou_register_native')) {
+      return new Response(JSON.stringify({ code: 'P0001', message: 'USERNAME_TAKEN', details: null }), { status: 400 });
+    }
+    throw new Error(`Unexpected fetch ${url}`);
+  });
+  const env = { APP_ENV: 'test', SUPABASE_URL: 'https://db.test', SUPABASE_SERVICE_ROLE_KEY: 'service' };
+  const duplicate = await worker.fetch(new Request('https://melsou.test/api/auth/native/register', {
+    method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ username: 'taken.user', password: 'correct-horse-9' })
+  }), env);
+  assert.equal(duplicate.status, 409);
+  assert.deepEqual(await duplicate.json(), { error: 'USERNAME_TAKEN' });
+
+  const weak = await worker.fetch(new Request('https://melsou.test/api/auth/native/register', {
+    method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ username: 'new.user', password: 'short1' })
+  }), env);
+  assert.equal(weak.status, 400);
+  assert.deepEqual(await weak.json(), { error: 'WEAK_PASSWORD' });
+
+  const invalidUsername = await worker.fetch(new Request('https://melsou.test/api/auth/native/register', {
+    method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ username: 'bad user', password: 'correct-horse-9' })
+  }), env);
+  assert.equal(invalidUsername.status, 400);
+  assert.deepEqual(await invalidUsername.json(), { error: 'INVALID_USERNAME' });
+});
+
 test('native auth fails closed when its canonical database is not configured', async () => {
   const response = await worker.fetch(new Request('https://melsou.test/api/auth/native/login', {
     method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ username: 'native.user', password: 'correct-horse-9' })

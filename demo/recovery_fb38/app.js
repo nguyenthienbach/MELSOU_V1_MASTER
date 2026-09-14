@@ -554,6 +554,7 @@ function switchAuthTab(tab) {
   const errorBox = document.getElementById('authModalErrorBox');
 
   if (errorBox) errorBox.style.display = 'none';
+  if (errorMsg) errorMsg.textContent = '';
 
   if (tab === 'login') {
     if (tabsContainer) tabsContainer.style.display = 'flex';
@@ -604,6 +605,7 @@ function handleUsernameLoginSubmit() {
   const errorMsg = document.getElementById('authModalErrorMessage');
 
   if (errorBox) errorBox.style.display = 'none';
+  if (errorMsg) errorMsg.textContent = '';
 
   if (!username || !password) {
     if (errorBox) errorBox.style.display = 'flex';
@@ -630,6 +632,7 @@ function handleUsernameRegisterSubmit() {
   const errorMsg = document.getElementById('authModalErrorMessage');
 
   if (errorBox) errorBox.style.display = 'none';
+  if (errorMsg) errorMsg.textContent = '';
 
   if (!username || !password || !confirmPassword) {
     if (errorBox) errorBox.style.display = 'flex';
@@ -653,7 +656,7 @@ function handleUsernameRegisterSubmit() {
   }
   if (password !== confirmPassword) {
     if (errorBox) errorBox.style.display = 'flex';
-    if (errorMsg) errorMsg.textContent = currentAppLanguage === 'en' ? 'Passwords do not match' : 'Mật khẩu xác nhận không khớp';
+    if (errorMsg) errorMsg.textContent = currentAppLanguage === 'en' ? 'Passwords do not match.' : 'Mật khẩu xác nhận không khớp.';
     return;
   }
 
@@ -752,11 +755,17 @@ function getUserFriendlyErrorMessage(error, defaultFallback = '') {
   if (codeUpper === 'ORDER_NOT_CREATED') {
     return isEn ? 'Order could not be created. Please try again.' : 'Đơn hàng chưa được tạo. Vui lòng thử lại.';
   }
-  if (codeUpper === 'INVALID_CREDENTIALS' || codeUpper === 'INVALID_PASSWORD' || codeUpper === 'INVALID_USERNAME') {
+  if (codeUpper === 'INVALID_CREDENTIALS' || codeUpper === 'INVALID_PASSWORD') {
     return isEn ? 'Incorrect username or password.' : 'Tên đăng nhập hoặc mật khẩu không chính xác.';
   }
-  if (codeUpper === 'USERNAME_EXISTS' || codeUpper === 'USER_ALREADY_EXISTS') {
-    return isEn ? 'This username is already taken. Please choose another.' : 'Tên đăng nhập này đã được sử dụng. Vui lòng chọn tên khác.';
+  if (codeUpper === 'INVALID_USERNAME') {
+    return isEn ? 'This username is invalid.' : 'Tên tài khoản không hợp lệ.';
+  }
+  if (codeUpper === 'WEAK_PASSWORD') {
+    return isEn ? 'The password does not meet the security requirements.' : 'Mật khẩu chưa đáp ứng yêu cầu bảo mật.';
+  }
+  if (codeUpper === 'USERNAME_TAKEN' || codeUpper === 'DUPLICATE_USERNAME' || codeUpper === 'USERNAME_EXISTS' || codeUpper === 'USER_ALREADY_EXISTS') {
+    return isEn ? 'This username is already taken. Please choose another.' : 'Tên tài khoản này đã được sử dụng. Vui lòng chọn tên khác.';
   }
   if (codeUpper === 'RATE_LIMIT_NOT_CONFIGURED') {
     return isEn ? 'Rate limit protection is not configured on server.' : 'Máy chủ chưa cấu hình bảo vệ chống brute-force.';
