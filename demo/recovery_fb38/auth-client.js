@@ -48,7 +48,8 @@
     }
     return body;
   };
-  window.codexGetPublishedPosts = async ({ page = 1, perPage = 10 } = {}) => api(`/blog?page=${encodeURIComponent(page)}&perPage=${encodeURIComponent(perPage)}`);
+  window.codexGetPublishedPosts = async ({ page = 1, perPage = 10, category = 'all' } = {}) => api(`/blog?page=${encodeURIComponent(page)}&perPage=${encodeURIComponent(perPage)}${category === 'all' ? '' : `&category=${encodeURIComponent(category)}`}`);
+  window.codexGetPublishedCategories = async () => api('/blog/categories');
   window.codexGetPublishedPost = async (slug) => api(`/blog/${encodeURIComponent(slug)}`);
   window.dispatchEvent(new Event('melsou-blog-api-ready'));
   const supportedStudioSource = (value) => {

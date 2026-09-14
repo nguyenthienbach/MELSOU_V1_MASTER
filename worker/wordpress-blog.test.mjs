@@ -30,9 +30,50 @@ test('WordPress proxy returns published posts newest first with normalized metad
     const body = await response.json();
     assert.equal(body.posts[0].slug, 'cau-chuyen-dau-tien-cua-melsou');
     assert.equal(body.posts[0].category.slug, 'cau-chuyen-melsou');
+    assert.equal(body.posts[0].featuredImage, null);
     assert.match(requestedUrl, /status=publish/);
     assert.match(requestedUrl, /orderby=date/);
     assert.match(requestedUrl, /order=desc/);
+  } finally { globalThis.fetch = originalFetch; }
+});
+
+test('WordPress featured image and category filter remain source-driven', async () => {
+  const originalFetch = globalThis.fetch;
+  let requestedUrl = '';
+  globalThis.fetch = async (input) => {
+    requestedUrl = String(input);
+    return wpResponse([wpPost({
+      _embedded: {
+        'wp:term': [[{ id: 791, name: 'Kỷ niệm mới', slug: 'ky-niem-moi' }], []],
+        'wp:featuredmedia': [{ source_url: 'https://cdn.example.test/featured.jpg' }]
+      }
+    })]);
+  };
+  try {
+    const response = await worker.fetch(new Request('https://melsou.test/api/blog?category=791'), {}, {});
+    const body = await response.json();
+    assert.equal(body.posts[0].category.name, 'Kỷ niệm mới');
+    assert.equal(body.posts[0].featuredImage, 'https://cdn.example.test/featured.jpg');
+    assert.match(requestedUrl, /categories=791/);
+    assert.match(requestedUrl, /_embed=1/);
+  } finally { globalThis.fetch = originalFetch; }
+});
+
+test('category endpoint includes only non-empty WordPress categories', async () => {
+  const originalFetch = globalThis.fetch;
+  let requestedUrl = '';
+  globalThis.fetch = async (input) => {
+    requestedUrl = String(input);
+    return wpResponse([
+      { id: 1, name: 'Published', slug: 'published', count: 2 },
+      { id: 2, name: 'Empty', slug: 'empty', count: 0 }
+    ]);
+  };
+  try {
+    const response = await worker.fetch(new Request('https://melsou.test/api/blog/categories'), {}, {});
+    assert.equal(response.status, 200);
+    assert.deepEqual((await response.json()).categories, [{ id: 1, name: 'Published', slug: 'published', count: 2 }]);
+    assert.match(requestedUrl, /categories\?hide_empty=true/);
   } finally { globalThis.fetch = originalFetch; }
 });
 

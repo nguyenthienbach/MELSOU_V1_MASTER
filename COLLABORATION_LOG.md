@@ -464,6 +464,17 @@ This log prevents accidental overlap. Add the newest entry at the top.
 
 ---
 
+## IN PROGRESS — Codex — WordPress categories and featured images
+
+- **When / agent:** 2026-09-14 — Codex
+- **Files reserved:** `demo/recovery_fb38/index.html`, `demo/recovery_fb38/app.js`, `demo/recovery_fb38/auth-client.js`, `worker/index.mjs`, `worker/wordpress-blog.test.mjs`
+- **Purpose:** derive Blog category filters and featured images from published WordPress data.
+- **Protected contracts:** preserve FB91/Antigravity Blog detail UI, public Blog routes, dynamic sitemap, Studio, auth, cart, checkout, and Golden checkpoint.
+- **Checks:** syntax PASS; WordPress Blog targeted tests PASS (5/5); live WordPress API returns 2 non-empty categories and current posts safely use the existing fallback because no live post has a Featured Image yet.
+- **Status:** DONE — awaiting PO review; not committed, pushed, merged, or deployed.
+
+---
+
 ## DONE — Codex — shared-master setup
 
 - **When / agent:** 2026-08-27 — Codex

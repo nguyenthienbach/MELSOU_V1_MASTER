@@ -7020,11 +7020,7 @@ function switchLanguage(lang) {
   }
 
   const blogCats = {
-    blogCatAll: isEn ? 'All Articles' : 'Tất cả bài viết',
-    blogCatLove: isEn ? 'Love Stories' : 'Chuyện tình yêu',
-    blogCatMemories: isEn ? 'Memories & Youth' : 'Ký ức & Thanh xuân',
-    blogCatCraft: isEn ? 'Craft & Materials' : 'Thủ công & Chất liệu',
-    blogCatInspiration: isEn ? 'Design Inspiration' : 'Cảm hứng thiết kế'
+    blogCatAll: isEn ? 'All Articles' : 'Tất cả bài viết'
   };
   Object.keys(blogCats).forEach(id => {
     const el = document.getElementById(id);
@@ -7588,6 +7584,7 @@ var activeBlogCategory = 'all';
 var currentLoadedBlogPosts = [];
 var currentBlogPage = 1;
 var currentBlogTotalPages = 1;
+var currentBlogCategories = [];
 
 function sanitizeWordPressHtml(html) {
   const documentValue = new DOMParser().parseFromString(String(html || ''), 'text/html');
@@ -7617,6 +7614,33 @@ function filterBlogCategory(category, btn) {
   renderPublicBlog(category, 1);
 }
 
+async function renderBlogCategories() {
+  const container = document.getElementById('blogCategoryTabs');
+  if (!container || typeof window.codexGetPublishedCategories !== 'function') return;
+  try {
+    const result = await window.codexGetPublishedCategories();
+    currentBlogCategories = result.categories || [];
+    const allLabel = currentAppLanguage === 'en' ? 'All Articles' : 'Tất cả bài viết';
+    container.replaceChildren();
+    const allButton = document.createElement('button');
+    allButton.className = `sal-chip${activeBlogCategory === 'all' ? ' active' : ''}`;
+    allButton.id = 'blogCatAll';
+    allButton.textContent = allLabel;
+    allButton.addEventListener('click', () => filterBlogCategory('all', allButton));
+    container.append(allButton);
+    currentBlogCategories.forEach((category) => {
+      const button = document.createElement('button');
+      button.className = `sal-chip${String(activeBlogCategory) === String(category.id) ? ' active' : ''}`;
+      button.textContent = plainWordPressText(category.name);
+      button.addEventListener('click', () => filterBlogCategory(String(category.id), button));
+      container.append(button);
+    });
+    if (activeBlogCategory !== 'all' && !currentBlogCategories.some((category) => String(category.id) === String(activeBlogCategory))) filterBlogCategory('all', container.querySelector('#blogCatAll'));
+  } catch (error) {
+    console.warn('codexGetPublishedCategories error:', error);
+  }
+}
+
 async function renderPublicBlog(category = 'all', page = 1) {
   const list = document.getElementById('publicBlogList');
   if (!list) return;
@@ -7624,14 +7648,13 @@ async function renderPublicBlog(category = 'all', page = 1) {
   list.innerHTML = `<div class="blog-empty-state"><div style="font-size:32px;margin-bottom:10px">⏳</div><p>${isEn ? 'Loading stories...' : 'Đang tải những câu chuyện...'}</p></div>`;
   if (typeof window.codexGetPublishedPosts !== 'function') return;
   let result;
-  try { result = await window.codexGetPublishedPosts({ page, perPage: 10 }); }
+  try { result = await window.codexGetPublishedPosts({ page, perPage: 10, category }); }
   catch (error) {
     console.warn('codexGetPublishedPosts error:', error);
     list.innerHTML = `<div class="blog-empty-state"><div style="font-size:32px;margin-bottom:10px">📖</div><p>${isEn ? 'Stories are temporarily unavailable. Please try again later.' : 'Câu chuyện đang tạm thời chưa tải được. Vui lòng thử lại sau.'}</p></div>`;
     return;
   }
-  const allPosts = result.posts || [];
-  const posts = category === 'all' ? allPosts : allPosts.filter((post) => post.category?.slug === category);
+  const posts = result.posts || [];
   currentBlogPage = result.pagination?.page || page;
   currentBlogTotalPages = result.pagination?.totalPages || 1;
   currentLoadedBlogPosts = page > 1 ? currentLoadedBlogPosts.concat(posts) : posts;
@@ -7674,6 +7697,9 @@ function openBlogArticleReader(postIdx) {
 function closeBlogArticleReader() {
   const modal = document.getElementById('blogArticleReaderModal');
   if (modal) modal.classList.remove('open');
+  if (window.location.pathname.startsWith('/blog/')) {
+    window.location.assign('/#blog-section');
+  }
 }
 
 
@@ -8065,7 +8091,7 @@ function sendAdminReply() {
 
 renderCustomerReviews();
 renderPublicBlog('all');
-window.addEventListener('melsou-blog-api-ready', () => renderPublicBlog(activeBlogCategory, 1));
+window.addEventListener('melsou-blog-api-ready', () => { renderBlogCategories(); renderPublicBlog(activeBlogCategory, 1); });
 
 
 // ============================================================
