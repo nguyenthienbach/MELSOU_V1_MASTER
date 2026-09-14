@@ -6970,6 +6970,7 @@ function applyMobileDrawerTranslations(lang) {
 
   const mndMap = {
     mndLinkHome: isEn ? '🏠 Home' : '🏠 Trang chủ',
+    mndLinkAbout: isEn ? '📖 About Melsou' : '📖 Về Melsou',
     mndLinkValues: isEn ? '✨ Four Unique Values' : '✨ Bốn giá trị độc bản',
     mndLinkPricing: isEn ? '🏷️ Packages' : '🏷️ Gói sản phẩm',
     mndLinkTemplates: isEn ? '🎨 Template Library' : '🎨 Thư viện Template',
