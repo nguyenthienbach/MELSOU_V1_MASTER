@@ -3441,6 +3441,165 @@ body.in-studio #page-studio.active {
 }
 
 /* ============================================================
+   📖 BLOG DETAIL VIEW & STANDALONE ARTICLE LAYOUT
+   ============================================================ */
+#blogArticleReaderModal[aria-modal="false"] {
+  background: var(--bg);
+  backdrop-filter: none;
+  min-height: calc(100vh - 350px);
+  padding: 40px 20px 60px;
+  align-items: flex-start;
+  justify-content: center;
+  z-index: 10;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+#blogArticleReaderModal[aria-modal="false"] #readerCoverWrapper > button {
+  display: none;
+}
+
+#blogArticleReaderModal[aria-modal="false"] .blog-article-card {
+  max-width: 820px !important;
+  width: 100% !important;
+  max-height: none !important;
+  overflow: visible !important;
+  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.06);
+  border: 1px solid var(--gray-l);
+  background: #FFFFFF;
+  margin: 0 auto;
+}
+
+#blogArticleReaderModal[aria-modal="false"] .editorial-reader-content {
+  overflow-y: visible !important;
+  max-height: none !important;
+  flex: none !important;
+  user-select: text;
+  -webkit-user-select: text;
+}
+
+#blogArticleReaderModal[aria-modal="false"] #readerTitle,
+#blogArticleReaderModal[aria-modal="false"] #blogPostPageHeading {
+  font-family: 'Playfair Display', Georgia, serif;
+  font-size: 32px;
+  line-height: 1.35;
+  color: var(--dark);
+  margin-top: 14px;
+  margin-bottom: 24px;
+  font-weight: 700;
+}
+
+#blogArticleReaderModal[aria-modal="false"] #readerBody {
+  font-size: 16px;
+  line-height: 1.85;
+  color: #374151;
+  user-select: text;
+  -webkit-user-select: text;
+}
+
+#blogArticleReaderModal[aria-modal="false"] #readerBody p {
+  margin-bottom: 20px;
+}
+
+#blogArticleReaderModal[aria-modal="false"] #readerBody img,
+#blogArticleReaderModal[aria-modal="false"] .editorial-reader-content img {
+  max-width: 100%;
+  height: auto;
+  border-radius: 12px;
+  margin: 20px 0;
+  display: block;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.06);
+}
+
+#blogArticleReaderModal[aria-modal="false"] #readerBody figure {
+  margin: 24px 0;
+  max-width: 100%;
+}
+
+#blogArticleReaderModal[aria-modal="false"] #readerBody figcaption {
+  font-size: 13px;
+  color: var(--gray);
+  text-align: center;
+  margin-top: 8px;
+  font-style: italic;
+}
+
+#blogArticleReaderModal[aria-modal="false"] #readerBody blockquote,
+#blogArticleReaderModal[aria-modal="false"] .editorial-reader-content blockquote {
+  border-left: 3px solid var(--red);
+  background: var(--red-light);
+  padding: 16px 20px;
+  border-radius: 0 12px 12px 0;
+  font-style: italic;
+  font-size: 16px;
+  line-height: 1.75;
+  color: var(--dark);
+  margin: 24px 0;
+}
+
+#blogArticleReaderModal[aria-modal="false"] #readerBody h1,
+#blogArticleReaderModal[aria-modal="false"] #readerBody h2,
+#blogArticleReaderModal[aria-modal="false"] #readerBody h3,
+#blogArticleReaderModal[aria-modal="false"] #readerBody h4 {
+  font-family: 'Playfair Display', Georgia, serif;
+  color: var(--dark);
+  margin: 28px 0 14px;
+  font-weight: 700;
+  line-height: 1.4;
+}
+
+#blogArticleReaderModal[aria-modal="false"] #readerBody ul,
+#blogArticleReaderModal[aria-modal="false"] #readerBody ol {
+  padding-left: 24px;
+  margin-bottom: 20px;
+}
+
+#blogArticleReaderModal[aria-modal="false"] #readerBody li {
+  margin-bottom: 8px;
+  line-height: 1.7;
+}
+
+#blogArticleReaderModal .blog-reader-back-btn:hover {
+  color: var(--red) !important;
+}
+
+@media (max-width: 768px) {
+  #blogArticleReaderModal[aria-modal="false"] {
+    padding: 14px 10px 40px;
+    min-height: calc(100vh - 280px);
+  }
+
+  #blogArticleReaderModal[aria-modal="false"] .blog-article-card {
+    border-radius: 16px;
+  }
+
+  #blogArticleReaderModal[aria-modal="false"] .blog-reader-top-nav {
+    padding: 12px 16px;
+  }
+
+  #blogArticleReaderModal[aria-modal="false"] #readerCoverWrapper {
+    height: 220px !important;
+  }
+
+  #blogArticleReaderModal[aria-modal="false"] .editorial-reader-content {
+    padding: 22px 16px 22px !important;
+  }
+
+  #blogArticleReaderModal[aria-modal="false"] #readerTitle,
+  #blogArticleReaderModal[aria-modal="false"] #blogPostPageHeading {
+    font-size: 22px !important;
+    line-height: 1.35 !important;
+    margin-top: 10px !important;
+    margin-bottom: 16px !important;
+  }
+
+  #blogArticleReaderModal[aria-modal="false"] #readerBody {
+    font-size: 15px !important;
+    line-height: 1.8 !important;
+  }
+}
+
+/* ============================================================
    💬 FB48: REALTIME CUSTOMER CHAT WIDGET & PANEL
    ============================================================ */
 .customer-chat-panel {

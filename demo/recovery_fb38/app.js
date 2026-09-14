@@ -7674,6 +7674,9 @@ function openBlogArticleReader(postIdx) {
 function closeBlogArticleReader() {
   const modal = document.getElementById('blogArticleReaderModal');
   if (modal) modal.classList.remove('open');
+  if (window.location.pathname.startsWith('/blog/')) {
+    window.location.assign('/#blog-section');
+  }
 }
 
 
