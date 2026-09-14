@@ -3007,16 +3007,158 @@ footer { background: #141414; color: #a0a0a0; padding: 70px 32px 28px; border-to
     justify-content: center !important;
     text-align: center !important;
   }
+  #blog-section {
+    overflow: hidden !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    box-sizing: border-box !important;
+  }
+  .blog-carousel-container {
+    width: 100% !important;
+    max-width: 100% !important;
+    overflow: hidden !important;
+    padding: 0 !important;
+    box-sizing: border-box !important;
+  }
   .blog-carousel-arrow {
     display: none !important;
   }
   #publicBlogList {
     display: flex !important;
-    flex-direction: column !important;
-    gap: 18px !important;
-    overflow-x: visible !important;
+    flex-direction: row !important;
+    flex-wrap: nowrap !important;
+    gap: 10px !important;
+    overflow-x: auto !important;
+    overflow-y: hidden !important;
+    scroll-snap-type: x mandatory !important;
+    scroll-behavior: smooth !important;
+    -webkit-overflow-scrolling: touch !important;
     width: 100% !important;
-    padding: 0 !important;
+    max-width: 100% !important;
+    box-sizing: border-box !important;
+    padding: 6px 2px 14px !important;
+    scrollbar-width: none !important;
+  }
+  #publicBlogList::-webkit-scrollbar {
+    display: none !important;
+  }
+  .blog-card-item {
+    flex: 0 0 calc((100% - 10px) / 2) !important;
+    width: calc((100% - 10px) / 2) !important;
+    max-width: calc((100% - 10px) / 2) !important;
+    min-width: calc((100% - 10px) / 2) !important;
+    height: 315px !important;
+    max-height: 315px !important;
+    scroll-snap-align: start !important;
+    scroll-snap-stop: normal !important;
+    background: white !important;
+    border-radius: 12px !important;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05) !important;
+    border: 1px solid var(--gray-l) !important;
+    overflow: hidden !important;
+    display: flex !important;
+    flex-direction: column !important;
+    box-sizing: border-box !important;
+  }
+  .blog-card-link {
+    display: flex !important;
+    flex-direction: column !important;
+    height: 100% !important;
+    width: 100% !important;
+    color: inherit !important;
+    text-decoration: none !important;
+  }
+  .blog-card-image-wrap {
+    position: relative !important;
+    width: 100% !important;
+    aspect-ratio: 16 / 9 !important;
+    max-height: 110px !important;
+    border-radius: 12px 12px 0 0 !important;
+    overflow: hidden !important;
+    background: #e5e7eb !important;
+    flex-shrink: 0 !important;
+  }
+  .blog-card-img {
+    width: 100% !important;
+    height: 100% !important;
+    object-fit: cover !important;
+    display: block !important;
+  }
+  .blog-card-body {
+    padding: 10px 10px 10px !important;
+    display: flex !important;
+    flex-direction: column !important;
+    flex: 1 !important;
+    justify-content: space-between !important;
+    min-height: 0 !important;
+  }
+  .blog-card-meta {
+    display: flex !important;
+    align-items: center !important;
+    gap: 4px !important;
+    font-size: 9px !important;
+    margin-bottom: 4px !important;
+    font-weight: 700 !important;
+    text-transform: uppercase !important;
+  }
+  .blog-card-category {
+    font-size: 8.5px !important;
+    padding: 1px 5px !important;
+    background: rgba(168, 35, 35, 0.08) !important;
+    color: var(--red) !important;
+    border-radius: 4px !important;
+    max-width: 80px !important;
+    white-space: nowrap !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+  }
+  .blog-card-date {
+    font-size: 8.5px !important;
+    color: var(--gray) !important;
+    white-space: nowrap !important;
+  }
+  .blog-card-title {
+    font-size: 12px !important;
+    font-weight: 700 !important;
+    line-height: 1.3 !important;
+    height: 31px !important;
+    max-height: 31px !important;
+    margin: 0 0 4px !important;
+    display: -webkit-box !important;
+    -webkit-line-clamp: 2 !important;
+    -webkit-box-orient: vertical !important;
+    overflow: hidden !important;
+    color: var(--dark) !important;
+  }
+  .blog-card-excerpt {
+    font-size: 10.5px !important;
+    line-height: 1.35 !important;
+    height: 28px !important;
+    max-height: 28px !important;
+    display: -webkit-box !important;
+    -webkit-line-clamp: 2 !important;
+    -webkit-box-orient: vertical !important;
+    overflow: hidden !important;
+    margin-bottom: 4px !important;
+    color: var(--gray) !important;
+  }
+  .blog-card-footer {
+    margin-top: auto !important;
+    padding-top: 6px !important;
+    border-top: 1px dashed rgba(0, 0, 0, 0.08) !important;
+  }
+  .blog-card-cta {
+    font-size: 10.5px !important;
+    font-weight: 700 !important;
+    color: var(--red) !important;
+    white-space: nowrap !important;
+  }
+  #blogLoadMoreWrap {
+    display: none !important;
+  }
+  .blog-search-bar {
+    max-width: 100% !important;
+    padding: 0 4px !important;
   }
 
   /* TEMPLATES GRID MOBILE */
@@ -3408,6 +3550,56 @@ body.in-studio #page-studio.active {
 /* ============================================================
    📖 FB47: BLOG STOREFRONT & CAROUSEL
    ============================================================ */
+.blog-search-bar {
+  max-width: 440px;
+  margin: 18px auto 12px;
+  position: relative;
+}
+.blog-search-input {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 10px 38px 10px 40px;
+  border: 1.5px solid var(--gray-l);
+  border-radius: 100px;
+  font-size: 13.5px;
+  background: #ffffff;
+  outline: none;
+  transition: var(--transition);
+  color: var(--dark);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.03);
+}
+.blog-search-input:focus {
+  border-color: var(--red);
+  box-shadow: 0 0 0 3px rgba(168, 35, 35, 0.12);
+}
+.blog-search-icon {
+  position: absolute;
+  left: 14px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--gray);
+  font-size: 15px;
+  pointer-events: none;
+}
+.blog-search-clear {
+  position: absolute;
+  right: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  background: none;
+  border: none;
+  color: var(--gray);
+  font-size: 15px;
+  cursor: pointer;
+  padding: 4px 6px;
+  border-radius: 50%;
+  line-height: 1;
+  display: none;
+}
+.blog-search-clear:hover {
+  color: var(--red);
+}
+
 .blog-carousel-container {
   position: relative;
   width: 100%;
