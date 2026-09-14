@@ -259,21 +259,24 @@
           <span class="blog-search-icon">🔍</span>
           <input
             type="search"
-            id="blogSearchInput"
-            name="melsou_blog_search"
+            id="blog-search-query"
+            name="blog-search-query"
             class="blog-search-input"
             placeholder="Tìm kiếm câu chuyện..."
             value=""
             autocomplete="off"
             aria-autocomplete="none"
-            readonly
-            onfocus="this.removeAttribute('readonly')"
+            aria-label="Tìm kiếm câu chuyện"
+            role="searchbox"
+            inputmode="search"
+            enterkeyhint="search"
             autocorrect="off"
             autocapitalize="off"
             spellcheck="false"
             data-lpignore="true"
             data-1p-ignore="true"
-            data-form-type="other"
+            data-bwignore="true"
+            data-form-type="search"
             oninput="handleBlogSearch(this.value)"
           />
           <button type="button" id="blogSearchClearBtn" class="blog-search-clear" onclick="clearBlogSearch()" title="Xóa tìm kiếm">✕</button>

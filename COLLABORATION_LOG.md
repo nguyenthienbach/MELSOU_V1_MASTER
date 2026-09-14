@@ -451,6 +451,15 @@ This log prevents accidental overlap. Add the newest entry at the top.
 - **Protected contracts:** hooks/API/data that will remain unchanged
 - **Status:** IN PROGRESS
 
+## DONE — Codex — Blog Search password-manager classification fix
+
+- **When / agent:** 2026-09-14 — Codex
+- **Files reserved:** `demo/recovery_fb38/index.html`, `demo/recovery_fb38/app.js`
+- **Purpose:** make the public Blog search a clearly semantic, non-auth searchbox so browser password managers do not classify it as a login field.
+- **Protected contracts:** preserve WordPress Blog filtering/categories/images/carousel and all auth, Studio, cart, checkout, and FB91 presentation behavior.
+- **Checks:** JavaScript syntax PASS; WordPress Blog targeted tests PASS (5/5); semantic search input/reference checks PASS; `git diff --check` PASS.
+- **Status:** DONE — ready for production integration.
+
 ---
 
 ## DONE — Codex — WordPress headless Blog integration

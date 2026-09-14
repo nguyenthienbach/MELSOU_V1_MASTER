@@ -7656,12 +7656,11 @@ function filterBlogCategory(category, btn) {
 
 function resetBlogSearchState() {
   blogSearchQuery = '';
-  const input = document.getElementById('blogSearchInput');
+  const input = document.getElementById('blog-search-query');
   const clearBtn = document.getElementById('blogSearchClearBtn');
   if (input) {
     input.value = '';
     input.defaultValue = '';
-    input.setAttribute('readonly', '');
   }
   if (clearBtn) {
     clearBtn.style.display = 'none';
@@ -7687,7 +7686,7 @@ function handleBlogSearch(val) {
 }
 
 function clearBlogSearch() {
-  const input = document.getElementById('blogSearchInput');
+  const input = document.getElementById('blog-search-query');
   if (input) {
     input.value = '';
     input.focus();
