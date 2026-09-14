@@ -48,6 +48,9 @@
     }
     return body;
   };
+  window.codexGetPublishedPosts = async ({ page = 1, perPage = 10 } = {}) => api(`/blog?page=${encodeURIComponent(page)}&perPage=${encodeURIComponent(perPage)}`);
+  window.codexGetPublishedPost = async (slug) => api(`/blog/${encodeURIComponent(slug)}`);
+  window.dispatchEvent(new Event('melsou-blog-api-ready'));
   const supportedStudioSource = (value) => {
     if (typeof value !== 'string') return false;
     if (/^(?:data:image\/(?:jpeg|png|webp|heic|heif);base64,|blob:)/i.test(value)) return true;

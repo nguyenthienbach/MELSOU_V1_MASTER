@@ -38,7 +38,13 @@
   };
 
   const path = window.location.pathname.replace(/\/$/, '') || '/';
-  const route = routes[path];
+  const blogMatch = path.match(/^\/blog\/([a-z0-9-]+)$/);
+  const route = routes[path] || (blogMatch ? {
+    title: 'Chuyện của Melsou',
+    description: 'Cảm hứng chế tác, bí quyết sắp xếp ảnh và những câu chuyện lưu giữ ký ức qua năm tháng.',
+    view: 'blog-post',
+    slug: blogMatch[1]
+  } : null);
   if (!route) return;
 
   document.title = route.title;
@@ -73,6 +79,37 @@
         section.style.display = section.id === route.view ? '' : 'none';
       });
       promoteHeading(route.heading);
+      return;
+    }
+
+    if (route.view === 'blog-post') {
+      const modal = document.getElementById('blogArticleReaderModal');
+      const body = document.getElementById('readerBody');
+      if (!modal || !body) return;
+      modal.classList.add('open');
+      modal.setAttribute('aria-modal', 'false');
+      modal.style.position = 'relative';
+      modal.style.display = 'flex';
+      body.textContent = 'Đang tải câu chuyện...';
+      window.codexGetPublishedPost(route.slug).then(({ post }) => {
+        const plainText = (html) => new DOMParser().parseFromString(String(html || ''), 'text/html').body.textContent.trim();
+        const title = plainText(post.title);
+        document.title = `${title} — Melsou`;
+        const description = document.querySelector('meta[name="description"]');
+        if (description) description.content = plainText(post.excerpt).slice(0, 160);
+        const titleElement = document.getElementById('readerTitle');
+        titleElement.textContent = title;
+        titleElement.id = 'blogPostPageHeading';
+        promoteHeading(titleElement.id);
+        document.getElementById('readerCategoryBadge').textContent = post.category?.name || 'CHUYỆN KỂ';
+        document.getElementById('readerPublishDate').textContent = post.publishedAt ? new Date(post.publishedAt).toLocaleDateString('vi-VN') : '';
+        const cover = document.getElementById('readerCoverImg');
+        if (post.featuredImage) cover.src = post.featuredImage;
+        else cover.closest('div').style.display = 'none';
+        body.innerHTML = window.sanitizeWordPressHtml(post.content);
+      }).catch((error) => {
+        body.textContent = error?.status === 404 ? 'Không tìm thấy câu chuyện này.' : 'Câu chuyện đang tạm thời chưa tải được. Vui lòng thử lại sau.';
+      });
       return;
     }
 

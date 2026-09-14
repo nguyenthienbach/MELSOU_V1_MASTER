@@ -12,6 +12,7 @@ import {
 } from './backend-contracts.mjs';
 
 const json = (body, status = 200) => new Response(JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store', 'X-Content-Type-Options': 'nosniff' } });
+const publicJson = (body, status = 200) => new Response(JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'public, max-age=30, stale-while-revalidate=30', 'X-Content-Type-Options': 'nosniff' } });
 const textEncoder = new TextEncoder();
 const timeSafeEqual = (a, b) => {
   if (a.length !== b.length) return false;
@@ -474,13 +475,75 @@ async function handleCartItem(request, env, projectId = null) {
   return json({ cart: await response.json() }, 200);
 }
 
-async function handlePublicBlog(env, slug = null) {
-  const filter = slug ? `slug=eq.${encodeURIComponent(slug)}&` : '';
-  const response = await serviceFetch(env, `blog_posts?${filter}status=eq.PUBLISHED&select=id,slug,title,excerpt,content,cover_asset_id,category,tags,published_at&order=published_at.desc${slug ? '&limit=1' : '&limit=50'}`);
-  if (!response.ok) return json({ error: 'BLOG_UNAVAILABLE' }, 503);
-  const posts = await response.json();
-  if (slug && !posts[0]) return json({ error: 'BLOG_POST_NOT_FOUND' }, 404);
-  return slug ? json({ post: posts[0] }) : json({ posts });
+const wordpressApi = 'https://public-api.wordpress.com/wp/v2/sites/melsoucms.wordpress.com';
+const wordpressFetch = (path) => fetch(`${wordpressApi}${path}`, { headers: { Accept: 'application/json' }, cf: { cacheEverything: true, cacheTtl: 30 } });
+const wordpressCategory = (post) => {
+  const terms = post?._embedded?.['wp:term'];
+  const category = Array.isArray(terms?.[0]) ? terms[0][0] : null;
+  return category ? { id: category.id, name: category.name, slug: category.slug } : null;
+};
+const wordpressPost = (post) => ({
+  id: post.id,
+  slug: post.slug,
+  title: post.title?.rendered || '',
+  content: post.content?.rendered || '',
+  excerpt: post.excerpt?.rendered || '',
+  publishedAt: post.date_gmt ? `${post.date_gmt}Z` : post.date,
+  modifiedAt: post.modified_gmt ? `${post.modified_gmt}Z` : post.modified,
+  category: wordpressCategory(post),
+  featuredImage: post._embedded?.['wp:featuredmedia']?.[0]?.source_url || post.jetpack_featured_media_url || null
+});
+
+async function handlePublicBlog(url, slug = null) {
+  const query = new URLSearchParams({ status: 'publish', _embed: '1' });
+  if (slug) query.set('slug', slug);
+  else {
+    query.set('page', String(Math.max(1, Number(url.searchParams.get('page')) || 1)));
+    query.set('per_page', String(Math.min(20, Math.max(1, Number(url.searchParams.get('perPage')) || 10))));
+    query.set('orderby', 'date');
+    query.set('order', 'desc');
+  }
+  let response;
+  try { response = await wordpressFetch(`/posts?${query}`); }
+  catch { return publicJson({ error: 'BLOG_UNAVAILABLE' }, 503); }
+  if (!response.ok) {
+    if (slug && response.status === 404) return publicJson({ error: 'BLOG_POST_NOT_FOUND' }, 404);
+    return publicJson({ error: 'BLOG_UNAVAILABLE' }, 503);
+  }
+  const posts = (await response.json()).map(wordpressPost);
+  if (slug && !posts[0]) return publicJson({ error: 'BLOG_POST_NOT_FOUND' }, 404);
+  if (slug) return publicJson({ post: posts[0] });
+  return publicJson({
+    posts,
+    pagination: {
+      page: Number(query.get('page')),
+      total: Number(response.headers.get('X-WP-Total') || posts.length),
+      totalPages: Number(response.headers.get('X-WP-TotalPages') || 1)
+    }
+  });
+}
+
+const xmlEscape = (value) => String(value).replace(/[<>&'\"]/g, (character) => ({ '<': '&lt;', '>': '&gt;', '&': '&amp;', "'": '&apos;', '"': '&quot;' }[character]));
+async function handlePublicSitemap() {
+  const posts = [];
+  let page = 1;
+  let totalPages = 1;
+  try {
+    do {
+      const response = await wordpressFetch(`/posts?status=publish&per_page=100&page=${page}&orderby=date&order=desc`);
+      if (!response.ok) return new Response('Sitemap temporarily unavailable', { status: 503 });
+      posts.push(...await response.json());
+      totalPages = Number(response.headers.get('X-WP-TotalPages') || 1);
+      page += 1;
+    } while (page <= totalPages);
+  } catch { return new Response('Sitemap temporarily unavailable', { status: 503 }); }
+  const staticUrls = ['/', '/ve-melsou', '/goi-san-pham', '/templates', '/chinh-sach-bao-mat', '/chinh-sach-bao-hanh'];
+  const urls = [
+    ...staticUrls.map((path) => ({ loc: `https://melsou.com${path === '/' ? '/' : path}` })),
+    ...posts.filter((post) => /^[a-z0-9-]+$/.test(post.slug || '')).map((post) => ({ loc: `https://melsou.com/blog/${post.slug}`, lastmod: post.modified_gmt ? `${post.modified_gmt}Z` : post.modified }))
+  ];
+  const entries = urls.map(({ loc, lastmod }) => `  <url>\n    <loc>${xmlEscape(loc)}</loc>${lastmod ? `\n    <lastmod>${xmlEscape(lastmod)}</lastmod>` : ''}\n  </url>`).join('\n');
+  return new Response(`<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${entries}\n</urlset>\n`, { headers: { 'Content-Type': 'application/xml; charset=utf-8', 'Cache-Control': 'public, max-age=30, stale-while-revalidate=30', 'X-Content-Type-Options': 'nosniff' } });
 }
 
 async function handleTemplates(url, templateId = null) {
@@ -1042,14 +1105,15 @@ export default {
       try { return json({ quote: createQuote(await request.json(), pricing.rules), pricingVersion: pricing.version }); }
       catch { return json({ error: 'INVALID_QUOTE_CONFIGURATION' }, 400); }
     }
-    if (url.pathname === '/api/blog' && request.method === 'GET') return handlePublicBlog(env);
+    if (url.pathname === '/api/blog' && request.method === 'GET') return handlePublicBlog(url);
+    if (url.pathname === '/api/sitemap.xml' && request.method === 'GET') return handlePublicSitemap();
     if (url.pathname === '/api/templates' && request.method === 'GET') return handleTemplates(url);
     const publicTemplate = url.pathname.match(/^\/api\/templates\/([a-z0-9-]+)$/);
     if (publicTemplate && request.method === 'GET') return handleTemplates(url, publicTemplate[1]);
     const blogCover = url.pathname.match(/^\/api\/blog\/([a-z0-9-]+)\/cover$/);
     if (blogCover && request.method === 'GET') return handleBlogCover(env, blogCover[1]);
     const publicBlogPost = url.pathname.match(/^\/api\/blog\/([a-z0-9-]+)$/);
-    if (publicBlogPost && request.method === 'GET') return handlePublicBlog(env, publicBlogPost[1]);
+    if (publicBlogPost && request.method === 'GET') return handlePublicBlog(url, publicBlogPost[1]);
     if (url.pathname === '/api/guest/projects' && (request.method === 'GET' || request.method === 'POST')) return handleGuestProjects(request, env);
     const guestProjectSave = url.pathname.match(/^\/api\/guest\/projects\/([0-9a-f-]{36})$/i);
     if (guestProjectSave && request.method === 'PUT') return handleGuestProjectSave(request, env, guestProjectSave[1]);

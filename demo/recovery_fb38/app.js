@@ -7586,6 +7586,25 @@ function renderCustomerReviews() {
 // ============================================================
 var activeBlogCategory = 'all';
 var currentLoadedBlogPosts = [];
+var currentBlogPage = 1;
+var currentBlogTotalPages = 1;
+
+function sanitizeWordPressHtml(html) {
+  const documentValue = new DOMParser().parseFromString(String(html || ''), 'text/html');
+  documentValue.querySelectorAll('script,style,iframe,object,embed,form').forEach((node) => node.remove());
+  documentValue.body.querySelectorAll('*').forEach((node) => {
+    Array.from(node.attributes).forEach((attribute) => {
+      if (/^on/i.test(attribute.name) || attribute.name === 'srcdoc') node.removeAttribute(attribute.name);
+      if ((attribute.name === 'href' || attribute.name === 'src') && /^javascript:/i.test(attribute.value.trim())) node.removeAttribute(attribute.name);
+    });
+  });
+  return documentValue.body.innerHTML;
+}
+
+function plainWordPressText(html) {
+  const documentValue = new DOMParser().parseFromString(String(html || ''), 'text/html');
+  return documentValue.body.textContent.trim();
+}
 
 function filterBlogCategory(category, btn) {
   activeBlogCategory = category;
@@ -7595,26 +7614,28 @@ function filterBlogCategory(category, btn) {
     chips.forEach(c => c.classList.remove('active'));
     if (btn) btn.classList.add('active');
   }
-  renderPublicBlog(category);
+  renderPublicBlog(category, 1);
 }
 
-function renderPublicBlog(category = 'all') {
+async function renderPublicBlog(category = 'all', page = 1) {
   const list = document.getElementById('publicBlogList');
   if (!list) return;
-
-  let posts = [];
-  if (typeof window.codexGetPublishedPosts === 'function') {
-    try {
-      posts = window.codexGetPublishedPosts(category) || [];
-    } catch(e) {
-      console.warn('codexGetPublishedPosts error:', e);
-    }
-  }
-
-  currentLoadedBlogPosts = posts;
-
   const isEn = (currentAppLanguage === 'en');
-  if (!posts || posts.length === 0) {
+  list.innerHTML = `<div class="blog-empty-state"><div style="font-size:32px;margin-bottom:10px">⏳</div><p>${isEn ? 'Loading stories...' : 'Đang tải những câu chuyện...'}</p></div>`;
+  if (typeof window.codexGetPublishedPosts !== 'function') return;
+  let result;
+  try { result = await window.codexGetPublishedPosts({ page, perPage: 10 }); }
+  catch (error) {
+    console.warn('codexGetPublishedPosts error:', error);
+    list.innerHTML = `<div class="blog-empty-state"><div style="font-size:32px;margin-bottom:10px">📖</div><p>${isEn ? 'Stories are temporarily unavailable. Please try again later.' : 'Câu chuyện đang tạm thời chưa tải được. Vui lòng thử lại sau.'}</p></div>`;
+    return;
+  }
+  const allPosts = result.posts || [];
+  const posts = category === 'all' ? allPosts : allPosts.filter((post) => post.category?.slug === category);
+  currentBlogPage = result.pagination?.page || page;
+  currentBlogTotalPages = result.pagination?.totalPages || 1;
+  currentLoadedBlogPosts = page > 1 ? currentLoadedBlogPosts.concat(posts) : posts;
+  if (currentLoadedBlogPosts.length === 0) {
     list.innerHTML = `
       <div class="blog-empty-state">
         <div style="font-size:42px;margin-bottom:14px">📖</div>
@@ -7626,42 +7647,28 @@ function renderPublicBlog(category = 'all') {
     return;
   }
 
-  list.innerHTML = posts.map((post, idx) => `
-    <div class="blog-card-item" onclick="openBlogArticleReader(${idx})">
-      <div style="height:200px;background:url('${post.coverImage || 'https://images.unsplash.com/photo-1517841905240-472988babdf9?w=600'}') center/cover"></div>
+  list.innerHTML = currentLoadedBlogPosts.map((post) => `
+    <article class="blog-card-item">
+      <a href="/blog/${encodeURIComponent(post.slug)}" style="display:contents;color:inherit;text-decoration:none">
+      <div style="height:200px;background:url('${post.featuredImage || 'https://images.unsplash.com/photo-1517841905240-472988babdf9?w=600'}') center/cover"></div>
       <div style="padding:22px;display:flex;flex-direction:column;flex:1;justify-content:space-between">
         <div>
           <span style="font-size:11px;font-weight:700;color:var(--red);text-transform:uppercase;letter-spacing:1px">
-            ${post.categoryLabel || 'Kỷ vật'} · ${post.publishDate || ''}
+            ${post.category?.name || 'Kỷ vật'} · ${post.publishedAt ? new Date(post.publishedAt).toLocaleDateString('vi-VN') : ''}
           </span>
           <h3 style="font-size:17.5px;font-weight:700;margin:8px 0;color:var(--dark);line-height:1.4">${post.title}</h3>
-          <p style="font-size:13px;color:#4b5563;line-height:1.6;margin-bottom:14px">${post.excerpt || ''}</p>
+          <p style="font-size:13px;color:#4b5563;line-height:1.6;margin-bottom:14px">${plainWordPressText(post.excerpt)}</p>
         </div>
         <span style="font-size:12.5px;font-weight:700;color:var(--red)">Đọc tiếp câu chuyện →</span>
       </div>
-    </div>`).join('');
+      </a>
+    </article>`).join('') + (currentBlogPage < currentBlogTotalPages ? `<div style="grid-column:1/-1;text-align:center"><button class="btn-outline" onclick="renderPublicBlog('${category}', ${currentBlogPage + 1})">${isEn ? 'View more stories' : 'Xem thêm câu chuyện'}</button></div>` : '');
 }
 
 function openBlogArticleReader(postIdx) {
   const post = currentLoadedBlogPosts[postIdx];
   if (!post) return;
-
-  const modal = document.getElementById('blogArticleReaderModal');
-  const coverImg = document.getElementById('readerCoverImg');
-  const catBadge = document.getElementById('readerCategoryBadge');
-  const pubDate = document.getElementById('readerPublishDate');
-  const titleEl = document.getElementById('readerTitle');
-  const bodyEl = document.getElementById('readerBody');
-
-  if (coverImg) coverImg.src = post.coverImage || 'https://images.unsplash.com/photo-1517841905240-472988babdf9?w=800';
-  if (catBadge) catBadge.textContent = post.categoryLabel || 'KỶ VẬT & THANH ÂM';
-  if (pubDate) pubDate.textContent = post.publishDate || '';
-  if (titleEl) titleEl.textContent = post.title;
-  if (bodyEl) {
-    bodyEl.innerHTML = post.contentHtml || `<p>${post.content || post.excerpt || ''}</p>`;
-  }
-
-  if (modal) modal.classList.add('open');
+  window.location.assign(`/blog/${encodeURIComponent(post.slug)}`);
 }
 
 function closeBlogArticleReader() {
@@ -8058,6 +8065,7 @@ function sendAdminReply() {
 
 renderCustomerReviews();
 renderPublicBlog('all');
+window.addEventListener('melsou-blog-api-ready', () => renderPublicBlog(activeBlogCategory, 1));
 
 
 // ============================================================
