@@ -502,6 +502,8 @@ async function handlePublicBlog(url, slug = null) {
     query.set('per_page', String(Math.min(20, Math.max(1, Number(url.searchParams.get('perPage')) || 10))));
     query.set('orderby', 'date');
     query.set('order', 'desc');
+    const category = url.searchParams.get('category');
+    if (category && /^\d+$/.test(category)) query.set('categories', category);
   }
   let response;
   try { response = await wordpressFetch(`/posts?${query}`); }
@@ -521,6 +523,22 @@ async function handlePublicBlog(url, slug = null) {
       totalPages: Number(response.headers.get('X-WP-TotalPages') || 1)
     }
   });
+}
+
+async function handlePublicBlogCategories() {
+  const categories = [];
+  let page = 1;
+  let totalPages = 1;
+  try {
+    do {
+      const response = await wordpressFetch(`/categories?hide_empty=true&per_page=100&page=${page}&orderby=name&order=asc`);
+      if (!response.ok) return publicJson({ error: 'BLOG_CATEGORIES_UNAVAILABLE' }, 503);
+      categories.push(...await response.json());
+      totalPages = Number(response.headers.get('X-WP-TotalPages') || 1);
+      page += 1;
+    } while (page <= totalPages);
+  } catch { return publicJson({ error: 'BLOG_CATEGORIES_UNAVAILABLE' }, 503); }
+  return publicJson({ categories: categories.filter((category) => category.count > 0).map(({ id, name, slug, count }) => ({ id, name, slug, count })) });
 }
 
 const xmlEscape = (value) => String(value).replace(/[<>&'\"]/g, (character) => ({ '<': '&lt;', '>': '&gt;', '&': '&amp;', "'": '&apos;', '"': '&quot;' }[character]));
@@ -1106,6 +1124,7 @@ export default {
       catch { return json({ error: 'INVALID_QUOTE_CONFIGURATION' }, 400); }
     }
     if (url.pathname === '/api/blog' && request.method === 'GET') return handlePublicBlog(url);
+    if (url.pathname === '/api/blog/categories' && request.method === 'GET') return handlePublicBlogCategories();
     if (url.pathname === '/api/sitemap.xml' && request.method === 'GET') return handlePublicSitemap();
     if (url.pathname === '/api/templates' && request.method === 'GET') return handleTemplates(url);
     const publicTemplate = url.pathname.match(/^\/api\/templates\/([a-z0-9-]+)$/);
