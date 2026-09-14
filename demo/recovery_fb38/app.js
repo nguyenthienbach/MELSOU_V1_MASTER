@@ -552,6 +552,7 @@ function switchAuthTab(tab) {
   const heading = document.getElementById('authModalHeading');
   const subheading = document.getElementById('authModalSubheading');
   const errorBox = document.getElementById('authModalErrorBox');
+  const errorMsg = document.getElementById('authModalErrorMessage');
 
   if (errorBox) errorBox.style.display = 'none';
   if (errorMsg) errorMsg.textContent = '';
