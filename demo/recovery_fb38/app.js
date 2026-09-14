@@ -352,7 +352,13 @@ function autoSaveToLocalStorage() {
 window.melsouGetActiveDraft = () => ALBUM_DATA;
 window.melsouApplyCanonicalDraft = (draft) => {
   if (!draft || !Array.isArray(draft.spreads)) return false;
-  ALBUM_DATA = Object.assign(getFreshAlbumData(), draft);
+  // A project revision is design data, not cart ownership. Preserve only the
+  // cart already established in this browser/session and ignore legacy carts
+  // that may still exist inside an older canonical editor payload.
+  const activeCart = Array.isArray(ALBUM_DATA?.cart) ? ALBUM_DATA.cart : [];
+  const designDraft = Object.assign({}, draft);
+  delete designDraft.cart;
+  ALBUM_DATA = Object.assign(getFreshAlbumData(), designDraft, { cart: activeCart });
   ALBUM_DATA.spreads.forEach(s => normalizeElementsToSafeArea(s));
   ALBUM_DATA.extraSpreadsCount = ALBUM_DATA.spreads.filter(s => s.isCustomAdded).length;
   localStorage.setItem('melsou_active_draft', JSON.stringify(ALBUM_DATA));

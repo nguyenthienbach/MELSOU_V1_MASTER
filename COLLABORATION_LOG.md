@@ -451,6 +451,15 @@ This log prevents accidental overlap. Add the newest entry at the top.
 - **Protected contracts:** hooks/API/data that will remain unchanged
 - **Status:** IN PROGRESS
 
+## DONE — Codex — isolate cart state from canonical project drafts
+
+- **When / agent:** 2026-09-14 — Codex
+- **Files reserved:** `demo/recovery_fb38/app.js`, `demo/recovery_fb38/auth-client.js`
+- **Purpose:** prevent a cart snapshot embedded in a restored project/draft from appearing as a fresh guest cart.
+- **Protected contracts:** preserve valid same-browser cart state, authenticated cart API, draft restore, auth, Studio, checkout, and mobile/desktop cart rendering.
+- **Checks:** clean Edge Guest production baseline PASS at 390×844; JavaScript syntax PASS; targeted cart isolation/preservation assertions PASS; `git diff --check` PASS.
+- **Status:** DONE — ready for production integration.
+
 ## DONE — Codex — Blog search autofill isolation and mobile Blog navigation
 
 - **When / agent:** 2026-09-14 — Codex

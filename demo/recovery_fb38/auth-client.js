@@ -101,7 +101,9 @@
     if (value instanceof Blob || value instanceof File) return null;
     const output = {};
     for (const [key, item] of Object.entries(value)) {
-      if (key === 'recordedAudioBlob') continue;
+      // Cart ownership/lifecycle is independent from the editable project.
+      // Never mirror a browser cart into a canonical project revision.
+      if (key === 'recordedAudioBlob' || key === 'cart') continue;
       const clean = safeEditorPayload(item);
       if (clean !== null) output[key] = clean;
     }
