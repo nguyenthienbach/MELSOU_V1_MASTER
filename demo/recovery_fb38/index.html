@@ -259,10 +259,15 @@
         </div>
       </div>
 
-      <!-- Dynamic Blog Feed Container (FB47) -->
-      <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(320px, 1fr));gap:24px" id="publicBlogList">
-        <!-- Rendered dynamically by renderPublicBlog() -->
+      <!-- Dynamic Blog Carousel / Feed Container (FB47) -->
+      <div class="blog-carousel-container">
+        <button class="blog-carousel-arrow blog-arrow-prev" id="blogCarouselPrevBtn" onclick="scrollBlogCarousel(-1)" aria-label="Bài trước" title="Bài trước">‹</button>
+        <div class="blog-feed-track" id="publicBlogList">
+          <!-- Rendered dynamically by renderPublicBlog() -->
+        </div>
+        <button class="blog-carousel-arrow blog-arrow-next" id="blogCarouselNextBtn" onclick="scrollBlogCarousel(1)" aria-label="Bài tiếp" title="Bài tiếp">›</button>
       </div>
+      <div id="blogLoadMoreWrap" style="text-align:center;margin-top:28px;display:none"></div>
     </div>
   </section>
 </div>

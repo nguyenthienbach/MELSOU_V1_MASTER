@@ -7672,20 +7672,73 @@ async function renderPublicBlog(category = 'all', page = 1) {
 
   list.innerHTML = currentLoadedBlogPosts.map((post) => `
     <article class="blog-card-item">
-      <a href="/blog/${encodeURIComponent(post.slug)}" style="display:contents;color:inherit;text-decoration:none">
-      <div style="height:200px;background:url('${post.featuredImage || 'https://images.unsplash.com/photo-1517841905240-472988babdf9?w=600'}') center/cover"></div>
-      <div style="padding:22px;display:flex;flex-direction:column;flex:1;justify-content:space-between">
-        <div>
-          <span style="font-size:11px;font-weight:700;color:var(--red);text-transform:uppercase;letter-spacing:1px">
-            ${post.category?.name || 'Kỷ vật'} · ${post.publishedAt ? new Date(post.publishedAt).toLocaleDateString('vi-VN') : ''}
-          </span>
-          <h3 style="font-size:17.5px;font-weight:700;margin:8px 0;color:var(--dark);line-height:1.4">${post.title}</h3>
-          <p style="font-size:13px;color:#4b5563;line-height:1.6;margin-bottom:14px">${plainWordPressText(post.excerpt)}</p>
+      <a href="/blog/${encodeURIComponent(post.slug)}" class="blog-card-link">
+        <div class="blog-card-image-wrap">
+          <img src="${post.featuredImage || 'https://images.unsplash.com/photo-1517841905240-472988babdf9?w=600'}" alt="${post.title ? String(post.title).replace(/"/g, '&quot;') : ''}" class="blog-card-img" loading="lazy" />
         </div>
-        <span style="font-size:12.5px;font-weight:700;color:var(--red)">Đọc tiếp câu chuyện →</span>
-      </div>
+        <div class="blog-card-body">
+          <div>
+            <div class="blog-card-meta">
+              <span class="blog-card-category">${post.category?.name || 'Kỷ vật'}</span>
+              <span class="blog-card-date">${post.publishedAt ? new Date(post.publishedAt).toLocaleDateString('vi-VN') : ''}</span>
+            </div>
+            <h3 class="blog-card-title">${post.title}</h3>
+            <p class="blog-card-excerpt">${plainWordPressText(post.excerpt)}</p>
+          </div>
+          <div class="blog-card-footer">
+            <span class="blog-card-cta">Đọc tiếp câu chuyện →</span>
+          </div>
+        </div>
       </a>
-    </article>`).join('') + (currentBlogPage < currentBlogTotalPages ? `<div style="grid-column:1/-1;text-align:center"><button class="btn-outline" onclick="renderPublicBlog('${category}', ${currentBlogPage + 1})">${isEn ? 'View more stories' : 'Xem thêm câu chuyện'}</button></div>` : '');
+    </article>`).join('');
+
+  const loadMoreWrap = document.getElementById('blogLoadMoreWrap');
+  if (loadMoreWrap) {
+    if (currentBlogPage < currentBlogTotalPages) {
+      loadMoreWrap.style.display = 'block';
+      loadMoreWrap.innerHTML = `<button class="btn-outline" onclick="renderPublicBlog('${category}', ${currentBlogPage + 1})">${isEn ? 'View more stories' : 'Xem thêm câu chuyện'}</button>`;
+    } else {
+      loadMoreWrap.style.display = 'none';
+      loadMoreWrap.innerHTML = '';
+    }
+  }
+
+  updateBlogCarouselArrows();
+}
+
+function scrollBlogCarousel(direction) {
+  const track = document.getElementById('publicBlogList');
+  if (!track) return;
+  const card = track.querySelector('.blog-card-item');
+  const scrollAmount = card ? (card.offsetWidth + 24) : 384;
+  track.scrollBy({ left: direction * scrollAmount, behavior: 'smooth' });
+  setTimeout(updateBlogCarouselArrows, 350);
+}
+
+function updateBlogCarouselArrows() {
+  const track = document.getElementById('publicBlogList');
+  const prevBtn = document.getElementById('blogCarouselPrevBtn');
+  const nextBtn = document.getElementById('blogCarouselNextBtn');
+  if (!track || !prevBtn || !nextBtn) return;
+  if (window.innerWidth <= 768) {
+    prevBtn.style.display = 'none';
+    nextBtn.style.display = 'none';
+    return;
+  }
+  const canScroll = track.scrollWidth > track.clientWidth + 8;
+  if (!canScroll) {
+    prevBtn.style.display = 'none';
+    nextBtn.style.display = 'none';
+    return;
+  }
+  prevBtn.style.display = 'flex';
+  nextBtn.style.display = 'flex';
+  prevBtn.disabled = track.scrollLeft <= 10;
+  nextBtn.disabled = track.scrollLeft + track.clientWidth >= track.scrollWidth - 10;
+}
+
+if (typeof window !== 'undefined') {
+  window.addEventListener('resize', updateBlogCarouselArrows, { passive: true });
 }
 
 function openBlogArticleReader(postIdx) {
