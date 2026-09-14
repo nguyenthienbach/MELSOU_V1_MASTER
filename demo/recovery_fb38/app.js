@@ -7642,25 +7642,51 @@ function filterBlogCategory(category, btn) {
     chips.forEach(c => c.classList.remove('active'));
     if (btn) btn.classList.add('active');
   }
-  const track = document.getElementById('publicBlogList');
-  if (track) track.scrollLeft = 0;
   renderPublicBlog(category, 1);
+  const track = document.getElementById('publicBlogList');
+  if (track) {
+    track.scrollLeft = 0;
+    track.scrollTo({ left: 0, behavior: 'instant' });
+  }
+}
+
+function resetBlogSearchState() {
+  blogSearchQuery = '';
+  const input = document.getElementById('blogSearchInput');
+  const clearBtn = document.getElementById('blogSearchClearBtn');
+  if (input) {
+    input.value = '';
+    input.defaultValue = '';
+  }
+  if (clearBtn) {
+    clearBtn.style.display = 'none';
+  }
 }
 
 function handleBlogSearch(val) {
-  blogSearchQuery = String(val || '').trim().toLowerCase();
+  const cleanVal = String(val || '').trim();
   const clearBtn = document.getElementById('blogSearchClearBtn');
-  if (clearBtn) {
-    clearBtn.style.display = blogSearchQuery ? 'block' : 'none';
+  if (!cleanVal) {
+    blogSearchQuery = '';
+    if (clearBtn) clearBtn.style.display = 'none';
+  } else {
+    blogSearchQuery = cleanVal.toLowerCase();
+    if (clearBtn) clearBtn.style.display = 'block';
   }
-  const track = document.getElementById('publicBlogList');
-  if (track) track.scrollLeft = 0;
   renderFilteredBlogPosts();
+  const track = document.getElementById('publicBlogList');
+  if (track) {
+    track.scrollLeft = 0;
+    track.scrollTo({ left: 0, behavior: 'instant' });
+  }
 }
 
 function clearBlogSearch() {
   const input = document.getElementById('blogSearchInput');
-  if (input) input.value = '';
+  if (input) {
+    input.value = '';
+    input.focus();
+  }
   handleBlogSearch('');
 }
 
@@ -8198,6 +8224,8 @@ function sendAdminReply() {
   if (inp) inp.value = '';
 }
 
+resetBlogSearchState();
+window.addEventListener('pageshow', resetBlogSearchState);
 renderCustomerReviews();
 renderBlogCategories();
 renderPublicBlog('all');
