@@ -451,6 +451,15 @@ This log prevents accidental overlap. Add the newest entry at the top.
 - **Protected contracts:** hooks/API/data that will remain unchanged
 - **Status:** IN PROGRESS
 
+## DONE — Codex — Blog search autofill isolation and mobile Blog navigation
+
+- **When / agent:** 2026-09-14 — Codex
+- **Files reserved:** `demo/recovery_fb38/index.html`, `demo/recovery_fb38/app.js`
+- **Purpose:** isolate public Blog Search from inactive credential fields and close the mobile drawer on same-document Blog navigation.
+- **Protected contracts:** preserve Blog filtering, WordPress categories/images/carousel, `/ve-melsou`, all other mobile links, auth behavior, Studio, cart, and checkout.
+- **Checks:** JavaScript syntax PASS; WordPress Blog tests PASS (5/5); targeted semantic/auth-inert/mobile-link assertions PASS; `git diff --check` PASS.
+- **Status:** DONE — ready for production integration.
+
 ## DONE — Codex — Blog Search password-manager classification fix
 
 - **When / agent:** 2026-09-14 — Codex

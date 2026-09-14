@@ -824,13 +824,25 @@ function openAuthModal() {
   MelsouAuth.setLoginState('idle');
   switchAuthTab('login');
   const modal = document.getElementById('authModal');
-  if (modal) { modal.classList.add('open'); modal.style.display = 'flex'; }
+  if (modal) {
+    modal.removeAttribute('inert');
+    modal.setAttribute('aria-hidden', 'false');
+    modal.querySelectorAll('input').forEach((input) => { input.disabled = false; });
+    modal.classList.add('open');
+    modal.style.display = 'flex';
+  }
 }
 
 function closeAuthModal() {
   MelsouAuth.setLoginState('idle');
   const modal = document.getElementById('authModal');
-  if (modal) { modal.classList.remove('open'); modal.style.display = 'none'; }
+  if (modal) {
+    modal.querySelectorAll('input').forEach((input) => { input.disabled = true; });
+    modal.setAttribute('aria-hidden', 'true');
+    modal.setAttribute('inert', '');
+    modal.classList.remove('open');
+    modal.style.display = 'none';
+  }
 }
 
 function updateHeaderUserUI() {
@@ -858,6 +870,13 @@ function toggleMobileNavMenu() {
   } else {
     document.body.style.overflow = '';
   }
+}
+
+function closeMobileNavMenu() {
+  const drawer = document.getElementById('mobileNavDrawer');
+  if (!drawer) return;
+  drawer.classList.remove('open');
+  document.body.style.overflow = '';
 }
 
 function mobileNavGo(page) {

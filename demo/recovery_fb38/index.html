@@ -101,7 +101,7 @@
     <li><a href="/goi-san-pham" id="mndLinkPricing">🏷️ Gói sản phẩm</a></li>
     <li><a href="/templates" id="mndLinkTemplates">🎨 Thư viện Template</a></li>
     <li><a href="/#reviews-section" id="mndLinkReviews">💬 Trải nghiệm người dùng</a></li>
-    <li><a href="/#blog-section" id="mndLinkBlog">📖 Câu chuyện</a></li>
+    <li><a href="/#blog-section" id="mndLinkBlog" onclick="closeMobileNavMenu()">📖 Câu chuyện</a></li>
     <li><a href="javascript:void(0)" onclick="mobileNavGo('tracking')" id="mndLinkTracking">🔍 Tra cứu đơn hàng</a></li>
   </ul>
   <div class="mnd-cta">
@@ -255,7 +255,7 @@
         <p style="color:var(--gray);font-size:15px;margin-top:6px;max-width:680px;margin-left:auto;margin-right:auto" id="i18nBlogSubheading">Cảm hứng chế tác, bí quyết sắp xếp ảnh và những câu chuyện lưu giữ ký ức qua năm tháng</p>
         
         <!-- Search Input Bar (FB47) -->
-        <div class="blog-search-bar">
+        <form class="blog-search-bar" role="search" autocomplete="off" onsubmit="event.preventDefault()">
           <span class="blog-search-icon">🔍</span>
           <input
             type="search"
@@ -280,7 +280,7 @@
             oninput="handleBlogSearch(this.value)"
           />
           <button type="button" id="blogSearchClearBtn" class="blog-search-clear" onclick="clearBlogSearch()" title="Xóa tìm kiếm">✕</button>
-        </div>
+        </form>
 
         <!-- Category Filter Tabs (FB47) -->
         <div class="blog-category-tabs" id="blogCategoryTabs" style="display:flex;justify-content:center;gap:8px;flex-wrap:wrap;margin-top:14px">
@@ -995,7 +995,7 @@
 </div>
 
 <!-- ════════ 👤 MODAL: ĐĂNG NHẬP / ĐĂNG KÝ USERNAME + PASSWORD (FB58) ════════ -->
-<div class="modal-backdrop" id="authModal" onclick="if(event.target===this)closeAuthModal()">
+<div class="modal-backdrop" id="authModal" aria-hidden="true" inert onclick="if(event.target===this)closeAuthModal()">
   <div class="modal-box auth-modal-box" style="max-width:440px;width:100%;max-height:90vh;overflow-y:auto;text-align:center;padding:28px 24px;border-radius:16px;box-shadow:0 16px 40px rgba(0,0,0,0.18);position:relative">
     <button onclick="closeAuthModal()" style="position:absolute;top:14px;right:14px;background:none;border:none;font-size:22px;cursor:pointer;color:var(--gray);line-height:1;padding:6px;z-index:10" title="Đóng">✕</button>
 
@@ -1021,7 +1021,7 @@
     <div class="auth-form-panel active" id="authPanelLogin">
       <div style="text-align:left;margin-bottom:12px">
         <label style="font-size:12px;font-weight:700;color:var(--gray);display:block;margin-bottom:4px" id="lblLoginUsername">Tên tài khoản</label>
-        <input type="text" class="form-input" id="loginUsernameInput" placeholder="Nhập tên tài khoản..." autocomplete="username">
+        <input type="text" class="form-input" id="loginUsernameInput" placeholder="Nhập tên tài khoản..." autocomplete="username" disabled>
       </div>
       <div style="text-align:left;margin-bottom:12px">
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">
@@ -1029,7 +1029,7 @@
           <a href="javascript:void(0)" onclick="switchAuthTab('forgot')" style="font-size:11.5px;color:var(--red);text-decoration:none;font-weight:600" id="authForgotPwLink">Quên mật khẩu?</a>
         </div>
         <div style="position:relative">
-          <input type="password" class="form-input" id="loginPasswordInput" placeholder="Nhập mật khẩu..." autocomplete="current-password" style="padding-right:38px">
+          <input type="password" class="form-input" id="loginPasswordInput" placeholder="Nhập mật khẩu..." autocomplete="current-password" style="padding-right:38px" disabled>
           <button type="button" class="pwd-toggle-btn" onclick="togglePasswordVisibility('loginPasswordInput', this)" style="position:absolute;right:10px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;font-size:15px;color:var(--gray)" title="Hiện/ẩn mật khẩu">👁️</button>
         </div>
       </div>
@@ -1042,19 +1042,19 @@
     <div class="auth-form-panel" id="authPanelRegister">
       <div style="text-align:left;margin-bottom:12px">
         <label style="font-size:12px;font-weight:700;color:var(--gray);display:block;margin-bottom:4px" id="lblRegUsername">Tên tài khoản (tối thiểu 3 ký tự)</label>
-        <input type="text" class="form-input" id="regUsernameInput" placeholder="Chọn tên tài khoản..." autocomplete="username">
+        <input type="text" class="form-input" id="regUsernameInput" placeholder="Chọn tên tài khoản..." autocomplete="username" disabled>
       </div>
       <div style="text-align:left;margin-bottom:12px">
         <label style="font-size:12px;font-weight:700;color:var(--gray);display:block;margin-bottom:4px" id="lblRegPassword">Mật khẩu (tối thiểu 12 ký tự, gồm chữ và số)</label>
         <div style="position:relative">
-          <input type="password" class="form-input" id="regPasswordInput" placeholder="Tạo mật khẩu an toàn..." autocomplete="new-password" style="padding-right:38px">
+          <input type="password" class="form-input" id="regPasswordInput" placeholder="Tạo mật khẩu an toàn..." autocomplete="new-password" style="padding-right:38px" disabled>
           <button type="button" class="pwd-toggle-btn" onclick="togglePasswordVisibility('regPasswordInput', this)" style="position:absolute;right:10px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;font-size:15px;color:var(--gray)" title="Hiện/ẩn mật khẩu">👁️</button>
         </div>
       </div>
       <div style="text-align:left;margin-bottom:12px">
         <label style="font-size:12px;font-weight:700;color:var(--gray);display:block;margin-bottom:4px" id="lblRegConfirmPassword">Nhập lại mật khẩu</label>
         <div style="position:relative">
-          <input type="password" class="form-input" id="regConfirmPasswordInput" placeholder="Nhập lại mật khẩu..." autocomplete="new-password" style="padding-right:38px">
+          <input type="password" class="form-input" id="regConfirmPasswordInput" placeholder="Nhập lại mật khẩu..." autocomplete="new-password" style="padding-right:38px" disabled>
           <button type="button" class="pwd-toggle-btn" onclick="togglePasswordVisibility('regConfirmPasswordInput', this)" style="position:absolute;right:10px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;font-size:15px;color:var(--gray)" title="Hiện/ẩn mật khẩu">👁️</button>
         </div>
       </div>
