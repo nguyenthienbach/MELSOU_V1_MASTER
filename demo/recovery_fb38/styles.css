@@ -3567,6 +3567,15 @@ body.in-studio #page-studio.active {
   transition: var(--transition);
   color: var(--dark);
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.03);
+  -webkit-appearance: none;
+  appearance: none;
+}
+.blog-search-input::-webkit-search-decoration,
+.blog-search-input::-webkit-search-cancel-button,
+.blog-search-input::-webkit-search-results-button,
+.blog-search-input::-webkit-search-results-decoration {
+  -webkit-appearance: none;
+  display: none;
 }
 .blog-search-input:focus {
   border-color: var(--red);

@@ -256,7 +256,22 @@
         <!-- Search Input Bar (FB47) -->
         <div class="blog-search-bar">
           <span class="blog-search-icon">🔍</span>
-          <input type="text" id="blogSearchInput" class="blog-search-input" placeholder="Tìm kiếm câu chuyện..." oninput="handleBlogSearch(this.value)" autocomplete="off" />
+          <input
+            type="search"
+            id="blogSearchInput"
+            name="melsou_blog_search"
+            class="blog-search-input"
+            placeholder="Tìm kiếm câu chuyện..."
+            value=""
+            autocomplete="off"
+            autocorrect="off"
+            autocapitalize="off"
+            spellcheck="false"
+            data-lpignore="true"
+            data-1p-ignore="true"
+            data-form-type="other"
+            oninput="handleBlogSearch(this.value)"
+          />
           <button type="button" id="blogSearchClearBtn" class="blog-search-clear" onclick="clearBlogSearch()" title="Xóa tìm kiếm">✕</button>
         </div>
 
