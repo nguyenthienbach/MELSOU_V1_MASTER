@@ -253,8 +253,15 @@
         <h2 style="font-size:32px;font-weight:700" id="i18nBlogHeading">Chuyện của Melsou</h2>
         <p style="color:var(--gray);font-size:15px;margin-top:6px;max-width:680px;margin-left:auto;margin-right:auto" id="i18nBlogSubheading">Cảm hứng chế tác, bí quyết sắp xếp ảnh và những câu chuyện lưu giữ ký ức qua năm tháng</p>
         
+        <!-- Search Input Bar (FB47) -->
+        <div class="blog-search-bar">
+          <span class="blog-search-icon">🔍</span>
+          <input type="text" id="blogSearchInput" class="blog-search-input" placeholder="Tìm kiếm câu chuyện..." oninput="handleBlogSearch(this.value)" autocomplete="off" />
+          <button type="button" id="blogSearchClearBtn" class="blog-search-clear" onclick="clearBlogSearch()" title="Xóa tìm kiếm">✕</button>
+        </div>
+
         <!-- Category Filter Tabs (FB47) -->
-        <div class="blog-category-tabs" id="blogCategoryTabs" style="display:flex;justify-content:center;gap:8px;flex-wrap:wrap;margin-top:18px">
+        <div class="blog-category-tabs" id="blogCategoryTabs" style="display:flex;justify-content:center;gap:8px;flex-wrap:wrap;margin-top:14px">
           <button class="sal-chip active" id="blogCatAll" onclick="filterBlogCategory('all', this)">Tất cả bài viết</button>
         </div>
       </div>
