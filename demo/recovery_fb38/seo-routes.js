@@ -6,10 +6,10 @@
       view: 'home'
     },
     '/ve-melsou': {
-      title: 'Về Melsou — Bốn giá trị tạo nên trải nghiệm độc bản',
-      description: 'Khám phá cách Melsou kết nối hình ảnh và thanh âm vào từng trang sách.',
-      view: 'values',
-      heading: 'valSectionTitle'
+      title: 'Về Melsou — Gói tâm tình trong dáng hình thanh âm',
+      description: 'Melsou hòa quyện giai điệu và kỷ vật để mỗi trang ảnh không chỉ đẹp, mà còn biết cất lời.',
+      view: 'hero',
+      heading: 'heroHeadlineText'
     },
     '/goi-san-pham': {
       title: 'Gói sản phẩm Melsou — Melody, Voice và Signature',
@@ -72,11 +72,12 @@
       return;
     }
 
-    if (route.view === 'values' || route.view === 'pricing') {
+    if (route.view === 'hero' || route.view === 'values' || route.view === 'pricing') {
       const home = document.getElementById('page-home');
       home?.classList.add('active');
       home?.querySelectorAll(':scope > .hero, :scope > section').forEach((section) => {
-        section.style.display = section.id === route.view ? '' : 'none';
+        const selected = route.view === 'hero' ? section.matches('.hero') : section.id === route.view;
+        section.style.display = selected ? '' : 'none';
       });
       promoteHeading(route.heading);
       return;

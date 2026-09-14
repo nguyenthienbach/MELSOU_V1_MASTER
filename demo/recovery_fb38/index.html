@@ -95,12 +95,12 @@
     </div>
   </div>
   <ul class="mnd-list">
-    <li><a href="javascript:void(0)" onclick="mobileNavGo('home')" id="mndLinkHome">🏠 Trang chủ</a></li>
-    <li><a href="/ve-melsou" id="mndLinkValues">✨ Bốn giá trị độc bản</a></li>
+    <li><a href="/" id="mndLinkHome">🏠 Trang chủ</a></li>
+    <li><a href="/#values" id="mndLinkValues">✨ Bốn giá trị độc bản</a></li>
     <li><a href="/goi-san-pham" id="mndLinkPricing">🏷️ Gói sản phẩm</a></li>
     <li><a href="/templates" id="mndLinkTemplates">🎨 Thư viện Template</a></li>
-    <li><a href="javascript:void(0)" onclick="mobileNavScroll('reviews-section')" id="mndLinkReviews">💬 Trải nghiệm người dùng</a></li>
-    <li><a href="javascript:void(0)" onclick="mobileNavScroll('blog-section')" id="mndLinkBlog">📖 Câu chuyện</a></li>
+    <li><a href="/#reviews-section" id="mndLinkReviews">💬 Trải nghiệm người dùng</a></li>
+    <li><a href="/#blog-section" id="mndLinkBlog">📖 Câu chuyện</a></li>
     <li><a href="javascript:void(0)" onclick="mobileNavGo('tracking')" id="mndLinkTracking">🔍 Tra cứu đơn hàng</a></li>
   </ul>
   <div class="mnd-cta">
@@ -264,6 +264,9 @@
             placeholder="Tìm kiếm câu chuyện..."
             value=""
             autocomplete="off"
+            aria-autocomplete="none"
+            readonly
+            onfocus="this.removeAttribute('readonly')"
             autocorrect="off"
             autocapitalize="off"
             spellcheck="false"

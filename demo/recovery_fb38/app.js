@@ -392,6 +392,9 @@ function showPage(pageId) {
   document.querySelectorAll('.page').forEach(el => el.classList.remove('active'));
   const target = document.getElementById('page-' + pageId);
   if (target) target.classList.add('active');
+  if (pageId === 'home') {
+    target?.querySelectorAll(':scope > .hero, :scope > section').forEach((section) => { section.style.display = ''; });
+  }
   window.scrollTo({ top: 0, behavior: 'smooth' });
 
   if (pageId === 'studio') {
@@ -7657,6 +7660,7 @@ function resetBlogSearchState() {
   if (input) {
     input.value = '';
     input.defaultValue = '';
+    input.setAttribute('readonly', '');
   }
   if (clearBtn) {
     clearBtn.style.display = 'none';
