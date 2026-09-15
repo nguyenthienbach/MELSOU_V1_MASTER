@@ -115,10 +115,15 @@
 
     const modal = document.getElementById(route.modal);
     if (modal) {
+      window.__policyModalDirectAccess = true;
+      const home = document.getElementById('page-home');
+      if (home) home.classList.add('active');
       modal.classList.add('open');
-      modal.setAttribute('aria-modal', 'false');
-      modal.style.position = 'relative';
+      modal.classList.add('policy-modal-backdrop');
+      modal.setAttribute('aria-modal', 'true');
+      modal.style.position = 'fixed';
       modal.style.display = 'flex';
+      document.body.style.overflow = 'hidden';
       const heading = modal.querySelector('h3');
       if (heading) {
         heading.id = `${route.view}PageHeading`;

@@ -3439,6 +3439,77 @@ body.in-studio #page-studio.active {
   pointer-events: auto;
 }
 
+/* ============================================================
+   📜 POLICY MODALS (PRIVACY POLICY & WARRANTY / TERMS)
+   ============================================================ */
+.policy-modal-backdrop {
+  z-index: 2400 !important;
+  background: rgba(0, 0, 0, 0.65) !important;
+  backdrop-filter: blur(8px) !important;
+  -webkit-backdrop-filter: blur(8px) !important;
+  position: fixed !important;
+  inset: 0 !important;
+  align-items: center !important;
+  justify-content: center !important;
+  padding: 20px !important;
+}
+
+.policy-modal-backdrop:not(.open) {
+  display: none !important;
+}
+
+.policy-modal-backdrop.open {
+  display: flex !important;
+  animation: fadeIn 0.25s ease !important;
+}
+
+.policy-modal-backdrop .modal-box {
+  position: relative !important;
+  z-index: 2401 !important;
+  background: #ffffff !important;
+  border-radius: 18px !important;
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.25) !important;
+  display: flex !important;
+  flex-direction: column !important;
+  width: 100% !important;
+  max-width: 820px !important;
+  max-height: 85vh !important;
+  overflow: hidden !important;
+  padding: 24px !important;
+  box-sizing: border-box !important;
+}
+
+.modal-close-btn {
+  background: none;
+  border: none;
+  font-size: 22px;
+  line-height: 1;
+  color: var(--gray);
+  cursor: pointer;
+  padding: 6px 8px;
+  border-radius: 50%;
+  transition: var(--transition);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.modal-close-btn:hover {
+  color: var(--red);
+  background: rgba(0, 0, 0, 0.05);
+}
+
+@media (max-width: 767.98px) {
+  .policy-modal-backdrop {
+    padding: 12px !important;
+  }
+  .policy-modal-backdrop .modal-box {
+    max-height: 92vh !important;
+    border-radius: 14px !important;
+    padding: 16px !important;
+  }
+}
+
 /* 🛡️ MOBILE STUDIO BOTTOM SHEET 3 SNAP LEVELS */
 @media (max-width: 767.98px) {
   body.in-studio,
