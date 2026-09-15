@@ -1077,7 +1077,7 @@
     </div>
 
     <div style="font-size:11px;color:var(--gray);line-height:1.5;margin-top:16px">
-      Bằng việc tiếp tục, bạn đồng ý với <a href="javascript:void(0)" onclick="openPrivacyPolicyModal()" style="color:var(--red);font-weight:700">Chính sách bảo mật</a> và <a href="javascript:void(0)" onclick="openWarrantyPolicyModal()" style="color:var(--red);font-weight:700">Điều khoản</a> của Melsou.
+      Bằng việc tiếp tục, bạn đồng ý với <a href="javascript:void(0)" role="button" onclick="openPrivacyPolicyModal(event)" style="color:var(--red);font-weight:700">Chính sách bảo mật</a> và <a href="javascript:void(0)" role="button" onclick="openWarrantyPolicyModal(event)" style="color:var(--red);font-weight:700">Chính sách bảo hành</a> của Melsou.
     </div>
   </div>
 </div>
@@ -1413,7 +1413,7 @@
       <div style="display:flex;align-items:flex-start;gap:8px;margin-bottom:16px">
         <input type="checkbox" id="chkTermsAccept" checked class="cart-checkbox" style="margin-top:2px">
         <label for="chkTermsAccept" style="font-size:12px;color:var(--gray);line-height:1.4">
-          Tôi đã đọc và hiểu rõ đây là quy trình mô phỏng học tập theo <a href="javascript:void(0)" onclick="openPrivacyPolicyModal()" style="color:var(--red);font-weight:700">Chính sách</a> của Melsou.
+          Tôi đã đọc và hiểu rõ đây là quy trình mô phỏng học tập theo <a href="javascript:void(0)" onclick="openPrivacyPolicyModal(event)" style="color:var(--red);font-weight:700">Chính sách</a> của Melsou.
         </label>
       </div>
 
@@ -1453,13 +1453,13 @@
 </div>
 
 <!-- ════════ 📜 MODAL: CHÍNH SÁCH BẢO MẬT (20 ĐIỀU KHOẢN ĐẦY ĐỦ) ════════ -->
-<div class="modal-backdrop" id="privacyPolicyModal">
+<div class="modal-backdrop policy-modal-backdrop" id="privacyPolicyModal" onclick="if(event.target===this)closePrivacyPolicyModal()">
   <div class="modal-box" style="max-width:820px;max-height:85vh">
     <div style="display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid var(--gray-l);padding-bottom:14px">
       <h3 style="font-size:20px;color:var(--dark)">Chính Sách Bảo Mật Melsou 📜</h3>
-      <button onclick="closePrivacyPolicyModal()" style="background:none;border:none;font-size:20px;cursor:pointer">✕</button>
+      <button type="button" class="modal-close-btn" onclick="closePrivacyPolicyModal()" aria-label="Đóng" title="Đóng">✕</button>
     </div>
-    <div style="display:flex;flex-direction:column;gap:14px;font-size:13.5px;line-height:1.75;color:#333;overflow-y:auto;padding-right:10px">
+    <div style="display:flex;flex-direction:column;gap:14px;font-size:13.5px;line-height:1.75;color:#333;overflow-y:auto;padding-right:10px;flex:1;min-height:0">
       <p style="color:var(--gray)"><strong>Ngày có hiệu lực:</strong> 27/08/2026 &nbsp;|&nbsp; <strong>Cập nhật lần cuối:</strong> 27/08/2026</p>
 
       <p>Melsou (“<strong>Melsou</strong>”, “<strong>chúng tôi</strong>”) tôn trọng quyền riêng tư của khách hàng và cam kết xử lý thông tin cá nhân một cách minh bạch, có mục đích và phù hợp với hoạt động của dịch vụ.</p>
@@ -1537,19 +1537,19 @@
       Địa chỉ xưởng chế tác: TP. Hồ Chí Minh</p>
     </div>
     <div style="border-top:1px solid var(--gray-l);padding-top:12px;display:flex;justify-content:flex-end">
-      <button class="btn-primary" onclick="closePrivacyPolicyModal()">Tôi Đã Đọc &amp; Đồng Ý</button>
+      <button type="button" class="btn-primary" onclick="closePrivacyPolicyModal()">Đã hiểu</button>
     </div>
   </div>
 </div>
 
 <!-- ════════ 🔄 MODAL: CHÍNH SÁCH BẢO HÀNH, ĐỔI TRẢ VÀ HOÀN TIỀN (19 ĐIỀU KHOẢN ĐẦY ĐỦ) ════════ -->
-<div class="modal-backdrop" id="warrantyPolicyModal">
+<div class="modal-backdrop policy-modal-backdrop" id="warrantyPolicyModal" onclick="if(event.target===this)closeWarrantyPolicyModal()">
   <div class="modal-box" style="max-width:820px;max-height:85vh">
     <div style="display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid var(--gray-l);padding-bottom:14px">
       <h3 style="font-size:20px;color:var(--dark)">Chính Sách Bảo Hành, Đổi Trả &amp; Hoàn Tiền 🛡️</h3>
-      <button onclick="closeWarrantyPolicyModal()" style="background:none;border:none;font-size:20px;cursor:pointer">✕</button>
+      <button type="button" class="modal-close-btn" onclick="closeWarrantyPolicyModal()" aria-label="Đóng" title="Đóng">✕</button>
     </div>
-    <div style="display:flex;flex-direction:column;gap:14px;font-size:13.5px;line-height:1.75;color:#333;overflow-y:auto;padding-right:10px">
+    <div style="display:flex;flex-direction:column;gap:14px;font-size:13.5px;line-height:1.75;color:#333;overflow-y:auto;padding-right:10px;flex:1;min-height:0">
       <p style="color:var(--gray)"><strong>Ngày có hiệu lực:</strong> 27/08/2026 &nbsp;|&nbsp; <strong>Cập nhật lần cuối:</strong> 27/08/2026</p>
 
       <p>Melsou mong muốn sản phẩm khách hàng nhận được phản ánh chính xác nhất có thể thiết kế đã xác nhận khi đặt hàng. Do phần lớn sản phẩm của Melsou được <strong>sản xuất theo yêu cầu và cá nhân hóa theo thiết kế của từng khách hàng</strong>, chính sách đổi trả có một số quy định đặc thù dưới đây.</p>
@@ -1619,7 +1619,7 @@
       Email tiếp nhận: <strong>support@melsou.vn</strong></p>
     </div>
     <div style="border-top:1px solid var(--gray-l);padding-top:12px;display:flex;justify-content:flex-end">
-      <button class="btn-primary" onclick="closeWarrantyPolicyModal()">Đã Hiểu</button>
+      <button type="button" class="btn-primary" onclick="closeWarrantyPolicyModal()">Đã hiểu</button>
     </div>
   </div>
 </div>
@@ -1706,8 +1706,8 @@
       <h4 id="footerHeadingSupport">Hỗ Trợ</h4>
       <ul>
         <li><a href="javascript:void(0)" id="footerLinkTracking" onclick="showPage('tracking')">Tra cứu đơn hàng</a></li>
-        <li><a href="/chinh-sach-bao-hanh" id="footerLinkWarranty">Chính sách bảo hành</a></li>
-        <li><a href="/chinh-sach-bao-mat" id="footerLinkPrivacy">Chính sách bảo mật</a></li>
+        <li><a href="/chinh-sach-bao-hanh" id="footerLinkWarranty" onclick="openWarrantyPolicyModal(event)">Chính sách bảo hành</a></li>
+        <li><a href="/chinh-sach-bao-mat" id="footerLinkPrivacy" onclick="openPrivacyPolicyModal(event)">Chính sách bảo mật</a></li>
         <li><a href="tel:0931940512" id="footerLinkContactPhone">Liên hệ xưởng (0931.940.512)</a></li>
       </ul>
     </div>

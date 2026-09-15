@@ -847,6 +847,7 @@ function openAuthModal() {
     modal.classList.add('open');
     modal.style.display = 'flex';
   }
+  document.body.style.overflow = 'hidden';
 }
 
 function closeAuthModal() {
@@ -859,7 +860,163 @@ function closeAuthModal() {
     modal.classList.remove('open');
     modal.style.display = 'none';
   }
+  document.body.style.overflow = '';
 }
+
+/* ============================================================
+   📜 POLICY MODALS CONTROLLER (PRIVACY & WARRANTY / TERMS)
+   ============================================================ */
+const policyModalState = {
+  parentModal: null,
+  previousScrollY: 0,
+  previousPath: null
+};
+
+function openPrivacyPolicyModal(event) {
+  if (event) {
+    if (typeof event.preventDefault === 'function') event.preventDefault();
+    if (typeof event.stopPropagation === 'function') event.stopPropagation();
+  }
+  const authModal = document.getElementById('authModal');
+  const isAuthOpen = authModal && (authModal.classList.contains('open') || authModal.style.display === 'flex');
+
+  if (isAuthOpen) {
+    policyModalState.parentModal = 'authModal';
+  } else {
+    policyModalState.parentModal = null;
+    policyModalState.previousScrollY = window.scrollY || window.pageYOffset || 0;
+    policyModalState.previousPath = window.location.pathname + window.location.search + window.location.hash;
+    try {
+      window.history.pushState({ modal: 'privacyPolicyModal' }, '', '/chinh-sach-bao-mat');
+    } catch (e) {}
+  }
+
+  const modal = document.getElementById('privacyPolicyModal');
+  if (modal) {
+    modal.classList.add('open');
+    modal.classList.add('policy-modal-backdrop');
+    modal.style.display = 'flex';
+    modal.setAttribute('aria-modal', 'true');
+    document.body.style.overflow = 'hidden';
+    const firstBtn = modal.querySelector('.modal-close-btn') || modal.querySelector('button');
+    if (firstBtn) firstBtn.focus();
+  }
+}
+
+function closePrivacyPolicyModal(skipHistory) {
+  const modal = document.getElementById('privacyPolicyModal');
+  if (modal) {
+    modal.classList.remove('open');
+    modal.style.display = 'none';
+  }
+  handlePolicyModalClosed('privacyPolicyModal', skipHistory);
+}
+
+function openWarrantyPolicyModal(event) {
+  if (event) {
+    if (typeof event.preventDefault === 'function') event.preventDefault();
+    if (typeof event.stopPropagation === 'function') event.stopPropagation();
+  }
+  const authModal = document.getElementById('authModal');
+  const isAuthOpen = authModal && (authModal.classList.contains('open') || authModal.style.display === 'flex');
+
+  if (isAuthOpen) {
+    policyModalState.parentModal = 'authModal';
+  } else {
+    policyModalState.parentModal = null;
+    policyModalState.previousScrollY = window.scrollY || window.pageYOffset || 0;
+    policyModalState.previousPath = window.location.pathname + window.location.search + window.location.hash;
+    try {
+      window.history.pushState({ modal: 'warrantyPolicyModal' }, '', '/chinh-sach-bao-hanh');
+    } catch (e) {}
+  }
+
+  const modal = document.getElementById('warrantyPolicyModal');
+  if (modal) {
+    modal.classList.add('open');
+    modal.classList.add('policy-modal-backdrop');
+    modal.style.display = 'flex';
+    modal.setAttribute('aria-modal', 'true');
+    document.body.style.overflow = 'hidden';
+    const firstBtn = modal.querySelector('.modal-close-btn') || modal.querySelector('button');
+    if (firstBtn) firstBtn.focus();
+  }
+}
+
+function closeWarrantyPolicyModal(skipHistory) {
+  const modal = document.getElementById('warrantyPolicyModal');
+  if (modal) {
+    modal.classList.remove('open');
+    modal.style.display = 'none';
+  }
+  handlePolicyModalClosed('warrantyPolicyModal', skipHistory);
+}
+
+function handlePolicyModalClosed(modalId, skipHistory) {
+  const wasDirect = !!window.__policyModalDirectAccess;
+  const parent = policyModalState.parentModal;
+  const prevScroll = policyModalState.previousScrollY || 0;
+  const prevPath = policyModalState.previousPath;
+
+  policyModalState.parentModal = null;
+
+  if (parent === 'authModal') {
+    // Return to auth modal cleanly, keep inputs intact and body scroll locked
+    document.body.style.overflow = 'hidden';
+    return;
+  }
+
+  // Restore body scroll
+  document.body.style.overflow = '';
+
+  if (wasDirect) {
+    window.__policyModalDirectAccess = false;
+    if (!skipHistory) {
+      if (window.history.length > 1) {
+        window.history.back();
+        setTimeout(() => {
+          if (window.location.pathname.includes('chinh-sach')) {
+            try {
+              window.history.replaceState({}, '', '/');
+            } catch (e) {}
+            if (typeof showPage === 'function') showPage('home');
+          }
+        }, 200);
+      } else {
+        try {
+          window.history.replaceState({}, '', '/');
+        } catch (e) {}
+        if (typeof showPage === 'function') showPage('home');
+      }
+    }
+  } else {
+    // Return to previous path & scroll position
+    if (!skipHistory && window.location.pathname.includes('chinh-sach')) {
+      try {
+        window.history.replaceState({}, '', prevPath || '/');
+      } catch (e) {}
+    }
+    window.scrollTo({ top: prevScroll, behavior: 'instant' });
+  }
+}
+
+// Global exposure
+window.openPrivacyPolicyModal = openPrivacyPolicyModal;
+window.closePrivacyPolicyModal = closePrivacyPolicyModal;
+window.openWarrantyPolicyModal = openWarrantyPolicyModal;
+window.closeWarrantyPolicyModal = closeWarrantyPolicyModal;
+
+// Listen for browser back/forward buttons
+window.addEventListener('popstate', function () {
+  const privacyModal = document.getElementById('privacyPolicyModal');
+  const warrantyModal = document.getElementById('warrantyPolicyModal');
+  if (privacyModal && (privacyModal.classList.contains('open') || privacyModal.style.display === 'flex')) {
+    closePrivacyPolicyModal(true);
+  }
+  if (warrantyModal && (warrantyModal.classList.contains('open') || warrantyModal.style.display === 'flex')) {
+    closeWarrantyPolicyModal(true);
+  }
+});
 
 function updateHeaderUserUI() {
   const authBtn = document.getElementById('headerAuthBtn');
@@ -3019,6 +3176,69 @@ function handleGlobalClick(e) {
     }
   }
 }
+
+function handleGlobalKey(e) {
+  if (!e) return;
+  if (e.key === 'Escape' || e.keyCode === 27) {
+    // 1. Policy modals (highest z-index 2400)
+    const privacyModal = document.getElementById('privacyPolicyModal');
+    if (privacyModal && (privacyModal.classList.contains('open') || privacyModal.style.display === 'flex')) {
+      closePrivacyPolicyModal();
+      return;
+    }
+    const warrantyModal = document.getElementById('warrantyPolicyModal');
+    if (warrantyModal && (warrantyModal.classList.contains('open') || warrantyModal.style.display === 'flex')) {
+      closeWarrantyPolicyModal();
+      return;
+    }
+
+    // 2. Auth modal (z-index 2100)
+    const authModal = document.getElementById('authModal');
+    if (authModal && (authModal.classList.contains('open') || authModal.style.display === 'flex')) {
+      closeAuthModal();
+      return;
+    }
+
+    // 3. Blog reader modal
+    const blogReaderModal = document.getElementById('blogArticleReaderModal');
+    if (blogReaderModal && (blogReaderModal.classList.contains('open') || blogReaderModal.style.display === 'flex')) {
+      if (typeof closeBlogArticleReader === 'function') closeBlogArticleReader();
+      return;
+    }
+
+    // 4. Other system modals
+    const modalCheckers = [
+      { id: 'settingsModal', fn: () => typeof closeSettingsModal === 'function' && closeSettingsModal() },
+      { id: 'customStickerModal', fn: () => typeof closeCustomStickerModal === 'function' && closeCustomStickerModal() },
+      { id: 'valueStoryModal', fn: () => typeof closeValueStoryModal === 'function' && closeValueStoryModal() },
+      { id: 'templateOnboardingModal', fn: () => typeof closeTemplateOnboardingModal === 'function' && closeTemplateOnboardingModal() },
+      { id: 'checkoutModal', fn: () => typeof closeCheckoutModal === 'function' && closeCheckoutModal() },
+      { id: 'preflightModal', fn: () => typeof closePreflightModal === 'function' && closePreflightModal() },
+      { id: 'draftsManagerModal', fn: () => typeof closeDraftsManagerModal === 'function' && closeDraftsManagerModal() },
+      { id: 'ordersManagerModal', fn: () => typeof closeOrdersManagerModal === 'function' && closeOrdersManagerModal() },
+      { id: 'blogAdminModal', fn: () => typeof closeBlogAdminModal === 'function' && closeBlogAdminModal() },
+      { id: 'blogPostModal', fn: () => typeof closeBlogPostModal === 'function' && closeBlogPostModal() },
+      { id: 'customerReviewModal', fn: () => typeof closeReviewModal === 'function' && closeReviewModal() },
+      { id: 'customerReviewIneligibleModal', fn: () => typeof closeReviewIneligibleModal === 'function' && closeReviewIneligibleModal() }
+    ];
+
+    for (const item of modalCheckers) {
+      const el = document.getElementById(item.id);
+      if (el && (el.classList.contains('open') || el.style.display === 'flex')) {
+        item.fn();
+        return;
+      }
+    }
+
+    // 5. Toolbars / menus
+    if (typeof closeContextMenu === 'function') closeContextMenu();
+    if (typeof closePhotoToolbar === 'function') closePhotoToolbar();
+    if (typeof closeFlyoutDrawer === 'function') closeFlyoutDrawer();
+  }
+}
+
+window.handleGlobalKey = handleGlobalKey;
+window.addEventListener('keydown', handleGlobalKey);
 
 function applyActivePhotoZoom(val) {
   const key = ALBUM_DATA.activePhotoSlot;
