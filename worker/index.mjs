@@ -6,6 +6,7 @@ import { assertDraftAssetQuota, assertUploadSize, inspectUploadedImage, processA
 import { PASSWORD_ITERATIONS, assertPassword, derivePassword, normalizeOptionalEmail, normalizeUsername, randomSecret, verifyPassword } from './native-auth.mjs';
 import { inspectVoiceBytes, processVoiceCleanupJobs } from './voice.mjs';
 import { withPrivateStorage } from './storage.mjs';
+import { handleBlogInteraction, matchBlogInteraction } from './blog-interactions.mjs';
 import {
   ContractError, assertCartConfiguration, assertCheckpointReason, assertIdempotencyKey, assertProjectDocument, assertUuid,
   buildPaymentInstructions, normalizeTrackingPhone, sanitizeAccountPatch, sanitizeAddress, sanitizeBlogPost, sanitizeShipments
@@ -526,6 +527,38 @@ async function handlePublicBlog(url, slug = null) {
       page: Number(query.get('page')),
       total: Number(response.headers.get('X-WP-Total') || posts.length),
       totalPages: Number(response.headers.get('X-WP-TotalPages') || 1)
+    }
+  });
+}
+
+async function blogInteractionActor(request, env, { createGuest = false } = {}) {
+  const user = await authenticatedUser(request, env);
+  if (user) return { userId: user.id, guestHash: null };
+  const existing = readCookie(request, guestCookieName);
+  if (!existing && !createGuest) return null;
+  const session = existing ? { raw: existing, isNew: false } : await guestSession(request);
+  const guestHash = await sha256(textEncoder.encode(session.raw));
+  if (!await touchGuestSession(guestHash, env)) return null;
+  return {
+    userId: null,
+    guestHash,
+    setCookie: session.isNew ? guestCookie(session.raw, new URL(request.url).protocol === 'https:') : null
+  };
+}
+
+async function routeBlogInteraction(request, env, match) {
+  return handleBlogInteraction(request, env, match, {
+    serviceFetch: (path, options) => serviceFetch(env, path, options),
+    getActor: (incoming, options) => blogInteractionActor(incoming, env, options),
+    requireUser: (incoming) => authenticatedUser(incoming, env),
+    requireOwner: (incoming) => ownerUser(incoming, env),
+    rateLimit: (incoming, action) => allowRateLimitedAction(env, `${action}:${requestNetworkKey(incoming)}`),
+    verifyPost: async (slug) => {
+      try {
+        const response = await wordpressFetch(`/posts?status=publish&slug=${encodeURIComponent(slug)}&per_page=1&_fields=id,slug`);
+        if (!response.ok) return response.status === 404 ? false : null;
+        return (await response.json())[0] || false;
+      } catch { return null; }
     }
   });
 }
@@ -1131,6 +1164,8 @@ export default {
     if (url.pathname === '/api/blog' && request.method === 'GET') return handlePublicBlog(url);
     if (url.pathname === '/api/blog/categories' && request.method === 'GET') return handlePublicBlogCategories();
     if (url.pathname === '/api/sitemap.xml' && request.method === 'GET') return handlePublicSitemap();
+    const blogInteraction = matchBlogInteraction(url.pathname, request.method);
+    if (blogInteraction) return routeBlogInteraction(request, env, blogInteraction);
     if (url.pathname === '/api/templates' && request.method === 'GET') return handleTemplates(url);
     const publicTemplate = url.pathname.match(/^\/api\/templates\/([a-z0-9-]+)$/);
     if (publicTemplate && request.method === 'GET') return handleTemplates(url, publicTemplate[1]);

@@ -22,6 +22,9 @@ Use UUID primary keys, UTC timestamps, `created_at`, `updated_at`, and explicit 
 | `shipments` | order id, independent status/carrier/tracking/address snapshot |
 | `audit_logs` | actor, action, before/after, note, timestamp; append-only |
 | `archive_jobs`/`reporting_outbox` | idempotent retry state; side effects never inside request transaction |
+| `blog_post_likes`/`blog_comment_likes` | one account or opaque guest-session like per stable WordPress post slug/comment |
+| `blog_comments` | authenticated author, stable post slug, optional parent, bounded content, visible/hidden/deleted/pending state |
+| `blog_share_events`/`blog_view_events` | server-attributed interaction events used for deduped share and aggregate post analytics |
 
 ## Order status enum
 
@@ -32,3 +35,12 @@ Only allowed transitions are implemented in a server-side state machine. `COMPLE
 ## Optimistic concurrency
 
 Project writes require the caller’s expected revision and atomically increment revision. On mismatch return a conflict with current revision; never silently overwrite. Guest claim is transactional and idempotent. Tenant/guest project, asset, snapshot, order and signed-object authorization must be checked at every read/write.
+
+## Blog interaction invariants
+
+WordPress remains authoritative for published content. Interaction rows use the
+normalized WordPress `post_slug`, never a mutable title. Post/comment likes have
+partial unique indexes per account or guest-session hash. Comment and reply
+counts are derived server-side. Guest sessions may read and like; only an
+authenticated account may author comments/replies. Moderation is soft-state and
+OWNER-only, with an append-only audit entry.

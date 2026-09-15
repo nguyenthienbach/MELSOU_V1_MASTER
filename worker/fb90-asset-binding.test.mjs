@@ -42,9 +42,10 @@ function browserHarness({ storage = new Map(), projectOnGet = null } = {}) {
   const window = {
     location: { origin: 'https://melsou.test', pathname: '/' }, localStorage, melsouGetActiveDraft: () => draft,
     melsouApplyCanonicalDraft: (value) => { appliedDraft = value; },
-    MelsouAuth: { setLoginState() {} }, addEventListener() {}, supabase: null
+    MelsouAuth: { setLoginState() {} }, addEventListener() {}, dispatchEvent() {}, supabase: null
   };
-  const context = vm.createContext({ window, localStorage, fetch, Response, Blob, File, URL, Uint8Array, ArrayBuffer, TextEncoder, atob, crypto: webcrypto, structuredClone, setTimeout, clearTimeout, console: { info() {}, warn() {}, error() {} } });
+  class Event { constructor(type) { this.type = type; } }
+  const context = vm.createContext({ window, localStorage, fetch, Response, Blob, File, URL, Uint8Array, ArrayBuffer, TextEncoder, Event, atob, crypto: webcrypto, structuredClone, setTimeout, clearTimeout, console: { info() {}, warn() {}, error() {} } });
   vm.runInContext(bridgeSource, context);
   return { window, storage, calls, projectId, assetId, appliedDraft: () => appliedDraft };
 }

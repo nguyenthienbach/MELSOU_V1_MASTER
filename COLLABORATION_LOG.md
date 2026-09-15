@@ -2,6 +2,17 @@
 
 This log prevents accidental overlap. Add the newest entry at the top.
 
+## DONE — Codex — Blog interactions V1 backend contract
+
+- **When / agent:** 2026-09-15 — Codex
+- **Files reserved:** `supabase/migrations/202609150001_blog_interactions.sql`, `worker/blog-interactions.mjs`, `worker/blog-interactions.test.mjs`, `worker/fb90-asset-binding.test.mjs`, `worker/index.mjs`, `BACKEND_INTEGRATION_CONTRACT.md`, `docs/03_DATABASE_SCHEMA.md`, `docs/13_SECURITY_PRIVACY.md`, `COLLABORATION_LOG.md`
+- **Purpose:** add durable post/comment likes, authenticated comments/replies, share/view analytics, pagination/sorting and OWNER moderation for WordPress posts keyed by slug.
+- **Protected contracts:** preserve WordPress CMS content, Blog UI/search/categories/images/carousel, native auth/session, guest drafts, cart, Studio, checkout and payment.
+- **Result:** WordPress slugs are verified before persistence; account/guest likes are idempotent; comments/replies are authenticated and paginated; comment likes, deduped shares, view analytics and OWNER soft moderation use service-only RPCs with RLS-protected tables.
+- **Checks:** focused Blog interaction tests PASS 10/10; complete backend suite PASS 92/92; Worker syntax and `git diff --check` PASS.
+- **Handoff:** Antigravity may consume the documented additive `/api/blog/:slug/*` routes without changing existing Blog data/rendering contracts.
+- **Status:** DONE — awaiting PO review; not committed, pushed, migrated or deployed.
+
 > Historical checkpoint paths below describe completed milestones, not active
 > working-tree dependencies. Removed checkpoints remain recoverable from Git
 > history and tag `pre-repo-cleanup-2026-09-13`; the current Golden is
