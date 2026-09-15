@@ -209,10 +209,27 @@ field and switch to the POST contract above.
 | `/api/blog` | `GET`, public | — | `{ posts }`, published only |
 | `/api/blog/:slug` | `GET`, public | — | `{ post }`, published only |
 | `/api/blog/:slug/cover` | `GET`, public | — | Short-cache WebP only for a published post |
+| `/api/blog/:slug/interactions` | `GET`, public/session-aware | — | `{ post_slug, liked, like_count, comment_count, reply_count, share_count, view_count, unique_view_count }` |
+| `/api/blog/:slug/like` | `POST`, account or guest cookie | `{ liked: boolean }` | `{ post_slug, liked, like_count }`; idempotent per actor |
+| `/api/blog/:slug/comments?limit=5&cursor=0&sort=latest\|top` | `GET`, public/session-aware | — | `{ comments, next_cursor, sort, limit }`; `limit` is bounded to 1–20 |
+| `/api/blog/:slug/comments` | `POST`, authenticated account | `{ content }` | `201 { comment }`; guest comment is not enabled in V1 |
+| `/api/blog/:slug/comments/:commentId/replies?limit=3&cursor=0&sort=latest\|top` | `GET`, public/session-aware | — | Paginated `{ comments, next_cursor }`; UI may flatten deeper replies to two visible levels |
+| `/api/blog/:slug/comments/:commentId/replies` | `POST`, authenticated account | `{ content }` | `201 { comment }`, preserving `parent_comment_id` |
+| `/api/blog/:slug/comments/:commentId/like` | `POST`, account or guest cookie | `{ liked: boolean }` | `{ comment_id, liked, like_count }`; idempotent per actor |
+| `/api/blog/:slug/share` | `POST`, account or guest cookie | `{ share_type: copy_link\|native_share\|facebook\|other }` | `202 { recorded, share_count }`; duplicate actor/type clicks are deduped per minute |
+| `/api/blog/:slug/view` | `POST`, account or guest cookie | — | `202 { recorded, view_count, unique_view_count }` |
+| `/api/owner/blog/comments/:commentId` | `PATCH`/`DELETE`, OWNER | `{ status: visible\|hidden\|deleted\|pending }` | Soft moderation result with audit log; `DELETE` sets `deleted` |
 | `/api/owner/blog` | `GET`, OWNER | — | `{ posts }`, all states |
 | `/api/owner/blog` | `POST`, OWNER | `{ slug?, title, excerpt?, content, coverAssetId?, category?, tags?, status? }` | `201 { post }` |
 | `/api/owner/blog/:id` | `PUT`, OWNER | Partial fields | `{ post }` |
 | `/api/owner/blog/:id` | `DELETE`, OWNER | — | Archives; does not hard-delete |
+
+Blog interaction identity uses the normalized WordPress `post_slug` (never the
+title). Mutations verify that the slug still resolves to a currently published
+WordPress post before persisting. Counts are server-computed. Clients must not
+send `user_id`, guest hashes, counters or moderation authority. Guest identity
+is the existing opaque HttpOnly guest session, never IP address. Guests may
+read and like; creating comments/replies requires an authenticated account.
 
 Statuses are `DRAFT`, `PUBLISHED`, `ARCHIVED`. Treat `content` as untrusted text
 and escape/sanitize in the renderer. Never show owner controls based only on a
