@@ -21,7 +21,6 @@ const decodeEntities = (value) => String(value || '')
 const mapComment = (comment, replyCount = 0) => ({
   id: String(comment.id),
   post_slug: null,
-  user_id: null,
   parent_comment_id: Number(comment.parent || 0) > 0 ? String(comment.parent) : null,
   author_name: decodeEntities(comment.author_name) || 'Khách hàng Melsou',
   content: decodeEntities(comment.content?.rendered || comment.content?.raw || ''),

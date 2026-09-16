@@ -579,3 +579,11 @@ This log prevents accidental overlap. Add the newest entry at the top.
   contract are explicitly protected.
 - **Checks:** required shared files verified after copying the master package.
 - **Status:** DONE
+## DONE — Codex — Blog Interactions V1 hardening
+
+- **When / agent:** 2026-09-16 — Codex
+- **Files reserved:** `supabase/migrations/202609160002_blog_interactions_hardening.sql`, `worker/blog-interactions.mjs`, `worker/blog-interactions.test.mjs`, `worker/blog-interactions-ui.test.mjs`, `worker/wordpress-comments.mjs`, `worker/wordpress-comments.test.mjs`, `worker/routes.test.mjs`, `demo/recovery_fb38/auth-client.js`, `demo/recovery_fb38/app.js`, `BACKEND_INTEGRATION_CONTRACT.md`, `PRODUCTION_SETUP.md`
+- **Purpose:** make Supabase the sole canonical store for Melsou Blog interactions, harden RPC security/privacy, add customer ownership mutations and OWNER moderation, and make interaction UI requests race-safe.
+- **Protected contracts:** WordPress remains the post-content authority; preserve Blog search/categories/images/carousel, Auth, Cart, Studio, Checkout, and `demo/checkpoint_fb91_golden/`.
+- **Checks:** migration-contract/Blog/routes/UI tests PASS (55/55); full backend suite PASS (114/114); demo JavaScript syntax PASS; local browser Blog load/empty state/post-like PASS; `git diff --check` PASS. Review added explicit atomic `begin`/`commit`, reasserted RLS, and removed `user_id` from the rollback-only WordPress adapter. Read-only production inspection confirmed both existing comments are already Supabase UUID records, so no backfill is needed.
+- **Status:** DONE — production migration `202609160002_blog_interactions_hardening.sql` applied successfully and post-migration verification returned `BLOG_MIGRATION_APPLIED = YES`; implementation is ready for commit review. Production still requires `BLOG_COMMENT_SOURCE=supabase` before deploying the Worker. No commit, push, merge, or deploy performed.

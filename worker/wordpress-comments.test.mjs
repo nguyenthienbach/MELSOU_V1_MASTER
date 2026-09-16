@@ -34,6 +34,7 @@ test('WordPress comments expose identity, pagination, replies and lock state', a
   let body = await result.json();
   assert.equal(body.comments[0].id, '10');
   assert.equal(body.comments[0].reply_count, 1);
+  assert.equal(Object.hasOwn(body.comments[0], 'user_id'), false);
   result = await handleWordpressComment(new Request(`https://melsou.test/api/blog/${slug}/comments/10/replies`), context.env, matchWordpressComment(`/api/blog/${slug}/comments/10/replies`, 'GET'), context.dependencies);
   body = await result.json();
   assert.equal(body.comments[0].parent_comment_id, '10');

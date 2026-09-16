@@ -219,6 +219,10 @@ field and switch to the POST contract above.
 | `/api/blog/:slug/share` | `POST`, account or guest cookie | `{ share_type: copy_link\|native_share\|facebook\|other }` | `202 { recorded, share_count }`; duplicate actor/type clicks are deduped per minute |
 | `/api/blog/:slug/view` | `POST`, account or guest cookie | — | `202 { recorded, view_count, unique_view_count }` |
 | `/api/owner/blog/comments/:commentId` | `PATCH`/`DELETE`, OWNER | `{ status: visible\|hidden\|deleted\|pending }` | Soft moderation result with audit log; `DELETE` sets `deleted` |
+| `/api/blog/:slug/comments/:commentId` | `PATCH`, authenticated owner | `{ content }` | Edit own comment/reply; response never includes `user_id` |
+| `/api/blog/:slug/comments/:commentId` | `DELETE`, authenticated owner | none | Soft-delete own comment/reply; never hard-deletes the row |
+
+Blog interaction responses expose only display-safe fields (`id`, `post_slug`, `parent_comment_id`, `content`, timestamps, status/counts, `liked`, `author_name`, `can_edit`). They never expose `user_id`, guest-session hashes, or legacy external IDs. WordPress validates post existence/content only; Supabase is the sole interaction store when `BLOG_COMMENT_SOURCE=supabase`.
 | `/api/owner/blog` | `GET`, OWNER | — | `{ posts }`, all states |
 | `/api/owner/blog` | `POST`, OWNER | `{ slug?, title, excerpt?, content, coverAssetId?, category?, tags?, status? }` | `201 { post }` |
 | `/api/owner/blog/:id` | `PUT`, OWNER | Partial fields | `{ post }` |

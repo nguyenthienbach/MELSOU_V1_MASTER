@@ -13,7 +13,11 @@ async function parseBody(request) {
 
 async function rpc(serviceFetch, name, body) {
   const response = await serviceFetch(`rpc/${name}`, { method: 'POST', body: JSON.stringify(body) });
-  if (!response.ok) return { ok: false, status: response.status };
+  if (!response.ok) {
+    const failure = await response.json().catch(() => ({}));
+    const message = typeof failure?.message === 'string' ? failure.message : '';
+    return { ok: false, status: response.status, code: ['COMMENT_FORBIDDEN', 'COMMENT_NOT_FOUND', 'COMMENT_DELETED'].find((code) => message.includes(code)) || null };
+  }
   return { ok: true, value: await response.json() };
 }
 
@@ -27,7 +31,16 @@ function withActorCookie(response, actor) {
 }
 
 function dbFailure(result) {
+  if (result.code === 'COMMENT_FORBIDDEN') return json({ error: 'COMMENT_FORBIDDEN' }, 403);
+  if (result.code === 'COMMENT_NOT_FOUND') return json({ error: 'COMMENT_NOT_FOUND' }, 404);
+  if (result.code === 'COMMENT_DELETED') return json({ error: 'COMMENT_DELETED' }, 409);
   return json({ error: result.status === 409 ? 'INTERACTION_CONFLICT' : 'BLOG_INTERACTION_UNAVAILABLE' }, result.status === 409 ? 409 : 503);
+}
+
+function publicComment(value) {
+  if (!value || typeof value !== 'object') return value;
+  const { user_id, guest_session_hash, external_id, external_source, ...safe } = value;
+  return safe;
 }
 
 export async function handleBlogInteraction(request, env, match, dependencies) {
@@ -67,7 +80,8 @@ export async function handleBlogInteraction(request, env, match, dependencies) {
     if (parentId && !uuidPattern.test(parentId)) return json({ error: 'INVALID_COMMENT_ID' }, 400);
     const actor = await getActor(request, { createGuest: false });
     const result = await rpc(serviceFetch, 'melsou_list_blog_comments', { p_post_slug: slug, p_parent_comment_id: parentId, p_limit: limit, p_offset: offset, p_sort: sort, ...actorParams(actor) });
-    return result.ok ? json({ post_slug: slug, sort, limit, ...result.value }) : dbFailure(result);
+    if (!result.ok) return dbFailure(result);
+    return json({ post_slug: slug, sort, limit, ...result.value, comments: (result.value?.comments || []).map(publicComment) });
   }
 
   if (match.kind === 'comment-create' || match.kind === 'reply-create') {
@@ -78,7 +92,24 @@ export async function handleBlogInteraction(request, env, match, dependencies) {
     if (!content || content.length > 2000) return json({ error: 'INVALID_COMMENT' }, 400);
     if (match.commentId && !uuidPattern.test(match.commentId)) return json({ error: 'INVALID_COMMENT_ID' }, 400);
     const result = await rpc(serviceFetch, 'melsou_create_blog_comment', { p_post_slug: slug, p_user_id: user.id, p_parent_comment_id: match.commentId || null, p_content: content });
-    return result.ok ? json({ comment: result.value }, 201) : dbFailure(result);
+    return result.ok ? json({ comment: publicComment(result.value) }, 201) : dbFailure(result);
+  }
+
+  if (match.kind === 'comment-update' || match.kind === 'comment-delete') {
+    const user = await requireUser(request);
+    if (!user) return json({ error: 'UNAUTHENTICATED' }, 401);
+    if (!uuidPattern.test(match.commentId || '')) return json({ error: 'INVALID_COMMENT_ID' }, 400);
+    const body = match.kind === 'comment-delete' ? {} : await parseBody(request);
+    const content = typeof body?.content === 'string' ? body.content.trim() : '';
+    if (match.kind === 'comment-update' && (!content || content.length > 2000)) return json({ error: 'INVALID_COMMENT' }, 400);
+    const result = await rpc(serviceFetch, 'melsou_update_blog_comment', {
+      p_user_id: user.id,
+      p_comment_id: match.commentId,
+      p_post_slug: slug,
+      p_content: content,
+      p_delete: match.kind === 'comment-delete'
+    });
+    return result.ok ? json({ comment: publicComment(result.value) }) : dbFailure(result);
   }
 
   if (match.kind === 'comment-like') {
@@ -112,7 +143,7 @@ export async function handleBlogInteraction(request, env, match, dependencies) {
     const status = request.method === 'DELETE' ? 'deleted' : body?.status;
     if (!['visible', 'hidden', 'deleted', 'pending'].includes(status) || !uuidPattern.test(match.commentId || '')) return json({ error: 'INVALID_MODERATION' }, 400);
     const result = await rpc(serviceFetch, 'melsou_moderate_blog_comment', { p_owner_id: owner.id, p_comment_id: match.commentId, p_status: status });
-    return result.ok ? json({ comment: result.value }) : dbFailure(result);
+    return result.ok ? json({ comment: publicComment(result.value) }) : dbFailure(result);
   }
 
   return json({ error: 'NOT_FOUND' }, 404);
@@ -131,6 +162,9 @@ export function matchBlogInteraction(pathname, method) {
   if (match && method === 'POST') return { kind: 'reply-create', slug: match[1], commentId: match[2] };
   match = pathname.match(/^\/api\/blog\/([a-z0-9-]+)\/comments\/([0-9a-f-]{36})\/like$/i);
   if (match && method === 'POST') return { kind: 'comment-like', slug: match[1], commentId: match[2] };
+  match = pathname.match(/^\/api\/blog\/([a-z0-9-]+)\/comments\/([0-9a-f-]{36})$/i);
+  if (match && (method === 'PATCH' || method === 'PUT')) return { kind: 'comment-update', slug: match[1], commentId: match[2] };
+  if (match && method === 'DELETE') return { kind: 'comment-delete', slug: match[1], commentId: match[2] };
   match = pathname.match(/^\/api\/blog\/([a-z0-9-]+)\/(share|view)$/);
   if (match && method === 'POST') return { kind: match[2], slug: match[1] };
   match = pathname.match(/^\/api\/owner\/blog\/comments\/([0-9a-f-]{36})$/i);
