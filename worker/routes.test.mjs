@@ -254,6 +254,43 @@ test('native registration stores only a derived verifier and returns an HttpOnly
   assert.match(bodies[0].p_password_hash, /^[0-9a-f]{64}$/); assert.match(bodies[0].p_password_salt, /^[0-9a-f]{32}$/);
 });
 
+test('WordPress OWNER endpoints enforce native session, configured owner id and profile role', async (t) => {
+  const ownerId = '11111111-1111-4111-8111-111111111111';
+  const rawSession = 'b'.repeat(64);
+  const baseEnv = {
+    APP_ENV: 'test',
+    OWNER_USER_ID: ownerId,
+    SUPABASE_URL: 'https://db.test',
+    SUPABASE_SERVICE_ROLE_KEY: 'service',
+    WORDPRESS_CLIENT_ID: '12345',
+    WORDPRESS_CLIENT_SECRET: 'server-only-secret',
+    WORDPRESS_OAUTH_TOKENS: { async get() { return null; }, async put() {} },
+    API_RATE_LIMITER: { async limit() { return { success: true }; } }
+  };
+  const guest = await worker.fetch(new Request('https://melsou.test/api/wordpress/oauth/start'), baseEnv);
+  assert.equal(guest.status, 401);
+  assert.deepEqual(await guest.json(), { error: 'UNAUTHORIZED' });
+
+  let role = 'CUSTOMER';
+  let stateStored = false;
+  t.mock.method(globalThis, 'fetch', async (url) => {
+    const value = String(url);
+    if (value.includes('/rpc/melsou_native_session_user')) return new Response(JSON.stringify({ id: ownerId, username: 'owner', role, provider: 'NATIVE' }));
+    if (value.includes('/profiles?')) return new Response(JSON.stringify([{ role }]));
+    if (value.includes('/rpc/melsou_create_wordpress_oauth_state')) { stateStored = true; return new Response('true'); }
+    throw new Error(`Unexpected request: ${value}`);
+  });
+  const customer = await worker.fetch(new Request('https://melsou.test/api/wordpress/oauth/start', { headers: { Cookie: `melsou_session_v1=${rawSession}` } }), baseEnv);
+  assert.equal(customer.status, 403);
+  assert.deepEqual(await customer.json(), { error: 'FORBIDDEN' });
+
+  role = 'OWNER';
+  const owner = await worker.fetch(new Request('https://melsou.test/api/wordpress/oauth/start', { headers: { Cookie: `melsou_session_v1=${rawSession}` } }), baseEnv);
+  assert.equal(owner.status, 200);
+  assert.equal(stateStored, true);
+  assert.match((await owner.json()).authorization_url, /^https:\/\/public-api\.wordpress\.com\/oauth2\/authorize\?/);
+});
+
 test('native registration returns safe structured username and password errors', async (t) => {
   t.mock.method(globalThis, 'fetch', async (url) => {
     if (String(url).includes('/rpc/melsou_register_native')) {

@@ -16,18 +16,19 @@ function harness() {
     return createGuest ? { userId: null, guestHash: 'guest-new', setCookie: 'melsou_guest_v1=test; Path=/; HttpOnly' } : null;
   };
   const actorKey = (body) => body.p_user_id ? `u:${body.p_user_id}` : `g:${body.p_guest_hash}`;
-  const commentJson = (comment, body) => ({ ...comment, like_count: state.commentLikes.get(comment.id)?.size || 0, reply_count: state.comments.filter((item) => item.parent_comment_id === comment.id && item.status === 'visible').length, liked: state.commentLikes.get(comment.id)?.has(actorKey(body)) || false, author_name: 'Test user' });
+  const commentJson = (comment, body) => ({ id: comment.id, post_slug: comment.post_slug, parent_comment_id: comment.parent_comment_id, content: comment.content, status: comment.status, created_at: comment.created_at, updated_at: comment.updated_at, like_count: state.commentLikes.get(comment.id)?.size || 0, reply_count: state.comments.filter((item) => item.parent_comment_id === comment.id && item.status === 'visible').length, liked: state.commentLikes.get(comment.id)?.has(actorKey(body)) || false, author_name: 'Test user', can_edit: body.p_user_id === comment.user_id });
   const serviceFetch = async (path, options = {}) => {
     const body = JSON.parse(options.body || '{}');
     let value;
     if (path.endsWith('melsou_blog_summary')) value = { liked: state.postLikes.has(actorKey(body)), like_count: state.postLikes.size, comment_count: state.comments.filter((c) => !c.parent_comment_id && c.status === 'visible').length, reply_count: state.comments.filter((c) => c.parent_comment_id && c.status === 'visible').length, share_count: state.shares.size, view_count: state.views.length, unique_view_count: new Set(state.views).size };
     else if (path.endsWith('melsou_toggle_blog_post_like')) { body.p_liked ? state.postLikes.add(actorKey(body)) : state.postLikes.delete(actorKey(body)); value = { liked: body.p_liked, like_count: state.postLikes.size }; }
-    else if (path.endsWith('melsou_create_blog_comment')) { const comment = { id: ids[state.sequence++], post_slug: body.p_post_slug, user_id: body.p_user_id, parent_comment_id: body.p_parent_comment_id, content: body.p_content, status: 'visible', created_at: new Date(1700000000000 + state.sequence * 1000).toISOString(), updated_at: new Date().toISOString() }; state.comments.push(comment); value = comment; }
+    else if (path.endsWith('melsou_create_blog_comment')) { const comment = { id: ids[state.sequence++], post_slug: body.p_post_slug, user_id: body.p_user_id, parent_comment_id: body.p_parent_comment_id, content: body.p_content, status: 'visible', created_at: new Date(1700000000000 + state.sequence * 1000).toISOString(), updated_at: new Date().toISOString() }; state.comments.push(comment); value = commentJson(comment, body); }
+    else if (path.endsWith('melsou_update_blog_comment')) { const comment = state.comments.find((c) => c.id === body.p_comment_id && c.post_slug === body.p_post_slug); if (!comment || comment.user_id !== body.p_user_id) return new Response(JSON.stringify({ message: comment ? 'COMMENT_FORBIDDEN' : 'COMMENT_NOT_FOUND' }), { status: 400, headers: { 'Content-Type': 'application/json' } }); if (body.p_delete) comment.status = 'deleted'; else comment.content = body.p_content; comment.updated_at = new Date().toISOString(); value = commentJson(comment, body); }
     else if (path.endsWith('melsou_toggle_blog_comment_like')) { const likes = state.commentLikes.get(body.p_comment_id) || new Set(); body.p_liked ? likes.add(actorKey(body)) : likes.delete(actorKey(body)); state.commentLikes.set(body.p_comment_id, likes); value = { liked: body.p_liked, like_count: likes.size }; }
     else if (path.endsWith('melsou_list_blog_comments')) { let rows = state.comments.filter((c) => c.post_slug === body.p_post_slug && c.parent_comment_id === body.p_parent_comment_id && c.status === 'visible'); rows = body.p_sort === 'top' ? rows.sort((a, b) => (state.commentLikes.get(b.id)?.size || 0) - (state.commentLikes.get(a.id)?.size || 0)) : rows.sort((a, b) => b.created_at.localeCompare(a.created_at)); const page = rows.slice(body.p_offset, body.p_offset + body.p_limit); value = { comments: page.map((c) => commentJson(c, body)), next_cursor: body.p_offset + body.p_limit < rows.length ? String(body.p_offset + body.p_limit) : null }; }
     else if (path.endsWith('melsou_record_blog_share')) { const key = `${actorKey(body)}:${body.p_share_type}`; const recorded = !state.shares.has(key); state.shares.add(key); value = { recorded, share_count: state.shares.size }; }
     else if (path.endsWith('melsou_record_blog_view')) { state.views.push(actorKey(body)); value = { recorded: true, view_count: state.views.length, unique_view_count: new Set(state.views).size }; }
-    else if (path.endsWith('melsou_moderate_blog_comment')) { const comment = state.comments.find((c) => c.id === body.p_comment_id); comment.status = body.p_status; value = comment; }
+    else if (path.endsWith('melsou_moderate_blog_comment')) { const comment = state.comments.find((c) => c.id === body.p_comment_id); comment.status = body.p_status; value = { id: comment.id, post_slug: comment.post_slug, parent_comment_id: comment.parent_comment_id, status: comment.status, created_at: comment.created_at, updated_at: comment.updated_at }; }
     return new Response(JSON.stringify(value), { status: 200, headers: { 'Content-Type': 'application/json' } });
   };
   const dependencies = {
@@ -82,6 +83,41 @@ test('comment like is unique and reversible', async () => {
   result = await call(`/api/blog/${slug}/comments/${root.body.comment.id}/like`, { method: 'POST', body: { liked: false }, guest: 'g1' }); assert.equal(result.body.like_count, 0);
 });
 
+test('reply like is unique and reversible', async () => {
+  const { call } = harness(); const user = ids[10];
+  const root = await call(`/api/blog/${slug}/comments`, { method: 'POST', body: { content: 'Root' }, user });
+  const reply = await call(`/api/blog/${slug}/comments/${root.body.comment.id}/replies`, { method: 'POST', body: { content: 'Reply' }, user });
+  let result = await call(`/api/blog/${slug}/comments/${reply.body.comment.id}/like`, { method: 'POST', body: { liked: true }, user });
+  assert.equal(result.body.like_count, 1);
+  result = await call(`/api/blog/${slug}/comments/${reply.body.comment.id}/like`, { method: 'POST', body: { liked: true }, user });
+  assert.equal(result.body.like_count, 1);
+  result = await call(`/api/blog/${slug}/comments/${reply.body.comment.id}/like`, { method: 'POST', body: { liked: false }, user });
+  assert.equal(result.body.like_count, 0);
+});
+
+test('customer can edit and soft-delete only own comment or reply', async () => {
+  const { call, state } = harness(); const owner = ids[10]; const other = ids[9];
+  const root = await call(`/api/blog/${slug}/comments`, { method: 'POST', body: { content: 'Original' }, user: owner });
+  const edit = await call(`/api/blog/${slug}/comments/${root.body.comment.id}`, { method: 'PATCH', body: { content: 'Edited' }, user: owner });
+  assert.equal(edit.body.comment.content, 'Edited');
+  assert.equal(Object.hasOwn(edit.body.comment, 'user_id'), false);
+  assert.equal((await call(`/api/blog/${slug}/comments/${root.body.comment.id}`, { method: 'PATCH', body: { content: 'Attack' }, user: other })).response.status, 403);
+  const removed = await call(`/api/blog/${slug}/comments/${root.body.comment.id}`, { method: 'DELETE', user: owner });
+  assert.equal(removed.body.comment.status, 'deleted');
+  assert.equal(state.comments[0].status, 'deleted');
+});
+
+test('public comment responses never expose user identity fields', async () => {
+  const { call } = harness(); const user = ids[10];
+  const created = await call(`/api/blog/${slug}/comments`, { method: 'POST', body: { content: 'Private identity' }, user });
+  const listed = await call(`/api/blog/${slug}/comments`, { user });
+  for (const value of [created.body.comment, listed.body.comments[0]]) {
+    assert.equal(Object.hasOwn(value, 'user_id'), false);
+    assert.equal(Object.hasOwn(value, 'guest_session_hash'), false);
+    assert.equal(Object.hasOwn(value, 'external_id'), false);
+  }
+});
+
 test('comment and reply pagination return bounded pages and cursors', async () => {
   const { call } = harness(); const user = ids[10]; let root;
   for (let i = 0; i < 7; i += 1) root = await call(`/api/blog/${slug}/comments`, { method: 'POST', body: { content: `Comment ${i}` }, user });
@@ -131,13 +167,27 @@ test('rate limiting fails closed', async () => {
 });
 
 test('migration enables RLS, denies browser roles and grants only service RPC execution', async () => {
-  const sql = await readFile(new URL('../supabase/migrations/202609150001_blog_interactions.sql', import.meta.url), 'utf8');
+  const base = await readFile(new URL('../supabase/migrations/202609150001_blog_interactions.sql', import.meta.url), 'utf8');
+  const sql = await readFile(new URL('../supabase/migrations/202609160002_blog_interactions_hardening.sql', import.meta.url), 'utf8');
+  for (const table of ['blog_post_likes', 'blog_comments', 'blog_comment_likes', 'blog_share_events', 'blog_view_events']) {
+    assert.match(base, new RegExp(`alter table public\\.${table} enable row level security`, 'i'));
+  }
+  assert.match(sql, /revoke all on table public\.blog_post_likes[\s\S]+from anon, authenticated/i);
+  assert.match(sql, /grant execute on function[\s\S]+to service_role/i);
+  assert.doesNotMatch(sql, /grant execute on function[\s\S]+to (?:anon|authenticated)/i);
+  assert.match(base, /unique index if not exists blog_post_likes_user_unique/i);
+  assert.match(base, /unique index if not exists blog_comment_likes_guest_unique/i);
+  assert.match(sql, /set search_path = pg_catalog, public/gi);
+  assert.match(sql, /melsou_update_blog_comment/);
+  assert.doesNotMatch(sql, /grant execute[\s\S]+to (?:anon|authenticated)/i);
+  assert.match(sql, /^begin;/mi);
+  assert.match(sql, /commit;\s*$/i);
+  assert.doesNotMatch(sql, /\b(?:drop table|truncate|alter table[^;]+drop column)\b/i);
+  assert.doesNotMatch(sql, /^\s*delete from public\.(?:blog_comments|blog_share_events|blog_view_events)/mi);
   for (const table of ['blog_post_likes', 'blog_comments', 'blog_comment_likes', 'blog_share_events', 'blog_view_events']) {
     assert.match(sql, new RegExp(`alter table public\\.${table} enable row level security`, 'i'));
   }
-  assert.match(sql, /revoke all on public\.blog_post_likes[\s\S]+from anon, authenticated/i);
-  assert.match(sql, /grant execute on function[\s\S]+to service_role/i);
-  assert.doesNotMatch(sql, /grant execute on function[\s\S]+to (?:anon|authenticated)/i);
-  assert.match(sql, /unique index if not exists blog_post_likes_user_unique/i);
-  assert.match(sql, /unique index if not exists blog_comment_likes_guest_unique/i);
+  const definerFunctions = sql.split(/create or replace function/i).slice(1).filter((definition) => /security definer/i.test(definition));
+  assert.ok(definerFunctions.length >= 8);
+  for (const definition of definerFunctions) assert.match(definition, /set search_path = pg_catalog, public/i);
 });

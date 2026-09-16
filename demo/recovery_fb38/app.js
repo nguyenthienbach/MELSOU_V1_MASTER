@@ -431,7 +431,8 @@ function scrollToSection(sectionId) {
 }
 
 // ── USER AUTH & DROPDOWN ──
-let currentUser = { id: '', name: '', email: '', avatar: '', loggedIn: false };
+let currentUser = { id: '', name: '', username: '', email: '', avatar: '', role: 'CUSTOMER', loggedIn: false };
+window.currentUser = currentUser;
 let pendingAuthContext = null;
 
 /* ============================================================
@@ -504,15 +505,22 @@ const MelsouAuth = {
       loggedIn: true,
       id: user?.id || '',
       name: user?.name || user?.user_metadata?.full_name || 'Khách hàng',
+      username: user?.username || user?.name || '',
       email: user?.email || '',
-      avatar: user?.avatar || user?.user_metadata?.avatar_url || ''
+      avatar: user?.avatar || user?.user_metadata?.avatar_url || '',
+      role: String(user?.role || 'CUSTOMER').toUpperCase()
     };
+    window.currentUser = currentUser;
     updateHeaderUserUI();
     this.setLoginState('success');
   },
 
   logout() {
-    currentUser = { id: '', name: '', email: '', avatar: '', loggedIn: false };
+    currentUser = { id: '', name: '', username: '', email: '', avatar: '', role: 'CUSTOMER', loggedIn: false };
+    window.currentUser = currentUser;
+    if (typeof closeOwnerDashboardModal === 'function') closeOwnerDashboardModal();
+    if (typeof closeBlogAdminModal === 'function') closeBlogAdminModal();
+    if (typeof closeOwnerSupportInbox === 'function') closeOwnerSupportInbox();
     // The real Supabase sign-out is supplied by auth-client.js. This UI method
     // only clears presentation state; browser storage never establishes identity.
     window.codexHandleLogout?.();
@@ -699,10 +707,13 @@ window.codexOnAuthSuccess = function(userData) {
   currentUser = {
     loggedIn: true,
     isGuest: false,
-    name: userData.username || userData.name,
-    username: userData.username,
-    email: userData.email || ''
+    id: userData.id || '',
+    name: userData.username || userData.name || 'Khách hàng',
+    username: userData.username || userData.name || '',
+    email: userData.email || '',
+    role: String(userData.role || 'CUSTOMER').toUpperCase()
   };
+  window.currentUser = currentUser;
   updateHeaderUserUI();
   closeAuthModal();
   showToast(currentAppLanguage === 'en' ? `Welcome back, ${currentUser.name}!` : `Chào mừng bạn quay lại, ${currentUser.name}!`);
@@ -1047,10 +1058,271 @@ function updateHeaderUserUI() {
   const dEmail = document.getElementById('dropdownUserEmail');
   if (dName) dName.textContent = currentUser?.name || (currentAppLanguage === 'en' ? 'Customer' : 'Khách hàng');
   if (dEmail) dEmail.textContent = currentUser?.email || '';
+  const ownerLink = document.getElementById('udLinkOwnerDashboard');
+  const mndOwnerItem = document.getElementById('mndItemOwnerDashboard');
+  const isOwner = Boolean(currentUser && currentUser.loggedIn && currentUser.role === 'OWNER');
+  if (ownerLink) {
+    ownerLink.style.display = isOwner ? 'block' : 'none';
+  }
+  if (mndOwnerItem) {
+    mndOwnerItem.style.display = isOwner ? 'block' : 'none';
+  }
+  if (isOwner) {
+    window.refreshWordPressConnectionStatus?.();
+  }
   if (typeof updateBlogInteractionsAuthUI === 'function') {
     updateBlogInteractionsAuthUI();
   }
 }
+
+// ════════════════════════════════════════════════════════════
+// 👑 OWNER DASHBOARD & WORDPRESS CMS FRONTEND CONTROLLER
+// ════════════════════════════════════════════════════════════
+// [Security Notice] Trạng thái OWNER phía frontend chỉ dùng để hiển thị UI.
+// Mọi endpoint OWNER/WordPress vẫn phải được backend xác thực session và role độc lập.
+let wordPressConnectionState = {
+  connected: false,
+  site: '',
+  message: 'Chưa thiết lập liên kết WordPress OAuth.'
+};
+
+window.codexSetWordPressConnectionStatus = function(state = {}) {
+  wordPressConnectionState = { ...wordPressConnectionState, ...state };
+  const badge = document.getElementById('wpConnectionBadge');
+  const details = document.getElementById('wpConnectionDetails');
+  const btn = document.getElementById('wpConnectBtn');
+  if (!badge) return;
+
+  if (wordPressConnectionState.connected) {
+    badge.className = 'wp-status-badge connected';
+    badge.innerHTML = '🟢 Đã kết nối';
+    if (details) details.textContent = wordPressConnectionState.site ? `Trang web: ${wordPressConnectionState.site}` : 'Đã kết nối với WordPress CMS';
+    if (btn) btn.innerHTML = '🔄 Kết nối lại WordPress';
+  } else {
+    badge.className = 'wp-status-badge disconnected';
+    badge.innerHTML = '⚪ Chưa kết nối';
+    if (details) details.textContent = wordPressConnectionState.message || 'Chưa thiết lập liên kết WordPress OAuth';
+    if (btn) btn.innerHTML = '🔗 Kết nối WordPress';
+  }
+};
+
+window.refreshWordPressConnectionStatus = async function() {
+  if (!currentUser || !currentUser.loggedIn || currentUser.role !== 'OWNER') return;
+  try {
+    let status = null;
+    if (typeof window.codexGetWordPressStatus === 'function') {
+      status = await window.codexGetWordPressStatus();
+    } else {
+      const res = await fetch('/api/owner/wordpress/status', {
+        headers: { Accept: 'application/json' },
+        credentials: 'include'
+      });
+      if (res.ok) status = await res.json();
+    }
+    if (status && typeof status.connected === 'boolean') {
+      window.codexSetWordPressConnectionStatus({
+        connected: status.connected,
+        site: status.site || status.site_name || status.site_url || '',
+        message: status.message || (status.connected ? 'Đã kết nối' : 'Chưa thiết lập liên kết WordPress OAuth')
+      });
+    }
+  } catch (e) {
+    console.warn('[Melsou] refreshWordPressConnectionStatus failed:', e?.message);
+  }
+};
+
+window.openOwnerDashboardModal = function() {
+  if (!currentUser || !currentUser.loggedIn || currentUser.role !== 'OWNER') {
+    console.warn('[Melsou Security] Access denied: OWNER role required.');
+    alert('Chức năng này chỉ dành riêng cho Quản trị viên (OWNER).');
+    return;
+  }
+  const dropdown = document.getElementById('userDropdownMenu');
+  if (dropdown) dropdown.classList.remove('open');
+  const modal = document.getElementById('ownerDashboardModal');
+  if (modal) {
+    modal.classList.add('open');
+    modal.style.display = 'flex';
+  }
+  // Khi mở Dashboard, trạng thái kết nối luôn được lấy từ backend
+  window.refreshWordPressConnectionStatus?.();
+};
+
+window.closeOwnerDashboardModal = function() {
+  const modal = document.getElementById('ownerDashboardModal');
+  if (modal) {
+    modal.classList.remove('open');
+    modal.style.display = 'none';
+  }
+};
+
+window.onWordPressConnectClick = function() {
+  if (!currentUser || !currentUser.loggedIn || currentUser.role !== 'OWNER') {
+    console.warn('[Melsou Security] Access denied: OWNER role required.');
+    alert('Chức năng này chỉ dành riêng cho Quản trị viên (OWNER).');
+    return;
+  }
+  // [Security Notice] Nút kết nối chỉ gọi window.codexHandleWordPressConnect();
+  // không tự tạo authorization URL và không chứa client secret/token.
+  try {
+    if (typeof window.codexHandleWordPressConnect === 'function') {
+      window.codexHandleWordPressConnect();
+    } else {
+      console.info('[Melsou] window.codexHandleWordPressConnect hook ready for backend integration');
+    }
+  } catch (err) {
+    console.error('[Melsou] WordPress connect error:', err);
+  }
+};
+
+window.handleWordPressOAuthCallbackPage = async function() {
+  const modal = document.getElementById('wpOAuthCallbackModal');
+  const icon = document.getElementById('wpOAuthStatusIcon');
+  const heading = document.getElementById('wpOAuthHeading');
+  const message = document.getElementById('wpOAuthMessage');
+  const detailsBox = document.getElementById('wpOAuthDetailsBox');
+  const actionBtn = document.getElementById('wpOAuthActionBtn');
+
+  if (modal) {
+    modal.classList.add('open');
+    modal.style.display = 'flex';
+  }
+
+  const urlParams = new URLSearchParams(window.location.search);
+  const code = (urlParams.get('code') || '').trim();
+  const state = (urlParams.get('state') || '').trim();
+  const error = (urlParams.get('error') || '').trim();
+  const errorDesc = (urlParams.get('error_description') || urlParams.get('message') || '').trim();
+
+  if (error) {
+    if (icon) icon.textContent = '❌';
+    if (heading) heading.textContent = 'Kết nối WordPress thất bại';
+    if (message) message.textContent = 'Quá trình xác thực WordPress OAuth đã bị từ chối hoặc gặp lỗi từ nhà cung cấp.';
+    if (detailsBox) {
+      detailsBox.style.display = 'block';
+      detailsBox.textContent = `Lỗi: ${errorDesc || error}`;
+    }
+    if (actionBtn) {
+      actionBtn.style.display = 'inline-flex';
+      actionBtn.textContent = 'Quay về trang chủ';
+      actionBtn.onclick = () => { window.location.href = '/'; };
+    }
+    return;
+  }
+
+  // Bắt buộc phải có cả code và state hợp lệ (không rỗng). Nếu thiếu, tuyệt đối không gọi backend.
+  if (!code || !state) {
+    if (icon) icon.textContent = '⚠️';
+    if (heading) heading.textContent = 'Thiếu tham số xác thực OAuth';
+    if (message) message.textContent = 'Phản hồi OAuth không hợp lệ: Yêu cầu phải có đầy đủ cả mã ủy quyền (code) và chuỗi bảo mật (state).';
+    if (detailsBox) {
+      detailsBox.style.display = 'block';
+      const missing = [];
+      if (!code) missing.push('code');
+      if (!state) missing.push('state');
+      detailsBox.textContent = `Tham số bị thiếu hoặc rỗng: [${missing.join(', ')}]. Để phòng chống tấn công CSRF, yêu cầu không được chuyển tiếp tới backend.`;
+    }
+    if (actionBtn) {
+      actionBtn.style.display = 'inline-flex';
+      actionBtn.textContent = 'Quay về trang chủ';
+      actionBtn.onclick = () => { window.location.href = '/'; };
+    }
+    return; // Dừng ngay, tuyệt đối không gọi backend
+  }
+
+  if (icon) icon.textContent = '⏳';
+  if (heading) heading.textContent = 'Đang hoàn tất kết nối WordPress...';
+  if (message) message.textContent = 'Đang gửi authorization code và state tới máy chủ Melsou để xác thực an toàn...';
+
+  try {
+    let result = null;
+    if (typeof window.codexHandleWordPressOAuthCallback === 'function') {
+      result = await window.codexHandleWordPressOAuthCallback({ code, state });
+    } else {
+      const response = await fetch('/api/wordpress/oauth/callback', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ code, state })
+      });
+      if (!response.ok) {
+        const errJson = await response.json().catch(() => ({}));
+        throw new Error(errJson.message || errJson.error || `HTTP error ${response.status}`);
+      }
+      result = await response.json();
+    }
+
+    // Không hiển thị thành công chỉ vì hook resolve.
+    // Chỉ hiển thị thành công khi backend trả response xác nhận connected: true.
+    if (!result || result.connected !== true) {
+      const errMsg = result?.message || result?.error || 'Backend từ chối liên kết WordPress hoặc phản hồi connected: false.';
+      throw new Error(errMsg);
+    }
+
+    // Không mặc định site là melsoucms.wordpress.com; site phải lấy từ response backend.
+    const siteName = result.site || result.site_name || result.site_url || '';
+    if (icon) icon.textContent = '✅';
+    if (heading) heading.textContent = 'Kết nối WordPress thành công!';
+    if (message) {
+      message.textContent = siteName
+        ? `Website Melsou đã kết nối an toàn với WordPress (${siteName}). Các bài viết sẽ tự động đồng bộ.`
+        : 'Website Melsou đã kết nối an toàn với WordPress CMS. Các bài viết sẽ tự động đồng bộ.';
+    }
+    if (detailsBox) {
+      detailsBox.style.display = 'block';
+      detailsBox.textContent = siteName
+        ? `Trạng thái: Đã kết nối · Site: ${siteName}`
+        : 'Trạng thái: Đã kết nối thành công';
+    }
+    window.codexSetWordPressConnectionStatus({
+      connected: true,
+      site: siteName,
+      message: siteName ? `Đã kết nối với ${siteName}` : 'Đã kết nối'
+    });
+    if (actionBtn) {
+      actionBtn.style.display = 'inline-flex';
+      actionBtn.textContent = '👑 Tới OWNER Dashboard';
+      actionBtn.onclick = () => {
+        closeWpOAuthCallbackModal();
+        if (currentUser && currentUser.loggedIn && currentUser.role === 'OWNER') {
+          openOwnerDashboardModal();
+        } else {
+          window.location.href = '/';
+        }
+      };
+    }
+  } catch (err) {
+    if (icon) icon.textContent = '❌';
+    if (heading) heading.textContent = 'Kết nối WordPress không thành công';
+    if (message) message.textContent = 'Không thể hoàn tất ủy quyền WordPress qua máy chủ backend.';
+    if (detailsBox) {
+      detailsBox.style.display = 'block';
+      detailsBox.textContent = `Chi tiết lỗi: ${err.message || 'Lỗi mạng hoặc máy chủ từ chối xác thực.'}`;
+    }
+    if (actionBtn) {
+      actionBtn.style.display = 'inline-flex';
+      actionBtn.textContent = 'Thử lại';
+      actionBtn.onclick = () => { window.location.reload(); };
+    }
+  }
+};
+
+window.closeWpOAuthCallbackModal = function() {
+  const modal = document.getElementById('wpOAuthCallbackModal');
+  if (modal) {
+    modal.classList.remove('open');
+    modal.style.display = 'none';
+  }
+};
+
+window.goToOwnerDashboardFromOAuth = function() {
+  closeWpOAuthCallbackModal();
+  if (currentUser && currentUser.loggedIn && currentUser.role === 'OWNER') {
+    openOwnerDashboardModal();
+  } else {
+    window.location.href = '/';
+  }
+};
 
 
 function toggleMobileNavMenu() {
@@ -3235,6 +3507,8 @@ function handleGlobalKey(e) {
       { id: 'preflightModal', fn: () => typeof closePreflightModal === 'function' && closePreflightModal() },
       { id: 'draftsManagerModal', fn: () => typeof closeDraftsManagerModal === 'function' && closeDraftsManagerModal() },
       { id: 'ordersManagerModal', fn: () => typeof closeOrdersManagerModal === 'function' && closeOrdersManagerModal() },
+      { id: 'ownerDashboardModal', fn: () => typeof closeOwnerDashboardModal === 'function' && closeOwnerDashboardModal() },
+      { id: 'wpOAuthCallbackModal', fn: () => typeof closeWpOAuthCallbackModal === 'function' && closeWpOAuthCallbackModal() },
       { id: 'blogAdminModal', fn: () => typeof closeBlogAdminModal === 'function' && closeBlogAdminModal() },
       { id: 'blogPostModal', fn: () => typeof closeBlogPostModal === 'function' && closeBlogPostModal() },
       { id: 'customerReviewModal', fn: () => typeof closeReviewModal === 'function' && closeReviewModal() },
@@ -5700,9 +5974,25 @@ function clearStudioLocalCache() {
   }
 }
 
+window.openBlogAdminModal = function() {
+  if (!currentUser || !currentUser.loggedIn || currentUser.role !== 'OWNER') {
+    console.warn('[Melsou Security] Access denied: OWNER role required.');
+    alert('Chức năng này chỉ dành riêng cho Quản trị viên (OWNER).');
+    return;
+  }
+  const m = document.getElementById('blogAdminModal');
+  if (m) {
+    m.classList.add('open');
+    m.style.display = 'flex';
+  }
+};
+
 function closeBlogAdminModal() {
   const m = document.getElementById('blogAdminModal');
-  if (m) m.classList.remove('open');
+  if (m) {
+    m.classList.remove('open');
+    m.style.display = 'none';
+  }
 }
 
 function closeBlogPostModal() {
@@ -8132,6 +8422,12 @@ var blogInteractionsState = {
   nextCursor: null,
   loadingComments: false,
   loadingMore: false,
+  summaryRequestId: 0,
+  summaryLoading: false,
+  summaryError: '',
+  pendingPostLike: false,
+  pendingCommentLikes: new Set(),
+  pendingShares: new Set(),
   replies: {}, // commentId -> { comments: [], nextCursor: null, loading: false, expanded: false }
   draft: null  // { type: 'comment' | 'reply', commentId?: string, content: string, slug: string }
 };
@@ -8215,7 +8511,6 @@ function handleLocalDevMock(path, options = {}) {
     const newComment = {
       id: `mock-c-${Date.now()}`,
       post_slug: slug,
-      user_id: currentUser?.id || 'u-mock',
       author_name: authorName,
       content: body.content,
       created_at: new Date().toISOString(),
@@ -8247,7 +8542,6 @@ function handleLocalDevMock(path, options = {}) {
     const newReply = {
       id: `mock-r-${Date.now()}`,
       post_slug: slug,
-      user_id: currentUser?.id || 'u-mock',
       author_name: authorName,
       content: body.content,
       created_at: new Date().toISOString(),
@@ -8364,6 +8658,23 @@ function renderBlogPostInteractions() {
   const commentInput = document.getElementById('blogCommentInput');
   const commentSubmit = document.getElementById('blogCommentSubmitBtn');
   const guestHint = document.getElementById('blogCommentGuestHint');
+  const interactionsBar = document.getElementById('blogPostInteractionsBar');
+  let statusEl = document.getElementById('blogInteractionsStatus');
+  if (!statusEl && interactionsBar) {
+    statusEl = document.createElement('div');
+    statusEl.id = 'blogInteractionsStatus';
+    statusEl.setAttribute('role', 'status');
+    statusEl.setAttribute('aria-live', 'polite');
+    statusEl.style.cssText = 'width:100%;font-size:12px;text-align:center;margin-top:6px;color:#8a6b5d';
+    interactionsBar.appendChild(statusEl);
+  }
+  if (statusEl) {
+    statusEl.textContent = blogInteractionsState.summaryLoading
+      ? 'Đang tải tương tác…'
+      : blogInteractionsState.summaryError;
+    statusEl.style.display = statusEl.textContent ? '' : 'none';
+    statusEl.style.color = blogInteractionsState.summaryError ? '#b42318' : '#8a6b5d';
+  }
 
   if (commentInput) {
     commentInput.disabled = !blogInteractionsState.commentsOpen;
@@ -8378,6 +8689,8 @@ function renderBlogPostInteractions() {
   }
 
   if (likeBtn) {
+    likeBtn.disabled = blogInteractionsState.pendingPostLike;
+    likeBtn.setAttribute('aria-busy', blogInteractionsState.pendingPostLike ? 'true' : 'false');
     if (blogInteractionsState.liked) {
       likeBtn.classList.add('liked');
       likeBtn.setAttribute('aria-pressed', 'true');
@@ -8420,6 +8733,12 @@ async function initBlogInteractions(slug) {
   blogInteractionsState.comments = [];
   blogInteractionsState.nextCursor = null;
   blogInteractionsState.replies = {};
+  blogInteractionsState.summaryLoading = true;
+  blogInteractionsState.summaryError = '';
+  blogInteractionsState.pendingPostLike = false;
+  blogInteractionsState.pendingCommentLikes.clear();
+  blogInteractionsState.pendingShares.clear();
+  const summaryRequestId = ++blogInteractionsState.summaryRequestId;
 
   const interactionsBar = document.getElementById('blogPostInteractionsBar');
   const commentsSection = document.getElementById('blogCommentsSection');
@@ -8427,6 +8746,7 @@ async function initBlogInteractions(slug) {
   if (commentsSection) commentsSection.style.display = '';
 
   updateBlogInteractionsAuthUI();
+  renderBlogPostInteractions();
 
   // 1. Record view (fire and forget)
   blogFetchApi(`/blog/${encodeURIComponent(slug)}/view`, { method: 'POST' }).catch(() => {});
@@ -8434,17 +8754,22 @@ async function initBlogInteractions(slug) {
   // 2. Fetch interaction stats
   blogFetchApi(`/blog/${encodeURIComponent(slug)}/interactions`)
     .then((summary) => {
-      if (blogInteractionsState.activeSlug !== slug) return;
+      if (blogInteractionsState.activeSlug !== slug || blogInteractionsState.summaryRequestId !== summaryRequestId) return;
       blogInteractionsState.liked = !!summary.liked;
       blogInteractionsState.likeCount = summary.like_count || 0;
       blogInteractionsState.commentCount = (summary.comment_count || 0) + (summary.reply_count || 0);
       blogInteractionsState.shareCount = summary.share_count || 0;
       blogInteractionsState.viewCount = summary.view_count || 0;
       blogInteractionsState.commentsOpen = summary.comments_open !== false;
+      blogInteractionsState.summaryLoading = false;
+      blogInteractionsState.summaryError = '';
       renderBlogPostInteractions();
     })
-    .catch((err) => {
-      console.warn('Failed to load blog interactions:', err);
+    .catch(() => {
+      if (blogInteractionsState.activeSlug !== slug || blogInteractionsState.summaryRequestId !== summaryRequestId) return;
+      blogInteractionsState.summaryLoading = false;
+      blogInteractionsState.summaryError = 'Không thể tải tương tác. Vui lòng thử lại.';
+      renderBlogPostInteractions();
     });
 
   // 3. Load initial comments
@@ -8453,7 +8778,7 @@ async function initBlogInteractions(slug) {
 
 async function handleBlogPostLikeClick() {
   const slug = blogInteractionsState.activeSlug;
-  if (!slug) return;
+  if (!slug || blogInteractionsState.pendingPostLike) return;
   const prevLiked = blogInteractionsState.liked;
   const prevCount = blogInteractionsState.likeCount;
   const newLiked = !prevLiked;
@@ -8461,6 +8786,7 @@ async function handleBlogPostLikeClick() {
   // Optimistic UI update
   blogInteractionsState.liked = newLiked;
   blogInteractionsState.likeCount = Math.max(0, prevCount + (newLiked ? 1 : -1));
+  blogInteractionsState.pendingPostLike = true;
   renderBlogPostInteractions();
 
   try {
@@ -8468,15 +8794,22 @@ async function handleBlogPostLikeClick() {
       method: 'POST',
       body: JSON.stringify({ liked: newLiked })
     });
+    if (blogInteractionsState.activeSlug !== slug) return;
     blogInteractionsState.liked = !!res.liked;
     blogInteractionsState.likeCount = res.like_count ?? blogInteractionsState.likeCount;
     renderBlogPostInteractions();
   } catch (err) {
     // Rollback
+    if (blogInteractionsState.activeSlug !== slug) return;
     blogInteractionsState.liked = prevLiked;
     blogInteractionsState.likeCount = prevCount;
     renderBlogPostInteractions();
     showToast(currentAppLanguage === 'en' ? 'Unable to update like. Please try again.' : 'Không thể cập nhật lượt thích. Vui lòng thử lại.');
+  } finally {
+    if (blogInteractionsState.activeSlug === slug) {
+      blogInteractionsState.pendingPostLike = false;
+      renderBlogPostInteractions();
+    }
   }
 }
 
@@ -8579,17 +8912,23 @@ function fallbackCopyText(text) {
 
 async function recordBlogShareMetric(shareType) {
   const slug = blogInteractionsState.activeSlug;
-  if (!slug) return;
+  const pendingKey = `${slug}:${shareType}`;
+  if (!slug || blogInteractionsState.pendingShares.has(pendingKey)) return;
+  blogInteractionsState.pendingShares.add(pendingKey);
   try {
     const res = await blogFetchApi(`/blog/${encodeURIComponent(slug)}/share`, {
       method: 'POST',
       body: JSON.stringify({ share_type: shareType })
     });
-    if (res.share_count !== undefined) {
+    if (blogInteractionsState.activeSlug === slug && res.share_count !== undefined) {
       blogInteractionsState.shareCount = res.share_count;
       renderBlogPostInteractions();
     }
-  } catch {}
+  } catch {
+    showToast('Không thể ghi nhận lượt chia sẻ lúc này.');
+  } finally {
+    blogInteractionsState.pendingShares.delete(pendingKey);
+  }
 }
 
 function changeBlogCommentSort(sort) {
@@ -9024,13 +9363,14 @@ async function submitBlogReply(commentId) {
 
 async function handleBlogCommentLikeClick(commentId) {
   const slug = blogInteractionsState.activeSlug;
-  if (!slug) return;
+  if (!slug || blogInteractionsState.pendingCommentLikes.has(commentId)) return;
   const comment = blogInteractionsState.comments.find(c => c.id === commentId);
   if (!comment) return;
 
   const prevLiked = comment.liked;
   const prevCount = comment.like_count;
   const newLiked = !prevLiked;
+  blogInteractionsState.pendingCommentLikes.add(commentId);
 
   comment.liked = newLiked;
   comment.like_count = Math.max(0, prevCount + (newLiked ? 1 : -1));
@@ -9041,6 +9381,8 @@ async function handleBlogCommentLikeClick(commentId) {
     const likeBtn = commentEl.querySelector('.blog-comment-like-btn');
     const countSpan = commentEl.querySelector('.blog-comment-like-count');
     if (likeBtn) {
+      likeBtn.disabled = true;
+      likeBtn.setAttribute('aria-busy', 'true');
       likeBtn.classList.toggle('liked', newLiked);
       likeBtn.setAttribute('aria-pressed', newLiked ? 'true' : 'false');
     }
@@ -9054,6 +9396,7 @@ async function handleBlogCommentLikeClick(commentId) {
       method: 'POST',
       body: JSON.stringify({ liked: newLiked })
     });
+    if (blogInteractionsState.activeSlug !== slug) return;
     comment.liked = !!res.liked;
     comment.like_count = res.like_count ?? comment.like_count;
     if (commentEl) {
@@ -9066,6 +9409,7 @@ async function handleBlogCommentLikeClick(commentId) {
       if (countSpan) countSpan.textContent = comment.like_count > 0 ? comment.like_count : 'Thích';
     }
   } catch (err) {
+    if (blogInteractionsState.activeSlug !== slug) return;
     // Rollback
     comment.liked = prevLiked;
     comment.like_count = prevCount;
@@ -9079,12 +9423,20 @@ async function handleBlogCommentLikeClick(commentId) {
       if (countSpan) countSpan.textContent = prevCount > 0 ? prevCount : 'Thích';
     }
     showToast('Không thể cập nhật lượt thích bình luận.');
+  } finally {
+    blogInteractionsState.pendingCommentLikes.delete(commentId);
+    const currentEl = document.getElementById(`blogComment-${commentId}`);
+    const currentBtn = currentEl?.querySelector('.blog-comment-like-btn');
+    if (currentBtn) {
+      currentBtn.disabled = false;
+      currentBtn.setAttribute('aria-busy', 'false');
+    }
   }
 }
 
 async function handleBlogReplyLikeClick(rootCommentId, replyId) {
   const slug = blogInteractionsState.activeSlug;
-  if (!slug) return;
+  if (!slug || blogInteractionsState.pendingCommentLikes.has(replyId)) return;
   const replies = blogInteractionsState.replies[rootCommentId]?.comments;
   if (!replies) return;
   const reply = replies.find(r => r.id === replyId);
@@ -9093,6 +9445,7 @@ async function handleBlogReplyLikeClick(rootCommentId, replyId) {
   const prevLiked = reply.liked;
   const prevCount = reply.like_count;
   const newLiked = !prevLiked;
+  blogInteractionsState.pendingCommentLikes.add(replyId);
 
   reply.liked = newLiked;
   reply.like_count = Math.max(0, prevCount + (newLiked ? 1 : -1));
@@ -9101,7 +9454,11 @@ async function handleBlogReplyLikeClick(rootCommentId, replyId) {
   if (replyEl) {
     const likeBtn = replyEl.querySelector('.blog-comment-like-btn');
     const countSpan = replyEl.querySelector('.blog-comment-like-count');
-    if (likeBtn) likeBtn.classList.toggle('liked', newLiked);
+    if (likeBtn) {
+      likeBtn.classList.toggle('liked', newLiked);
+      likeBtn.disabled = true;
+      likeBtn.setAttribute('aria-busy', 'true');
+    }
     if (countSpan) countSpan.textContent = reply.like_count > 0 ? reply.like_count : 'Thích';
   }
 
@@ -9110,9 +9467,11 @@ async function handleBlogReplyLikeClick(rootCommentId, replyId) {
       method: 'POST',
       body: JSON.stringify({ liked: newLiked })
     });
+    if (blogInteractionsState.activeSlug !== slug) return;
     reply.liked = !!res.liked;
     reply.like_count = res.like_count ?? reply.like_count;
   } catch {
+    if (blogInteractionsState.activeSlug !== slug) return;
     reply.liked = prevLiked;
     reply.like_count = prevCount;
     if (replyEl) {
@@ -9120,6 +9479,15 @@ async function handleBlogReplyLikeClick(rootCommentId, replyId) {
       const countSpan = replyEl.querySelector('.blog-comment-like-count');
       if (likeBtn) likeBtn.classList.toggle('liked', prevLiked);
       if (countSpan) countSpan.textContent = prevCount > 0 ? prevCount : 'Thích';
+    }
+    showToast('Không thể cập nhật lượt thích phản hồi.');
+  } finally {
+    blogInteractionsState.pendingCommentLikes.delete(replyId);
+    const currentEl = document.getElementById(`blogReply-${replyId}`);
+    const currentBtn = currentEl?.querySelector('.blog-comment-like-btn');
+    if (currentBtn) {
+      currentBtn.disabled = false;
+      currentBtn.setAttribute('aria-busy', 'false');
     }
   }
 }
@@ -9503,6 +9871,11 @@ function sendCustomerChatMessage() {
 // 🛡️ OWNER / ADMIN SUPPORT INBOX SHELL (FB48: ADMIN VIEW)
 // ============================================================
 window.openOwnerSupportInbox = function() {
+  if (!currentUser || !currentUser.loggedIn || currentUser.role !== 'OWNER') {
+    console.warn('[Melsou Security] Access denied: OWNER role required.');
+    alert('Chức năng này chỉ dành riêng cho Quản trị viên (OWNER).');
+    return;
+  }
   const modal = document.getElementById('ownerSupportInboxModal');
   if (modal) modal.classList.add('open');
   renderAdminConversations('all');

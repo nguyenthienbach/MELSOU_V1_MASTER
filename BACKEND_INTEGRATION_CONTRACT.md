@@ -219,6 +219,10 @@ field and switch to the POST contract above.
 | `/api/blog/:slug/share` | `POST`, account or guest cookie | `{ share_type: copy_link\|native_share\|facebook\|other }` | `202 { recorded, share_count }`; duplicate actor/type clicks are deduped per minute |
 | `/api/blog/:slug/view` | `POST`, account or guest cookie | — | `202 { recorded, view_count, unique_view_count }` |
 | `/api/owner/blog/comments/:commentId` | `PATCH`/`DELETE`, OWNER | `{ status: visible\|hidden\|deleted\|pending }` | Soft moderation result with audit log; `DELETE` sets `deleted` |
+| `/api/blog/:slug/comments/:commentId` | `PATCH`, authenticated owner | `{ content }` | Edit own comment/reply; response never includes `user_id` |
+| `/api/blog/:slug/comments/:commentId` | `DELETE`, authenticated owner | none | Soft-delete own comment/reply; never hard-deletes the row |
+
+Blog interaction responses expose only display-safe fields (`id`, `post_slug`, `parent_comment_id`, `content`, timestamps, status/counts, `liked`, `author_name`, `can_edit`). They never expose `user_id`, guest-session hashes, or legacy external IDs. WordPress validates post existence/content only; Supabase is the sole interaction store when `BLOG_COMMENT_SOURCE=supabase`.
 | `/api/owner/blog` | `GET`, OWNER | — | `{ posts }`, all states |
 | `/api/owner/blog` | `POST`, OWNER | `{ slug?, title, excerpt?, content, coverAssetId?, category?, tags?, status? }` | `201 { post }` |
 | `/api/owner/blog/:id` | `PUT`, OWNER | Partial fields | `{ post }` |
@@ -234,6 +238,25 @@ read and like; creating comments/replies requires an authenticated account.
 Statuses are `DRAFT`, `PUBLISHED`, `ARCHIVED`. Treat `content` as untrusted text
 and escape/sanitize in the renderer. Never show owner controls based only on a
 client flag; the API enforces OWNER.
+
+## OWNER WordPress connection
+
+All browser requests use `credentials: "include"` through these hooks:
+
+- `window.codexHandleWordPressConnect()` calls `GET /api/wordpress/oauth/start` and navigates to the returned `authorization_url`.
+- `window.codexHandleWordPressOAuthCallback({ code, state })` calls `POST /api/wordpress/oauth/callback`.
+- `window.codexGetWordPressStatus()` calls `GET /api/owner/wordpress/status`.
+
+Every endpoint requires a native session whose user matches configured
+`OWNER_USER_ID` and whose `profiles.role` is `OWNER`. The start endpoint creates
+a random state, stores only its SHA-256 hash bound to that native session for ten
+minutes, and sets a host-only HttpOnly state cookie. Callback consumption is an
+atomic, single-use database operation before token exchange. Success returns
+`{ connected: true, site, message: "Kết nối thành công" }`; status returns
+`{ connected, site, message }`. Neither response exposes the access token.
+Stable authorization/OAuth errors include `UNAUTHORIZED`, `FORBIDDEN`,
+`CSRF_STATE_MISMATCH`, `OAUTH_CODE_INVALID` and
+`WORDPRESS_TOKEN_EXCHANGE_FAILED`.
 
 ## Account settings
 

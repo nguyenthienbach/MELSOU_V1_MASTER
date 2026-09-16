@@ -8,7 +8,7 @@ import { inspectVoiceBytes, processVoiceCleanupJobs } from './voice.mjs';
 import { withPrivateStorage } from './storage.mjs';
 import { handleBlogInteraction, matchBlogInteraction } from './blog-interactions.mjs';
 import { handleWordpressComment, matchWordpressComment, wordpressCommentMeta } from './wordpress-comments.mjs';
-import { exchangeWordpressToken, handleWordpressOauthCallback, handleWordpressOauthStart } from './wordpress-oauth.mjs';
+import { exchangeWordpressToken, handleWordpressOauthCallback, handleWordpressOauthStart, handleWordpressOauthStatus } from './wordpress-oauth.mjs';
 import {
   ContractError, assertCartConfiguration, assertCheckpointReason, assertIdempotencyKey, assertProjectDocument, assertUuid,
   buildPaymentInstructions, normalizeTrackingPhone, sanitizeAccountPatch, sanitizeAddress, sanitizeBlogPost, sanitizeShipments
@@ -534,6 +534,16 @@ async function handlePublicBlog(url, slug = null) {
   });
 }
 
+async function wordpressOwnerAuth(request, env) {
+  const user = await authenticatedUser(request, env);
+  if (!user) return { ok: false, status: 401, error: 'UNAUTHORIZED' };
+  if (!env.OWNER_USER_ID || user.id !== env.OWNER_USER_ID || !user.nativeTokenHash) return { ok: false, status: 403, error: 'FORBIDDEN' };
+  const response = await serviceFetch(env, `profiles?user_id=eq.${user.id}&select=role&limit=1`);
+  if (!response.ok) return { ok: false, status: 503, error: 'OWNER_PROFILE_UNAVAILABLE' };
+  const [profile] = await response.json();
+  return profile?.role === 'OWNER' ? { ok: true, user } : { ok: false, status: 403, error: 'FORBIDDEN' };
+}
+
 async function blogInteractionActor(request, env, { createGuest = false } = {}) {
   const user = await authenticatedUser(request, env);
   if (user) return { userId: user.id, guestHash: null };
@@ -584,13 +594,27 @@ async function routeWordpressComment(request, env, match) {
 
 async function routeWordpressOauth(request, env, action) {
   const dependencies = {
-    requireOwner: (incoming) => ownerUser(incoming, env),
+    authenticateOwner: (incoming) => wordpressOwnerAuth(incoming, env),
     rateLimit: (incoming, name) => allowRateLimitedAction(env, `${name}:${requestNetworkKey(incoming)}`),
+    storeState: async ({ ownerUserId, nativeSessionHash, stateHash, expiresAt }) => {
+      const response = await serviceFetch(env, 'rpc/melsou_create_wordpress_oauth_state', {
+        method: 'POST',
+        body: JSON.stringify({ p_owner_user_id: ownerUserId, p_native_session_hash: nativeSessionHash, p_state_hash: stateHash, p_expires_at: expiresAt })
+      });
+      return response.ok && await response.json() === true;
+    },
+    consumeState: async ({ ownerUserId, nativeSessionHash, stateHash, codeHash }) => {
+      const response = await serviceFetch(env, 'rpc/melsou_consume_wordpress_oauth_state', {
+        method: 'POST',
+        body: JSON.stringify({ p_owner_user_id: ownerUserId, p_native_session_hash: nativeSessionHash, p_state_hash: stateHash, p_code_hash: codeHash })
+      });
+      return response.ok && await response.json() === true;
+    },
     exchangeToken: exchangeWordpressToken
   };
-  return action === 'start'
-    ? handleWordpressOauthStart(request, env, dependencies)
-    : handleWordpressOauthCallback(request, env, dependencies);
+  if (action === 'start') return handleWordpressOauthStart(request, env, dependencies);
+  if (action === 'status') return handleWordpressOauthStatus(request, env, dependencies);
+  return handleWordpressOauthCallback(request, env, dependencies);
 }
 
 async function handlePublicBlogCategories() {
@@ -1186,6 +1210,7 @@ export default {
     if (url.pathname === '/api/auth/recovery/complete' && request.method === 'POST') return handleRecoveryComplete(request, env);
     if (url.pathname === '/api/wordpress/oauth/start' && request.method === 'GET') return routeWordpressOauth(request, env, 'start');
     if (url.pathname === '/api/wordpress/oauth/callback' && request.method === 'POST') return routeWordpressOauth(request, env, 'callback');
+    if (url.pathname === '/api/owner/wordpress/status' && request.method === 'GET') return routeWordpressOauth(request, env, 'status');
     if (url.pathname === '/api/public-config' && request.method === 'GET') return json({ supabaseUrl: env.SUPABASE_URL || null, supabaseAnonKey: env.SUPABASE_ANON_KEY || null, environment: env.APP_ENV || 'unknown', payment: { provider: 'SEPAY', mode: env.SEPAY_MODE || null } });
     if (url.pathname === '/api/quote' && request.method === 'POST') {
       const pricing = await activePricing(env);
