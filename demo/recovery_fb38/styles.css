@@ -5512,3 +5512,34 @@ body.in-studio #page-studio.active {
   border-color: var(--red) !important;
   font-weight: 600;
 }
+
+/* ════════ 👑 OWNER DASHBOARD & WORDPRESS CMS INTEGRATION ════════ */
+.wp-status-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 3px 10px;
+  border-radius: 999px;
+  font-size: 11.5px;
+  font-weight: 600;
+  line-height: 1.2;
+}
+.wp-status-badge.connected {
+  background: #ecfdf5;
+  color: #065f46;
+  border: 1px solid #a7f3d0;
+}
+.wp-status-badge.disconnected {
+  background: #f3f4f6;
+  color: #6b7280;
+  border: 1px solid #e5e7eb;
+}
+.wp-status-badge.connecting {
+  background: #eff6ff;
+  color: #1e40af;
+  border: 1px solid #bfdbfe;
+}
+.owner-tool-card:hover {
+  border-color: var(--brand) !important;
+  box-shadow: 0 4px 14px rgba(184, 91, 53, 0.09);
+  transform: translateY(-1px);
+}

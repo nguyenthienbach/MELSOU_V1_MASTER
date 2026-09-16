@@ -60,6 +60,7 @@
             <strong id="dropdownUserName" style="color:var(--dark);display:block">Tài khoản của bạn</strong>
             <span id="dropdownUserEmail" style="font-size:11px">user@example.com</span>
           </div>
+          <a href="javascript:void(0)" class="ud-item" onclick="openOwnerDashboardModal()" id="udLinkOwnerDashboard" style="display:none;color:var(--brand);font-weight:600">👑 OWNER Dashboard</a>
           <a href="javascript:void(0)" class="ud-item" onclick="openDraftsManagerModal()" id="udLinkDrafts">📁 Bản thiết kế của bạn</a>
           <a href="javascript:void(0)" class="ud-item" onclick="openOrdersManagerModal()" id="udLinkOrders">📦 Đơn hàng của bạn</a>
           <a href="javascript:void(0)" class="ud-item ud-logout" onclick="performLogout(event)" id="udLinkLogout">🚪 Đăng xuất</a>
@@ -103,6 +104,7 @@
     <li><a href="/#reviews-section" id="mndLinkReviews">💬 Trải nghiệm người dùng</a></li>
     <li><a href="/#blog-section" id="mndLinkBlog" onclick="closeMobileNavMenu()">📖 Câu chuyện</a></li>
     <li><a href="javascript:void(0)" onclick="mobileNavGo('tracking')" id="mndLinkTracking">🔍 Tra cứu đơn hàng</a></li>
+    <li id="mndItemOwnerDashboard" style="display:none"><a href="javascript:void(0)" onclick="toggleMobileNavMenu();openOwnerDashboardModal()" id="mndLinkOwnerDashboard" style="color:var(--brand);font-weight:600">👑 OWNER Dashboard</a></li>
   </ul>
   <div class="mnd-cta">
     <button class="btn-primary" id="mndCtaBtn" style="width:100%;justify-content:center;padding:12px;font-size:14px" onclick="toggleMobileNavMenu();openTemplateOnboardingModal()">🪄 Bắt đầu tạo album</button>
@@ -2048,6 +2050,94 @@
     </div>
   </div>
 </div>
+
+<!-- ════════ 👑 MODAL: OWNER DASHBOARD ════════ -->
+<div class="modal-backdrop" id="ownerDashboardModal" onclick="if(event.target===this)closeOwnerDashboardModal()" style="display:none">
+  <div class="modal-box owner-dashboard-box" style="max-width:760px;width:95vw;padding:28px;border-radius:20px;text-align:left">
+    <div style="display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid var(--gray-l);padding-bottom:16px;margin-bottom:20px">
+      <div style="display:flex;align-items:center;gap:10px">
+        <span style="font-size:24px">👑</span>
+        <div>
+          <h3 style="font-size:20px;color:var(--dark);margin:0;font-weight:700">Bảng điều khiển Quản trị (OWNER)</h3>
+          <p style="font-size:12px;color:var(--gray);margin:2px 0 0 0">Không gian quản trị độc quyền dành riêng cho chủ thương hiệu Melsou</p>
+        </div>
+      </div>
+      <button onclick="closeOwnerDashboardModal()" style="background:none;border:none;font-size:22px;cursor:pointer;color:var(--gray);padding:4px 8px" title="Đóng">✕</button>
+    </div>
+
+    <!-- WordPress CMS Integration Card -->
+    <div class="owner-section-card" style="background:#fcfbf9;border:1px solid #ebd9c8;border-radius:14px;padding:20px;margin-bottom:20px">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:14px;flex-wrap:wrap">
+        <div style="flex:1;min-width:260px">
+          <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">
+            <span style="font-size:18px">🌐</span>
+            <strong style="font-size:16px;color:var(--dark)">Kết nối WordPress CMS</strong>
+            <span id="wpConnectionBadge" class="wp-status-badge disconnected">⚪ Chưa kết nối</span>
+          </div>
+          <p style="font-size:13px;color:var(--gray);line-height:1.5;margin:0 0 10px 0">
+            Đồng bộ bài viết và chuyên mục tự động từ WordPress.com vào mục <em>Chuyện của Melsou</em>. Xác thực an toàn qua giao thức OAuth 2.0.
+          </p>
+          <div style="font-size:12px;color:var(--dark);background:white;border:1px solid var(--gray-l);border-radius:8px;padding:8px 12px;display:inline-flex;align-items:center;gap:6px">
+            <span style="color:var(--gray)">Trạng thái:</span>
+            <span id="wpConnectionDetails" style="font-weight:600">Chưa thiết lập liên kết WordPress OAuth</span>
+          </div>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:8px;align-items:flex-end">
+          <button class="btn-primary" id="wpConnectBtn" onclick="onWordPressConnectClick()" style="padding:10px 18px;font-size:13px;font-weight:600;white-space:nowrap">
+            🔗 Kết nối WordPress
+          </button>
+        </div>
+      </div>
+      <div style="margin-top:14px;padding-top:12px;border-top:1px dashed #ebd9c8;display:flex;flex-direction:column;gap:4px;font-size:11.5px;color:#78716c;line-height:1.5">
+        <div style="display:flex;align-items:center;gap:6px">
+          <span>🔒</span>
+          <strong>Bảo mật & Phân quyền:</strong>
+        </div>
+        <div>
+          Trạng thái OWNER trên giao diện chỉ dùng để điều hướng hiển thị. Mọi thao tác và endpoint quản trị WordPress đều được máy chủ backend xác thực phiên (session) và vai trò (role = OWNER) độc lập trên từng request. Tuyệt đối không lưu trữ token hoặc client secret trên trình duyệt.
+        </div>
+      </div>
+    </div>
+
+    <!-- Quick Admin Actions Grid -->
+    <div style="margin-bottom:20px">
+      <div style="font-size:13px;font-weight:700;color:var(--gray);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:10px">Công cụ Quản trị viên</div>
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px">
+        <div class="owner-tool-card" onclick="openBlogAdminModal();closeOwnerDashboardModal()" style="background:white;border:1px solid var(--gray-l);border-radius:12px;padding:16px;cursor:pointer;transition:all 0.2s ease">
+          <div style="font-size:20px;margin-bottom:6px">✍️</div>
+          <div style="font-weight:600;font-size:14px;color:var(--dark);margin-bottom:4px">Soạn bài viết Blog</div>
+          <div style="font-size:12px;color:var(--gray);line-height:1.4">Tạo nhanh bài viết và chuyên mục nháp cho Blog Melsou.</div>
+        </div>
+        <div class="owner-tool-card" onclick="openOwnerSupportInbox();closeOwnerDashboardModal()" style="background:white;border:1px solid var(--gray-l);border-radius:12px;padding:16px;cursor:pointer;transition:all 0.2s ease">
+          <div style="font-size:20px;margin-bottom:6px">🛡️</div>
+          <div style="font-weight:600;font-size:14px;color:var(--dark);margin-bottom:4px">Hộp thư hỗ trợ</div>
+          <div style="font-size:12px;color:var(--gray);line-height:1.4">Xem và quản lý các cuộc trò chuyện tư vấn của khách hàng.</div>
+        </div>
+      </div>
+    </div>
+
+    <div style="display:flex;justify-content:flex-end;border-top:1px solid var(--gray-l);padding-top:16px">
+      <button class="btn-outline" onclick="closeOwnerDashboardModal()" style="padding:8px 20px;font-size:13px">Đóng</button>
+    </div>
+  </div>
+</div>
+
+<!-- ════════ 🌐 MODAL: WORDPRESS OAUTH CALLBACK RESULT ════════ -->
+<div class="modal-backdrop" id="wpOAuthCallbackModal" onclick="if(event.target===this)closeWpOAuthCallbackModal()" style="display:none">
+  <div class="modal-box" style="max-width:540px;width:90vw;padding:32px 24px;border-radius:20px;text-align:center">
+    <div id="wpOAuthStatusIcon" style="font-size:48px;margin-bottom:12px">⏳</div>
+    <h3 id="wpOAuthHeading" style="font-size:20px;color:var(--dark);margin-bottom:8px;font-weight:700">Đang xác thực kết nối WordPress...</h3>
+    <p id="wpOAuthMessage" style="font-size:14px;color:var(--gray);line-height:1.5;margin-bottom:20px">
+      Vui lòng chờ trong giây lát trong khi hệ thống xác thực authorization code với backend...
+    </p>
+    <div id="wpOAuthDetailsBox" style="display:none;background:#f9fafb;border:1px solid var(--gray-l);border-radius:10px;padding:12px;font-size:12px;color:var(--dark);margin-bottom:20px;text-align:left;word-break:break-all"></div>
+    <div style="display:flex;justify-content:center;gap:12px">
+      <button class="btn-outline" id="wpOAuthCloseBtn" onclick="closeWpOAuthCallbackModal()" style="padding:10px 20px;font-size:13px">Đóng</button>
+      <button class="btn-primary" id="wpOAuthActionBtn" onclick="goToOwnerDashboardFromOAuth()" style="display:none;padding:10px 20px;font-size:13px">👑 Tới OWNER Dashboard</button>
+    </div>
+  </div>
+</div>
+
 <!-- SPEED DIAL WIDGET -->
 <div class="speed-dial-widget" id="speedDialWidget">
   <div class="speed-dial-menu" id="speedDialMenu">

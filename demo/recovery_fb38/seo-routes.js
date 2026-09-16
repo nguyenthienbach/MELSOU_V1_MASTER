@@ -34,6 +34,11 @@
       description: 'Chính sách bảo hành, đổi trả và hoàn tiền áp dụng cho sản phẩm Melsou được sản xuất theo yêu cầu và cá nhân hóa.',
       view: 'warranty',
       modal: 'warrantyPolicyModal'
+    },
+    '/wordpress-oauth-callback': {
+      title: 'Xác thực WordPress OAuth — Melsou',
+      description: 'Xác thực liên kết tài khoản WordPress CMS cho Melsou.',
+      view: 'wp-oauth-callback'
     }
   };
 
@@ -80,6 +85,22 @@
         section.style.display = selected ? '' : 'none';
       });
       promoteHeading(route.heading);
+      return;
+    }
+
+    if (route.view === 'wp-oauth-callback') {
+      const home = document.getElementById('page-home');
+      if (home) home.classList.add('active');
+      const runCallback = () => {
+        if (typeof window.handleWordPressOAuthCallbackPage === 'function') {
+          window.handleWordPressOAuthCallbackPage();
+        }
+      };
+      if (document.readyState === 'loading') {
+        window.addEventListener('DOMContentLoaded', runCallback, { once: true });
+      } else {
+        runCallback();
+      }
       return;
     }
 

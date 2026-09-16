@@ -41,6 +41,7 @@ http.createServer(async (request, response) => {
     url.pathname === '/templates' ||
     url.pathname === '/chinh-sach-bao-mat' ||
     url.pathname === '/chinh-sach-bao-hanh' ||
+    url.pathname === '/wordpress-oauth-callback' ||
     url.pathname.startsWith('/blog/') ||
     url.pathname === '/recovery_fb38' ||
     url.pathname === '/recovery_fb38/' ||
