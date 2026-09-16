@@ -58,8 +58,22 @@
   window.codexGetBlogReplies = async (slug, commentId, { limit = 3, cursor = 0, sort = 'top' } = {}) => api(`/blog/${encodeURIComponent(slug)}/comments/${encodeURIComponent(commentId)}/replies?limit=${encodeURIComponent(limit)}&cursor=${encodeURIComponent(cursor)}&sort=${encodeURIComponent(sort)}`);
   window.codexCreateBlogReply = async (slug, commentId, content) => api(`/blog/${encodeURIComponent(slug)}/comments/${encodeURIComponent(commentId)}/replies`, { method: 'POST', body: JSON.stringify({ content }) });
   window.codexToggleBlogCommentLike = async (slug, commentId, liked) => api(`/blog/${encodeURIComponent(slug)}/comments/${encodeURIComponent(commentId)}/like`, { method: 'POST', body: JSON.stringify({ liked }) });
+  window.codexUpdateBlogComment = async (slug, commentId, content) => api(`/blog/${encodeURIComponent(slug)}/comments/${encodeURIComponent(commentId)}`, { method: 'PATCH', body: JSON.stringify({ content }) });
+  window.codexDeleteBlogComment = async (slug, commentId) => api(`/blog/${encodeURIComponent(slug)}/comments/${encodeURIComponent(commentId)}`, { method: 'DELETE' });
+  window.codexModerateBlogComment = async (commentId, status) => api(`/owner/blog/comments/${encodeURIComponent(commentId)}`, { method: 'PATCH', body: JSON.stringify({ status }) });
   window.codexRecordBlogShare = async (slug, shareType) => api(`/blog/${encodeURIComponent(slug)}/share`, { method: 'POST', body: JSON.stringify({ share_type: shareType }) });
   window.codexRecordBlogView = async (slug) => api(`/blog/${encodeURIComponent(slug)}/view`, { method: 'POST' });
+  window.codexHandleWordPressConnect = async () => {
+    const result = await api('/wordpress/oauth/start');
+    if (typeof result.authorization_url !== 'string' || !result.authorization_url.startsWith('https://public-api.wordpress.com/oauth2/authorize?')) throw new Error('WORDPRESS_OAUTH_START_INVALID');
+    window.location.assign(result.authorization_url);
+    return result;
+  };
+  window.codexHandleWordPressOAuthCallback = ({ code, state }) => api('/wordpress/oauth/callback', {
+    method: 'POST',
+    body: JSON.stringify({ code, state })
+  });
+  window.codexGetWordPressStatus = async () => api('/owner/wordpress/status');
   window.dispatchEvent(new Event('melsou-blog-api-ready'));
   const supportedStudioSource = (value) => {
     if (typeof value !== 'string') return false;
