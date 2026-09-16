@@ -70,3 +70,21 @@ test('new orders receive SePay-compatible payment codes without changing legacy 
   assert.match(sql, /payment_code_sequence_exhausted/);
   assert.doesNotMatch(sql, /update\s+public\.orders\s+set\s+payment_code/);
 });
+
+test('WordPress OAuth state is private, session-bound, expiring and replay-safe', async () => {
+  const sql = await migrationSql();
+  assert.match(sql, /create table if not exists public\.wordpress_oauth_states/);
+  assert.match(sql, /alter table public\.wordpress_oauth_states enable row level security/);
+  assert.match(sql, /revoke all on public\.wordpress_oauth_states from anon, authenticated/);
+  assert.match(sql, /native_session_hash text not null/);
+  assert.match(sql, /state_hash text not null unique/);
+  assert.match(sql, /code_hash text unique/);
+  assert.match(sql, /consumed_at is null and expires_at>now\(\)/);
+  assert.match(sql, /set consumed_at=now\(\),code_hash=p_code_hash/);
+  assert.match(sql, /not exists\(select 1 from public\.wordpress_oauth_states where code_hash=p_code_hash\)/);
+  assert.match(sql, /coalesce\(consumed_at,expires_at\) < now\(\) - interval '24 hours'/);
+  assert.match(sql, /join public\.profiles p on p\.user_id=s\.user_id/);
+  assert.match(sql, /s\.token_hash=p_native_session_hash/);
+  assert.match(sql, /p\.role='owner'/);
+  assert.match(sql, /revoke all on function public\.melsou_consume_wordpress_oauth_state\(uuid,text,text,text\)/);
+});

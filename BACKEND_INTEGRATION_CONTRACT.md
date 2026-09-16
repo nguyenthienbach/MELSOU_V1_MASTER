@@ -235,6 +235,25 @@ Statuses are `DRAFT`, `PUBLISHED`, `ARCHIVED`. Treat `content` as untrusted text
 and escape/sanitize in the renderer. Never show owner controls based only on a
 client flag; the API enforces OWNER.
 
+## OWNER WordPress connection
+
+All browser requests use `credentials: "include"` through these hooks:
+
+- `window.codexHandleWordPressConnect()` calls `GET /api/wordpress/oauth/start` and navigates to the returned `authorization_url`.
+- `window.codexHandleWordPressOAuthCallback({ code, state })` calls `POST /api/wordpress/oauth/callback`.
+- `window.codexGetWordPressStatus()` calls `GET /api/owner/wordpress/status`.
+
+Every endpoint requires a native session whose user matches configured
+`OWNER_USER_ID` and whose `profiles.role` is `OWNER`. The start endpoint creates
+a random state, stores only its SHA-256 hash bound to that native session for ten
+minutes, and sets a host-only HttpOnly state cookie. Callback consumption is an
+atomic, single-use database operation before token exchange. Success returns
+`{ connected: true, site, message: "Kết nối thành công" }`; status returns
+`{ connected, site, message }`. Neither response exposes the access token.
+Stable authorization/OAuth errors include `UNAUTHORIZED`, `FORBIDDEN`,
+`CSRF_STATE_MISMATCH`, `OAUTH_CODE_INVALID` and
+`WORDPRESS_TOKEN_EXCHANGE_FAILED`.
+
 ## Account settings
 
 `GET /api/account` returns `{ profile, auth: { provider, username, email,
