@@ -432,6 +432,7 @@ function scrollToSection(sectionId) {
 
 // ── USER AUTH & DROPDOWN ──
 let currentUser = { id: '', name: '', email: '', avatar: '', loggedIn: false };
+let pendingAuthContext = null;
 
 /* ============================================================
    🔐 MELSOU LOGIN UI & CODEX AUTH INTEGRATION INTERFACE
@@ -538,7 +539,7 @@ function toggleUserDropdown(e) {
     if (menu) menu.classList.toggle('open');
   } else {
     if (menu) menu.classList.remove('open');
-    openAuthModal();
+    openAuthModal('login', { type: 'account' });
   }
 }
 
@@ -693,6 +694,8 @@ function handleLinkEmailSubmit() {
 // Global contract callbacks for Codex authentication
 window.codexOnAuthSuccess = function(userData) {
   if (!userData) return;
+  const returnContext = pendingAuthContext;
+  pendingAuthContext = null;
   currentUser = {
     loggedIn: true,
     isGuest: false,
@@ -703,8 +706,19 @@ window.codexOnAuthSuccess = function(userData) {
   updateHeaderUserUI();
   closeAuthModal();
   showToast(currentAppLanguage === 'en' ? `Welcome back, ${currentUser.name}!` : `Chào mừng bạn quay lại, ${currentUser.name}!`);
-  if (ALBUM_DATA.cart && ALBUM_DATA.cart.length > 0) {
+  if (returnContext?.type === 'checkout' && ALBUM_DATA.cart && ALBUM_DATA.cart.length > 0) {
     openCheckoutModal();
+  } else if (returnContext?.type === 'blog' && returnContext.slug) {
+    const blogPath = `/blog/${encodeURIComponent(returnContext.slug)}`;
+    if (window.location.pathname !== blogPath) window.history.replaceState({ view: 'blog-detail', slug: returnContext.slug }, '', blogPath);
+    window.updateBlogInteractionsAuthUI?.();
+    requestAnimationFrame(() => {
+      window.scrollTo({ top: Number(returnContext.scrollY || 0), behavior: 'auto' });
+      const inputId = returnContext.kind === 'reply' && returnContext.commentId
+        ? `blogReplyInput-${returnContext.commentId}`
+        : 'blogCommentInput';
+      document.getElementById(inputId)?.focus({ preventScroll: true });
+    });
   }
 };
 
@@ -836,9 +850,10 @@ function handleForgotPasswordSubmit() {
   }
 }
 
-function openAuthModal() {
+function openAuthModal(tab = 'login', returnContext = { type: 'account' }) {
+  pendingAuthContext = returnContext;
   MelsouAuth.setLoginState('idle');
-  switchAuthTab('login');
+  switchAuthTab(tab);
   const modal = document.getElementById('authModal');
   if (modal) {
     modal.removeAttribute('inert');
@@ -851,6 +866,7 @@ function openAuthModal() {
 }
 
 function closeAuthModal() {
+  pendingAuthContext = null;
   MelsouAuth.setLoginState('idle');
   const modal = document.getElementById('authModal');
   if (modal) {
@@ -6018,7 +6034,7 @@ function toggleCart() {
 function openAuthOrCheckoutStep() {
   if (!currentUser || !currentUser.loggedIn || currentUser.isGuest) {
     showToast(currentAppLanguage === 'en' ? 'Please log in or create an account to proceed with your order' : 'Vui lòng đăng nhập hoặc tạo tài khoản để tiếp tục thanh toán an toàn');
-    openAuthModal('login');
+    openAuthModal('login', { type: 'checkout' });
     return;
   }
   toggleCart();
@@ -8751,7 +8767,7 @@ async function submitBlogComment() {
       sessionStorage.setItem(`melsou_blog_draft_${slug}`, JSON.stringify(blogInteractionsState.draft));
     } catch {}
     showToast('Vui lòng đăng nhập để gửi bình luận.');
-    openAuthModal();
+    openAuthModal('login', { type: 'blog', kind: 'comment', slug, scrollY: window.scrollY });
     return;
   }
 
@@ -8779,7 +8795,7 @@ async function submitBlogComment() {
     if (err.status === 401) {
       blogInteractionsState.draft = { type: 'comment', content, slug };
       showToast('Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.');
-      openAuthModal();
+      openAuthModal('login', { type: 'blog', kind: 'comment', slug, scrollY: window.scrollY });
     } else {
       showToast(err.body?.error === 'INVALID_COMMENT' ? 'Bình luận không hợp lệ.' : 'Không thể gửi bình luận. Vui lòng thử lại.');
     }
@@ -8919,7 +8935,7 @@ async function submitBlogReply(commentId) {
   if (!isLoggedIn) {
     blogInteractionsState.draft = { type: 'reply', commentId, content, slug };
     showToast('Vui lòng đăng nhập để gửi phản hồi.');
-    openAuthModal();
+    openAuthModal('login', { type: 'blog', kind: 'reply', commentId, slug, scrollY: window.scrollY });
     return;
   }
 
@@ -8964,7 +8980,7 @@ async function submitBlogReply(commentId) {
     if (err.status === 401) {
       blogInteractionsState.draft = { type: 'reply', commentId, content, slug };
       showToast('Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.');
-      openAuthModal();
+      openAuthModal('login', { type: 'blog', kind: 'reply', commentId, slug, scrollY: window.scrollY });
     } else {
       showToast(err.body?.error === 'INVALID_COMMENT' ? 'Phản hồi không hợp lệ.' : 'Không thể gửi phản hồi. Vui lòng thử lại.');
     }
