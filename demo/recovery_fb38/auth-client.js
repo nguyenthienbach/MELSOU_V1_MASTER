@@ -358,16 +358,30 @@
 
   async function applyNativeUser(user) {
     nativeUser = user;
-    await claimGuestDraft();
-    await restoreCanonicalProject(true);
+    try {
+      await claimGuestDraft();
+      await restoreCanonicalProject(true);
+    } catch (error) {
+      // Authentication and draft ownership are separate durable operations.
+      // Keep the local guest bridge intact and retry claim on the next session
+      // instead of presenting a successful login as an authentication failure.
+      console.warn('[Melsou] guest draft claim deferred:', error.code || error.message);
+    }
     window.codexOnAuthSuccess?.({ id: user.id, username: user.username, name: user.username, email: user.email || '' });
   }
 
   async function nativeAuth(path, credentials) {
     window.MelsouAuth?.setLoginState('authenticating');
     try {
-      await ensureGuestProject();
-      await persistDraft();
+      // A Blog-only visitor does not have an album draft and must not be forced
+      // to create one before authenticating. If a real guest draft exists,
+      // mirror it best-effort without allowing a transient asset/project error
+      // to block the credential request. The bridge remains available for the
+      // idempotent post-login claim.
+      if (readBridge().projectId) {
+        try { await persistDraft(); }
+        catch (error) { console.warn('[Melsou] pre-login draft mirror deferred:', error.code || error.message); }
+      }
       const result = await api(path, { method: 'POST', body: JSON.stringify(credentials) });
       await applyNativeUser(result.user);
       return result.user;
@@ -448,7 +462,6 @@
 
   (async () => {
     try {
-      await restoreCanonicalProject(false);
       const account = await api('/account');
       if (account?.auth?.provider === 'NATIVE') {
         await applyNativeUser({ id: account.profile?.user_id, username: account.auth.username, email: account.auth.email });
@@ -457,6 +470,8 @@
     } catch (error) {
       if (error.status !== 401) console.info('[Melsou] native session unavailable:', error.message);
     }
+    try { await restoreCanonicalProject(false); }
+    catch (error) { console.info('[Melsou] guest draft restore deferred:', error.code || error.message); }
     try {
       const supabase = await loadClient();
       const { data, error } = await supabase.auth.getSession();

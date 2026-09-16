@@ -462,6 +462,15 @@ This log prevents accidental overlap. Add the newest entry at the top.
 - **Protected contracts:** hooks/API/data that will remain unchanged
 - **Status:** IN PROGRESS
 
+## IN PROGRESS — Codex — production Native Login draft isolation
+
+- **When / agent:** 2026-09-16 — Codex
+- **Files reserved:** `demo/recovery_fb38/auth-client.js`
+- **Purpose:** prevent guest project persistence/claim failures from blocking or misreporting an otherwise valid Native Login.
+- **Protected contracts:** preserve opaque cookie sessions, guest-draft retention and retryable claim, Blog comment draft restoration, Blog Interactions, Auth, Cart, Studio, and Checkout.
+- **Checks:** production auth route returned structured `401 INVALID_CREDENTIALS` for a non-existent probe; JavaScript/demo syntax PASS; native auth tests PASS (3/3); targeted route/session/guest-claim tests PASS (5/5); auth-bridge ordering assertions PASS; `git diff --check` PASS.
+- **Status:** DONE — Native Login no longer creates an empty album draft for Blog-only visitors, and draft mirror/claim failures no longer overwrite a valid authenticated session.
+
 ## DONE — Codex — native registration structured error mapping
 
 - **When / agent:** 2026-09-14 — Codex
