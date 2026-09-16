@@ -7,6 +7,7 @@
     { "source": "/templates", "destination": "/" },
     { "source": "/chinh-sach-bao-mat", "destination": "/" },
     { "source": "/chinh-sach-bao-hanh", "destination": "/" },
+    { "source": "/wordpress-oauth-callback", "destination": "/wordpress-oauth-callback.html" },
     { "source": "/blog/:slug", "destination": "/" },
     { "source": "/sitemap.xml", "destination": "https://melsou.nguyenthienbach18042007.workers.dev/api/sitemap.xml" },
     {
