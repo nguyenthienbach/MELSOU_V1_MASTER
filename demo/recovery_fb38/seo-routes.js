@@ -92,24 +92,58 @@
       modal.style.position = 'relative';
       modal.style.display = 'flex';
       body.textContent = 'Đang tải câu chuyện...';
-      window.codexGetPublishedPost(route.slug).then(({ post }) => {
+      const fetchPost = (typeof window.codexGetPublishedPost === 'function')
+        ? window.codexGetPublishedPost
+        : ((slug) => fetch(`/api/blog/${encodeURIComponent(slug)}`).then(r => r.json()));
+      fetchPost(route.slug).catch(async (err) => {
+        if (route.slug === 'cau-chuyen-dau-tien-cua-melsou') {
+          return fetchPost('cau-chuyen-ve-melsou-khi-cam-xuc-can-mot-noi-de-cat-giu');
+        }
+        throw err;
+      }).then(({ post }) => {
         const plainText = (html) => new DOMParser().parseFromString(String(html || ''), 'text/html').body.textContent.trim();
         const title = plainText(post.title);
         document.title = `${title} — Melsou`;
         const description = document.querySelector('meta[name="description"]');
         if (description) description.content = plainText(post.excerpt).slice(0, 160);
         const titleElement = document.getElementById('readerTitle');
-        titleElement.textContent = title;
-        titleElement.id = 'blogPostPageHeading';
-        promoteHeading(titleElement.id);
-        document.getElementById('readerCategoryBadge').textContent = post.category?.name || 'CHUYỆN KỂ';
-        document.getElementById('readerPublishDate').textContent = post.publishedAt ? new Date(post.publishedAt).toLocaleDateString('vi-VN') : '';
+        if (titleElement) {
+          titleElement.textContent = title;
+          titleElement.id = 'blogPostPageHeading';
+          promoteHeading(titleElement.id);
+        }
+        const badge = document.getElementById('readerCategoryBadge');
+        if (badge) badge.textContent = post.category?.name || 'CHUYỆN KỂ';
+        const dateEl = document.getElementById('readerPublishDate');
+        if (dateEl) dateEl.textContent = post.publishedAt ? new Date(post.publishedAt).toLocaleDateString('vi-VN') : '';
         const cover = document.getElementById('readerCoverImg');
-        if (post.featuredImage) cover.src = post.featuredImage;
-        else cover.closest('div').style.display = 'none';
-        body.innerHTML = window.sanitizeWordPressHtml(post.content);
+        if (cover) {
+          if (post.featuredImage) cover.src = post.featuredImage;
+          else cover.closest('div').style.display = 'none';
+        }
+        const sanitize = window.sanitizeWordPressHtml || (typeof sanitizeWordPressHtml === 'function' ? sanitizeWordPressHtml : (html) => html);
+        body.innerHTML = sanitize(post.content);
+        const interactionsBar = document.getElementById('blogPostInteractionsBar');
+        const commentsSection = document.getElementById('blogCommentsSection');
+        if (interactionsBar) interactionsBar.style.display = '';
+        if (commentsSection) commentsSection.style.display = '';
+        const activeSlug = post.slug || route.slug;
+        if (typeof window.initBlogInteractions === 'function') {
+          window.initBlogInteractions(activeSlug);
+        } else {
+          window.addEventListener('melsou-blog-interactions-ready', () => {
+            if (typeof window.initBlogInteractions === 'function') {
+              window.initBlogInteractions(activeSlug);
+            }
+          }, { once: true });
+        }
       }).catch((error) => {
+        console.error('BLOG POST FETCH ERROR:', error);
         body.textContent = error?.status === 404 ? 'Không tìm thấy câu chuyện này.' : 'Câu chuyện đang tạm thời chưa tải được. Vui lòng thử lại sau.';
+        const interactionsBar = document.getElementById('blogPostInteractionsBar');
+        const commentsSection = document.getElementById('blogCommentsSection');
+        if (interactionsBar) interactionsBar.style.display = 'none';
+        if (commentsSection) commentsSection.style.display = 'none';
       });
       return;
     }

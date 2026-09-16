@@ -1031,6 +1031,9 @@ function updateHeaderUserUI() {
   const dEmail = document.getElementById('dropdownUserEmail');
   if (dName) dName.textContent = currentUser?.name || (currentAppLanguage === 'en' ? 'Customer' : 'Khách hàng');
   if (dEmail) dEmail.textContent = currentUser?.email || '';
+  if (typeof updateBlogInteractionsAuthUI === 'function') {
+    updateBlogInteractionsAuthUI();
+  }
 }
 
 
@@ -7858,6 +7861,7 @@ function sanitizeWordPressHtml(html) {
   });
   return documentValue.body.innerHTML;
 }
+window.sanitizeWordPressHtml = sanitizeWordPressHtml;
 
 function plainWordPressText(html) {
   const documentValue = new DOMParser().parseFromString(String(html || ''), 'text/html');
@@ -7968,7 +7972,7 @@ async function renderPublicBlog(category = 'all', page = 1) {
   const list = document.getElementById('publicBlogList');
   if (!list) return;
   const isEn = (currentAppLanguage === 'en');
-  if (!currentLoadedBlogPosts.length) {
+  if (!currentLoadedBlogPosts || !currentLoadedBlogPosts.length) {
     list.innerHTML = `<div class="blog-empty-state"><div style="font-size:32px;margin-bottom:10px">⏳</div><p>${isEn ? 'Loading stories...' : 'Đang tải những câu chuyện...'}</p></div>`;
   }
   if (typeof window.codexGetPublishedPosts !== 'function') return;
@@ -8095,6 +8099,1047 @@ function closeBlogArticleReader() {
     window.location.assign('/#blog-section');
   }
 }
+
+// ============================================================
+// 📖 FB91: BLOG INTERACTIONS & COMMENTS SYSTEM CONTROLLER
+// ============================================================
+var blogInteractionsState = {
+  activeSlug: null,
+  liked: false,
+  likeCount: 0,
+  commentCount: 0,
+  shareCount: 0,
+  viewCount: 0,
+  sort: 'top', // 'top' | 'latest'
+  comments: [],
+  nextCursor: null,
+  loadingComments: false,
+  loadingMore: false,
+  replies: {}, // commentId -> { comments: [], nextCursor: null, loading: false, expanded: false }
+  draft: null  // { type: 'comment' | 'reply', commentId?: string, content: string, slug: string }
+};
+
+// Local dev in-memory mock store for preview when no database credentials exist
+let localBlogDevStore = null;
+
+function getLocalBlogDevStore(slug) {
+  if (!localBlogDevStore || localBlogDevStore.slug !== slug) {
+    localBlogDevStore = {
+      slug,
+      liked: false,
+      likeCount: 0,
+      shareCount: 0,
+      views: 0,
+      comments: [],
+      replies: {}
+    };
+  }
+  return localBlogDevStore;
+}
+
+function handleLocalDevMock(path, options = {}) {
+  const method = (options.method || 'GET').toUpperCase();
+  const urlObj = new URL(`http://localhost${path}`);
+  const pathname = urlObj.pathname;
+  const slugMatch = pathname.match(/^\/blog\/([^/]+)/);
+  const slug = slugMatch ? decodeURIComponent(slugMatch[1]) : 'default';
+  const store = getLocalBlogDevStore(slug);
+
+  if (pathname.endsWith('/interactions') && method === 'GET') {
+    return {
+      post_slug: slug,
+      liked: store.liked,
+      like_count: store.likeCount,
+      comment_count: store.comments.length,
+      reply_count: Object.values(store.replies).reduce((acc, arr) => acc + arr.length, 0),
+      share_count: store.shareCount,
+      view_count: store.views,
+      unique_view_count: store.views
+    };
+  }
+
+  if (pathname.match(/^\/blog\/[^/]+\/like$/) && method === 'POST') {
+    const body = JSON.parse(options.body || '{}');
+    store.liked = !!body.liked;
+    store.likeCount = Math.max(0, store.likeCount + (body.liked ? 1 : -1));
+    return { post_slug: slug, liked: store.liked, like_count: store.likeCount };
+  }
+
+  if (pathname.match(/^\/blog\/[^/]+\/view$/) && method === 'POST') {
+    store.views += 1;
+    return { post_slug: slug, recorded: true, view_count: store.views, unique_view_count: store.views };
+  }
+
+  if (pathname.match(/^\/blog\/[^/]+\/share$/) && method === 'POST') {
+    store.shareCount += 1;
+    return { post_slug: slug, recorded: true, share_count: store.shareCount };
+  }
+
+  // Comments list
+  if (pathname.match(/^\/blog\/[^/]+\/comments$/) && method === 'GET') {
+    const limit = parseInt(urlObj.searchParams.get('limit') || '5', 10);
+    const cursor = parseInt(urlObj.searchParams.get('cursor') || '0', 10);
+    const sort = urlObj.searchParams.get('sort') || 'top';
+    let sorted = store.comments.map(c => ({ ...c }));
+    if (sort === 'top') {
+      sorted.sort((a, b) => b.like_count - a.like_count);
+    } else {
+      sorted.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+    }
+    const slice = sorted.slice(cursor, cursor + limit);
+    const nextCursor = cursor + limit < sorted.length ? String(cursor + limit) : null;
+    return { post_slug: slug, sort, limit, comments: slice, next_cursor: nextCursor };
+  }
+
+  // Create comment
+  if (pathname.match(/^\/blog\/[^/]+\/comments$/) && method === 'POST') {
+    const body = JSON.parse(options.body || '{}');
+    const authorName = currentUser?.name || 'Khách hàng Melsou';
+    const newComment = {
+      id: `mock-c-${Date.now()}`,
+      post_slug: slug,
+      user_id: currentUser?.id || 'u-mock',
+      author_name: authorName,
+      content: body.content,
+      created_at: new Date().toISOString(),
+      like_count: 0,
+      reply_count: 0,
+      liked: false
+    };
+    store.comments.unshift(newComment);
+    return { comment: { ...newComment } };
+  }
+
+  // Replies list
+  const repliesMatch = pathname.match(/\/comments\/([^/]+)\/replies$/);
+  if (repliesMatch && method === 'GET') {
+    const commentId = decodeURIComponent(repliesMatch[1]);
+    const list = (store.replies[commentId] || []).map(r => ({ ...r }));
+    const limit = parseInt(urlObj.searchParams.get('limit') || '3', 10);
+    const cursor = parseInt(urlObj.searchParams.get('cursor') || '0', 10);
+    const slice = list.slice(cursor, cursor + limit);
+    const nextCursor = cursor + limit < list.length ? String(cursor + limit) : null;
+    return { comments: slice, next_cursor: nextCursor };
+  }
+
+  // Create reply
+  if (repliesMatch && method === 'POST') {
+    const commentId = decodeURIComponent(repliesMatch[1]);
+    const body = JSON.parse(options.body || '{}');
+    const authorName = currentUser?.name || 'Khách hàng Melsou';
+    const newReply = {
+      id: `mock-r-${Date.now()}`,
+      post_slug: slug,
+      user_id: currentUser?.id || 'u-mock',
+      author_name: authorName,
+      content: body.content,
+      created_at: new Date().toISOString(),
+      like_count: 0,
+      reply_count: 0,
+      liked: false
+    };
+    if (!store.replies[commentId]) store.replies[commentId] = [];
+    store.replies[commentId].push(newReply);
+    const root = store.comments.find(c => c.id === commentId);
+    if (root) root.reply_count = (root.reply_count || 0) + 1;
+    return { comment: newReply };
+  }
+
+  // Comment like
+  const commentLikeMatch = pathname.match(/\/comments\/([^/]+)\/like$/);
+  if (commentLikeMatch && method === 'POST') {
+    const commentId = decodeURIComponent(commentLikeMatch[1]);
+    const body = JSON.parse(options.body || '{}');
+    let target = store.comments.find(c => c.id === commentId);
+    if (!target) {
+      for (const arr of Object.values(store.replies)) {
+        target = arr.find(r => r.id === commentId);
+        if (target) break;
+      }
+    }
+    if (target) {
+      target.liked = !!body.liked;
+      target.like_count = Math.max(0, (target.like_count || 0) + (body.liked ? 1 : -1));
+      return { comment_id: commentId, liked: target.liked, like_count: target.like_count };
+    }
+    return { comment_id: commentId, liked: body.liked, like_count: body.liked ? 1 : 0 };
+  }
+
+  throw new Error('NOT_FOUND');
+}
+
+const isLocalDevHost = typeof window !== 'undefined' && (
+  window.location.hostname === 'localhost' ||
+  window.location.hostname === '127.0.0.1' ||
+  window.location.hostname.endsWith('.local')
+);
+
+async function blogFetchApi(path, options = {}) {
+  try {
+    const res = await fetch(`/api${path}`, {
+      credentials: 'include',
+      headers: { 'Content-Type': 'application/json', ...(options.headers || {}) },
+      ...options
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      // Mock fallback is strictly restricted to local development when database is not configured
+      if (isLocalDevHost && (data.error === 'LOCAL_API_FAILURE' || res.status === 404 || path.includes('mock-'))) {
+        return handleLocalDevMock(path, options);
+      }
+      const err = new Error(data.error || `API request failed (${res.status})`);
+      err.status = res.status;
+      err.body = data;
+      throw err;
+    }
+    return data;
+  } catch (netErr) {
+    if (netErr.status) throw netErr;
+    if (isLocalDevHost) {
+      return handleLocalDevMock(path, options);
+    }
+    throw netErr;
+  }
+}
+
+function escapeHtml(str) {
+  if (typeof str !== 'string') return '';
+  return str
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;');
+}
+
+function formatBlogTimeAgo(dateStr) {
+  if (!dateStr) return '';
+  const date = new Date(dateStr);
+  const now = new Date();
+  const diffMs = now - date;
+  if (isNaN(diffMs) || diffMs < 0) return 'Vừa xong';
+  const diffSec = Math.floor(diffMs / 1000);
+  if (diffSec < 60) return 'Vừa xong';
+  const diffMin = Math.floor(diffSec / 60);
+  if (diffMin < 60) return `${diffMin} phút trước`;
+  const diffHours = Math.floor(diffMin / 60);
+  if (diffHours < 24) return `${diffHours} giờ trước`;
+  const diffDays = Math.floor(diffHours / 24);
+  if (diffDays < 7) return `${diffDays} ngày trước`;
+  return date.toLocaleDateString('vi-VN');
+}
+
+function getBlogAuthorInitials(name) {
+  if (!name || typeof name !== 'string') return 'M';
+  const parts = name.trim().split(/\s+/).filter(Boolean);
+  if (!parts.length) return 'M';
+  if (parts.length === 1) return parts[0].charAt(0).toUpperCase();
+  return (parts[0].charAt(0) + parts[parts.length - 1].charAt(0)).toUpperCase();
+}
+
+function renderBlogPostInteractions() {
+  const likeBtn = document.getElementById('blogPostLikeBtn');
+  const likeLabel = document.getElementById('blogPostLikeLabel');
+  const likeCountEl = document.getElementById('blogPostLikeCount');
+  const commentCountEl = document.getElementById('blogPostCommentCount');
+  const shareCountEl = document.getElementById('blogPostShareCount');
+  const headerCountEl = document.getElementById('blogCommentsHeaderCount');
+
+  if (likeBtn) {
+    if (blogInteractionsState.liked) {
+      likeBtn.classList.add('liked');
+      likeBtn.setAttribute('aria-pressed', 'true');
+      if (likeLabel) likeLabel.textContent = 'Đã thích';
+    } else {
+      likeBtn.classList.remove('liked');
+      likeBtn.setAttribute('aria-pressed', 'false');
+      if (likeLabel) likeLabel.textContent = 'Thích';
+    }
+  }
+
+  if (likeCountEl) {
+    likeCountEl.textContent = blogInteractionsState.likeCount > 0 ? blogInteractionsState.likeCount.toLocaleString('vi-VN') : '0';
+    likeCountEl.style.display = blogInteractionsState.likeCount > 0 ? 'inline' : 'none';
+  }
+
+  if (commentCountEl) {
+    commentCountEl.textContent = blogInteractionsState.commentCount > 0 ? blogInteractionsState.commentCount.toLocaleString('vi-VN') : '0';
+    commentCountEl.style.display = blogInteractionsState.commentCount > 0 ? 'inline' : 'none';
+  }
+
+  if (shareCountEl) {
+    shareCountEl.textContent = blogInteractionsState.shareCount > 0 ? blogInteractionsState.shareCount.toLocaleString('vi-VN') : '0';
+    shareCountEl.style.display = blogInteractionsState.shareCount > 0 ? 'inline' : 'none';
+  }
+
+  if (headerCountEl) {
+    headerCountEl.textContent = blogInteractionsState.commentCount > 0 ? blogInteractionsState.commentCount.toLocaleString('vi-VN') : '0';
+  }
+}
+
+async function initBlogInteractions(slug) {
+  if (!slug) return;
+  blogInteractionsState.activeSlug = slug;
+  blogInteractionsState.liked = false;
+  blogInteractionsState.likeCount = 0;
+  blogInteractionsState.commentCount = 0;
+  blogInteractionsState.shareCount = 0;
+  blogInteractionsState.comments = [];
+  blogInteractionsState.nextCursor = null;
+  blogInteractionsState.replies = {};
+
+  const interactionsBar = document.getElementById('blogPostInteractionsBar');
+  const commentsSection = document.getElementById('blogCommentsSection');
+  if (interactionsBar) interactionsBar.style.display = '';
+  if (commentsSection) commentsSection.style.display = '';
+
+  updateBlogInteractionsAuthUI();
+
+  // 1. Record view (fire and forget)
+  blogFetchApi(`/blog/${encodeURIComponent(slug)}/view`, { method: 'POST' }).catch(() => {});
+
+  // 2. Fetch interaction stats
+  blogFetchApi(`/blog/${encodeURIComponent(slug)}/interactions`)
+    .then((summary) => {
+      if (blogInteractionsState.activeSlug !== slug) return;
+      blogInteractionsState.liked = !!summary.liked;
+      blogInteractionsState.likeCount = summary.like_count || 0;
+      blogInteractionsState.commentCount = (summary.comment_count || 0) + (summary.reply_count || 0);
+      blogInteractionsState.shareCount = summary.share_count || 0;
+      blogInteractionsState.viewCount = summary.view_count || 0;
+      renderBlogPostInteractions();
+    })
+    .catch((err) => {
+      console.warn('Failed to load blog interactions:', err);
+    });
+
+  // 3. Load initial comments
+  loadBlogComments({ reset: true });
+}
+
+async function handleBlogPostLikeClick() {
+  const slug = blogInteractionsState.activeSlug;
+  if (!slug) return;
+  const prevLiked = blogInteractionsState.liked;
+  const prevCount = blogInteractionsState.likeCount;
+  const newLiked = !prevLiked;
+
+  // Optimistic UI update
+  blogInteractionsState.liked = newLiked;
+  blogInteractionsState.likeCount = Math.max(0, prevCount + (newLiked ? 1 : -1));
+  renderBlogPostInteractions();
+
+  try {
+    const res = await blogFetchApi(`/blog/${encodeURIComponent(slug)}/like`, {
+      method: 'POST',
+      body: JSON.stringify({ liked: newLiked })
+    });
+    blogInteractionsState.liked = !!res.liked;
+    blogInteractionsState.likeCount = res.like_count ?? blogInteractionsState.likeCount;
+    renderBlogPostInteractions();
+  } catch (err) {
+    // Rollback
+    blogInteractionsState.liked = prevLiked;
+    blogInteractionsState.likeCount = prevCount;
+    renderBlogPostInteractions();
+    showToast(currentAppLanguage === 'en' ? 'Unable to update like. Please try again.' : 'Không thể cập nhật lượt thích. Vui lòng thử lại.');
+  }
+}
+
+function scrollToBlogComments() {
+  const section = document.getElementById('blogCommentsSection');
+  if (section) {
+    section.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    const input = document.getElementById('blogCommentInput');
+    if (input) setTimeout(() => input.focus(), 350);
+  }
+}
+
+function handleBlogShareClick(event) {
+  if (event) {
+    event.stopPropagation();
+    event.preventDefault();
+  }
+  const slug = blogInteractionsState.activeSlug;
+  if (!slug) return;
+
+  const isMobile = window.innerWidth <= 640;
+  if (isMobile && navigator.share) {
+    navigator.share({
+      title: document.title || 'Melsou Journal',
+      url: window.location.href
+    }).then(() => {
+      recordBlogShareMetric('native_share');
+    }).catch((err) => {
+      if (err.name !== 'AbortError') {
+        toggleBlogSharePopover();
+      }
+    });
+    return;
+  }
+
+  toggleBlogSharePopover();
+}
+
+function toggleBlogSharePopover() {
+  const popover = document.getElementById('blogSharePopover');
+  const btn = document.getElementById('blogPostShareBtn');
+  if (!popover) return;
+  const isOpen = popover.classList.toggle('open');
+  if (btn) btn.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
+}
+
+function closeBlogSharePopover() {
+  const popover = document.getElementById('blogSharePopover');
+  const btn = document.getElementById('blogPostShareBtn');
+  if (popover) popover.classList.remove('open');
+  if (btn) btn.setAttribute('aria-expanded', 'false');
+}
+
+document.addEventListener('click', function(e) {
+  const wrapper = document.getElementById('blogShareWrapper');
+  if (wrapper && !wrapper.contains(e.target)) {
+    closeBlogSharePopover();
+  }
+});
+
+async function executeBlogShare(type) {
+  closeBlogSharePopover();
+  const slug = blogInteractionsState.activeSlug;
+  if (!slug) return;
+
+  if (type === 'copy_link') {
+    const url = window.location.href;
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(url).then(() => {
+        showToast('Đã sao chép liên kết bài viết!');
+      }).catch(() => {
+        fallbackCopyText(url);
+      });
+    } else {
+      fallbackCopyText(url);
+    }
+    recordBlogShareMetric('copy_link');
+  } else if (type === 'facebook') {
+    const url = encodeURIComponent(window.location.href);
+    window.open(`https://www.facebook.com/sharer/sharer.php?u=${url}`, 'fb-share', 'width=600,height=500,toolbar=0,menubar=0');
+    recordBlogShareMetric('facebook');
+  }
+}
+
+function fallbackCopyText(text) {
+  const t = document.createElement('textarea');
+  t.value = text;
+  t.style.position = 'fixed';
+  t.style.opacity = '0';
+  document.body.appendChild(t);
+  t.select();
+  try {
+    document.execCommand('copy');
+    showToast('Đã sao chép liên kết bài viết!');
+  } catch {
+    showToast('Không thể tự động sao chép. Vui lòng copy URL trên thanh địa chỉ.');
+  }
+  document.body.removeChild(t);
+}
+
+async function recordBlogShareMetric(shareType) {
+  const slug = blogInteractionsState.activeSlug;
+  if (!slug) return;
+  try {
+    const res = await blogFetchApi(`/blog/${encodeURIComponent(slug)}/share`, {
+      method: 'POST',
+      body: JSON.stringify({ share_type: shareType })
+    });
+    if (res.share_count !== undefined) {
+      blogInteractionsState.shareCount = res.share_count;
+      renderBlogPostInteractions();
+    }
+  } catch {}
+}
+
+function changeBlogCommentSort(sort) {
+  if (blogInteractionsState.sort === sort) return;
+  blogInteractionsState.sort = sort;
+  const topBtn = document.getElementById('blogSortTopBtn');
+  const latestBtn = document.getElementById('blogSortLatestBtn');
+  if (topBtn && latestBtn) {
+    if (sort === 'top') {
+      topBtn.classList.add('active');
+      topBtn.setAttribute('aria-selected', 'true');
+      latestBtn.classList.remove('active');
+      latestBtn.setAttribute('aria-selected', 'false');
+    } else {
+      latestBtn.classList.add('active');
+      latestBtn.setAttribute('aria-selected', 'true');
+      topBtn.classList.remove('active');
+      topBtn.setAttribute('aria-selected', 'false');
+    }
+  }
+  loadBlogComments({ reset: true });
+}
+
+function handleBlogCommentInput(textarea) {
+  const charCount = document.getElementById('blogCommentCharCount');
+  const len = textarea.value.length;
+  if (charCount) charCount.textContent = `${len} / 2000`;
+}
+
+async function loadBlogComments({ reset = false } = {}) {
+  const slug = blogInteractionsState.activeSlug;
+  if (!slug) return;
+  const listEl = document.getElementById('blogCommentsList');
+  const pagEl = document.getElementById('blogCommentsPagination');
+  const loadMoreBtn = document.getElementById('blogCommentsLoadMoreBtn');
+  const spinner = document.getElementById('blogCommentsLoadMoreSpinner');
+  const moreText = document.getElementById('blogCommentsLoadMoreText');
+
+  const isMobile = window.innerWidth <= 640;
+  const limit = isMobile ? 3 : 5;
+
+  if (reset) {
+    blogInteractionsState.loadingComments = true;
+    blogInteractionsState.comments = [];
+    blogInteractionsState.nextCursor = null;
+    if (listEl) {
+      listEl.innerHTML = `
+        <div class="blog-skeleton-item"><div class="blog-skeleton-circle"></div><div class="blog-skeleton-lines"><div class="blog-skeleton-line" style="width:30%"></div><div class="blog-skeleton-line" style="width:90%"></div><div class="blog-skeleton-line" style="width:60%"></div></div></div>
+        <div class="blog-skeleton-item"><div class="blog-skeleton-circle"></div><div class="blog-skeleton-lines"><div class="blog-skeleton-line" style="width:25%"></div><div class="blog-skeleton-line" style="width:85%"></div></div></div>
+      `;
+    }
+    if (pagEl) pagEl.style.display = 'none';
+  } else {
+    blogInteractionsState.loadingMore = true;
+    if (spinner) spinner.style.display = 'inline-block';
+    if (loadMoreBtn) loadMoreBtn.disabled = true;
+  }
+
+  const cursor = reset ? 0 : (blogInteractionsState.nextCursor || 0);
+
+  try {
+    const res = await blogFetchApi(`/blog/${encodeURIComponent(slug)}/comments?limit=${limit}&cursor=${cursor}&sort=${blogInteractionsState.sort}`);
+    if (blogInteractionsState.activeSlug !== slug) return;
+    const incoming = Array.isArray(res.comments) ? res.comments : [];
+    blogInteractionsState.comments = reset ? incoming : blogInteractionsState.comments.concat(incoming);
+    blogInteractionsState.nextCursor = res.next_cursor || null;
+
+    renderBlogCommentsList();
+
+    if (pagEl) {
+      if (blogInteractionsState.nextCursor !== null) {
+        pagEl.style.display = 'block';
+        if (moreText) moreText.textContent = 'Xem thêm bình luận';
+      } else {
+        pagEl.style.display = 'none';
+      }
+    }
+  } catch (err) {
+    if (reset && listEl) {
+      listEl.innerHTML = `
+        <div class="blog-comments-empty">
+          <div class="blog-comments-empty-icon">⚠️</div>
+          <p>Không thể tải bình luận. Vui lòng thử lại.</p>
+          <button type="button" class="btn-outline" style="margin-top:10px;border-radius:9999px;padding:6px 16px;font-size:12.5px" onclick="loadBlogComments({ reset: true })">Thử lại</button>
+        </div>
+      `;
+    } else {
+      showToast('Không thể tải thêm bình luận.');
+    }
+  } finally {
+    blogInteractionsState.loadingComments = false;
+    blogInteractionsState.loadingMore = false;
+    if (spinner) spinner.style.display = 'none';
+    if (loadMoreBtn) loadMoreBtn.disabled = false;
+  }
+}
+
+function loadMoreBlogComments() {
+  if (blogInteractionsState.nextCursor === null || blogInteractionsState.loadingMore) return;
+  loadBlogComments({ reset: false });
+}
+
+function renderBlogCommentsList() {
+  const listEl = document.getElementById('blogCommentsList');
+  if (!listEl) return;
+  const comments = blogInteractionsState.comments;
+
+  if (!comments.length) {
+    listEl.innerHTML = `
+      <div class="blog-comments-empty">
+        <div class="blog-comments-empty-icon">💬</div>
+        <p>Chưa có bình luận nào. Hãy là người đầu tiên chia sẻ cảm nghĩ.</p>
+      </div>
+    `;
+    return;
+  }
+
+  let html = '';
+  for (const c of comments) {
+    const initials = getBlogAuthorInitials(c.author_name);
+    const timeAgo = formatBlogTimeAgo(c.created_at);
+    const likeActive = c.liked ? 'liked' : '';
+    const hasReplies = (c.reply_count || 0) > 0;
+    const replyCountText = hasReplies ? `Xem ${c.reply_count} phản hồi` : '';
+
+    html += `
+      <div class="blog-comment-item" id="blogComment-${c.id}" data-id="${c.id}">
+        <div class="blog-comment-main">
+          <div class="blog-avatar-circle" title="${escapeHtml(c.author_name)}">${escapeHtml(initials)}</div>
+          <div class="blog-comment-content-wrap">
+            <div class="blog-comment-author-row">
+              <span class="blog-comment-author-name">${escapeHtml(c.author_name || 'Khách hàng')}</span>
+              <span class="blog-comment-time">${escapeHtml(timeAgo)}</span>
+            </div>
+            <div class="blog-comment-body-text">${escapeHtml(c.content)}</div>
+            <div class="blog-comment-actions-row">
+              <button type="button" class="blog-comment-like-btn ${likeActive}" onclick="handleBlogCommentLikeClick('${c.id}')" aria-label="Thích bình luận" aria-pressed="${c.liked ? 'true' : 'false'}">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"></path>
+                </svg>
+                <span class="blog-comment-like-count">${c.like_count > 0 ? c.like_count : 'Thích'}</span>
+              </button>
+              <button type="button" class="blog-comment-reply-btn" onclick="toggleInlineReplyBox('${c.id}', '${escapeHtml(c.author_name)}')">
+                Trả lời
+              </button>
+              ${hasReplies ? `
+                <button type="button" class="blog-view-replies-btn" id="blogViewRepliesBtn-${c.id}" onclick="toggleCommentReplies('${c.id}')">
+                  <span class="reply-label">${replyCountText}</span>
+                  <span class="chevron">▼</span>
+                </button>
+              ` : ''}
+            </div>
+
+            <!-- Inline Reply Form for this comment -->
+            <div class="blog-inline-reply-box" id="blogInlineReplyBox-${c.id}">
+              <textarea class="blog-reply-textarea" id="blogReplyInput-${c.id}" placeholder="Phản hồi cho ${escapeHtml(c.author_name)}..." rows="2" maxlength="2000"></textarea>
+              <div class="blog-reply-actions">
+                <button type="button" class="blog-reply-cancel-btn" onclick="toggleInlineReplyBox('${c.id}')">Hủy</button>
+                <button type="button" class="btn-primary blog-reply-submit-btn" id="blogReplySubmitBtn-${c.id}" onclick="submitBlogReply('${c.id}')">Gửi</button>
+              </div>
+            </div>
+
+            <!-- Replies Container (Max 2 Levels) -->
+            <div class="blog-comment-replies" id="blogRepliesContainer-${c.id}">
+              <!-- Dynamic replies -->
+            </div>
+          </div>
+        </div>
+      </div>
+    `;
+  }
+  listEl.innerHTML = html;
+}
+
+async function submitBlogComment() {
+  const input = document.getElementById('blogCommentInput');
+  const submitBtn = document.getElementById('blogCommentSubmitBtn');
+  if (!input) return;
+  const content = input.value.trim();
+  if (!content) {
+    input.focus();
+    return;
+  }
+
+  const slug = blogInteractionsState.activeSlug;
+  if (!slug) return;
+
+  const isLoggedIn = currentUser && currentUser.loggedIn && !currentUser.isGuest;
+  if (!isLoggedIn) {
+    // Preserve draft text
+    blogInteractionsState.draft = { type: 'comment', content, slug };
+    try {
+      sessionStorage.setItem(`melsou_blog_draft_${slug}`, JSON.stringify(blogInteractionsState.draft));
+    } catch {}
+    showToast('Vui lòng đăng nhập để gửi bình luận.');
+    openAuthModal();
+    return;
+  }
+
+  submitBtn.disabled = true;
+  submitBtn.textContent = 'Đang gửi...';
+
+  try {
+    const res = await blogFetchApi(`/blog/${encodeURIComponent(slug)}/comments`, {
+      method: 'POST',
+      body: JSON.stringify({ content })
+    });
+    input.value = '';
+    handleBlogCommentInput(input);
+    blogInteractionsState.draft = null;
+    try { sessionStorage.removeItem(`melsou_blog_draft_${slug}`); } catch {}
+
+    if (res.comment) {
+      blogInteractionsState.comments.unshift(res.comment);
+      blogInteractionsState.commentCount += 1;
+      renderBlogPostInteractions();
+      renderBlogCommentsList();
+      showToast('Đã gửi bình luận thành công!');
+    }
+  } catch (err) {
+    if (err.status === 401) {
+      blogInteractionsState.draft = { type: 'comment', content, slug };
+      showToast('Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.');
+      openAuthModal();
+    } else {
+      showToast(err.body?.error === 'INVALID_COMMENT' ? 'Bình luận không hợp lệ.' : 'Không thể gửi bình luận. Vui lòng thử lại.');
+    }
+  } finally {
+    submitBtn.disabled = false;
+    submitBtn.textContent = 'Gửi bình luận';
+  }
+}
+
+function toggleInlineReplyBox(commentId, authorName) {
+  const box = document.getElementById(`blogInlineReplyBox-${commentId}`);
+  if (!box) return;
+  const isOpen = box.classList.toggle('open');
+  if (isOpen) {
+    const input = document.getElementById(`blogReplyInput-${commentId}`);
+    if (input) {
+      if (authorName && !input.placeholder.includes(authorName)) {
+        input.placeholder = `Phản hồi cho ${authorName}...`;
+      }
+      input.focus();
+    }
+  }
+}
+
+async function toggleCommentReplies(commentId) {
+  const container = document.getElementById(`blogRepliesContainer-${commentId}`);
+  const btn = document.getElementById(`blogViewRepliesBtn-${commentId}`);
+  if (!container || !btn) return;
+
+  const isOpen = container.classList.toggle('open');
+  btn.classList.toggle('expanded', isOpen);
+
+  const rootComment = blogInteractionsState.comments.find(c => c.id === commentId);
+  const count = rootComment ? rootComment.reply_count : 0;
+  const label = btn.querySelector('.reply-label');
+  if (label) {
+    label.textContent = isOpen ? (count > 0 ? `Ẩn ${count} phản hồi` : 'Ẩn phản hồi') : (count > 0 ? `Xem ${count} phản hồi` : 'Xem phản hồi');
+  }
+
+  if (isOpen && !blogInteractionsState.replies[commentId]) {
+    await loadCommentReplies(commentId, { reset: true });
+  }
+}
+
+async function loadCommentReplies(commentId, { reset = false } = {}) {
+  const slug = blogInteractionsState.activeSlug;
+  if (!slug) return;
+  const container = document.getElementById(`blogRepliesContainer-${commentId}`);
+  if (!container) return;
+
+  if (reset) {
+    blogInteractionsState.replies[commentId] = { comments: [], nextCursor: null, loading: true };
+    container.innerHTML = `<div class="blog-skeleton-line" style="width:70%;margin:8px 0"></div>`;
+  }
+
+  const state = blogInteractionsState.replies[commentId] || { comments: [], nextCursor: null };
+  const cursor = reset ? 0 : (state.nextCursor || 0);
+
+  try {
+    const res = await blogFetchApi(`/blog/${encodeURIComponent(slug)}/comments/${encodeURIComponent(commentId)}/replies?limit=3&cursor=${cursor}&sort=${blogInteractionsState.sort}`);
+    const incoming = Array.isArray(res.comments) ? res.comments : [];
+    state.comments = reset ? incoming : state.comments.concat(incoming);
+    state.nextCursor = res.next_cursor || null;
+    state.loading = false;
+    blogInteractionsState.replies[commentId] = state;
+
+    renderRepliesContainer(commentId);
+  } catch (err) {
+    state.loading = false;
+    if (reset) {
+      container.innerHTML = `<p style="font-size:12.5px;color:#ef4444">Không thể tải phản hồi.</p>`;
+    }
+  }
+}
+
+function renderRepliesContainer(commentId) {
+  const container = document.getElementById(`blogRepliesContainer-${commentId}`);
+  const state = blogInteractionsState.replies[commentId];
+  if (!container || !state) return;
+
+  let html = '';
+  for (const r of state.comments) {
+    const initials = getBlogAuthorInitials(r.author_name);
+    const timeAgo = formatBlogTimeAgo(r.created_at);
+    const likeActive = r.liked ? 'liked' : '';
+
+    html += `
+      <div class="blog-reply-item" id="blogReply-${r.id}">
+        <div class="blog-avatar-circle" title="${escapeHtml(r.author_name)}">${escapeHtml(initials)}</div>
+        <div class="blog-comment-content-wrap">
+          <div class="blog-comment-author-row">
+            <span class="blog-comment-author-name">${escapeHtml(r.author_name || 'Khách hàng')}</span>
+            <span class="blog-comment-time">${escapeHtml(timeAgo)}</span>
+          </div>
+          <div class="blog-comment-body-text">${escapeHtml(r.content)}</div>
+          <div class="blog-comment-actions-row">
+            <button type="button" class="blog-comment-like-btn ${likeActive}" onclick="handleBlogReplyLikeClick('${commentId}', '${r.id}')" aria-label="Thích phản hồi">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"></path></svg>
+              <span class="blog-comment-like-count">${r.like_count > 0 ? r.like_count : 'Thích'}</span>
+            </button>
+            <button type="button" class="blog-comment-reply-btn" onclick="toggleInlineReplyBox('${commentId}', '${escapeHtml(r.author_name)}')">
+              Trả lời
+            </button>
+          </div>
+        </div>
+      </div>
+    `;
+  }
+
+  if (state.nextCursor !== null) {
+    html += `
+      <div class="blog-reply-more-wrap">
+        <button type="button" class="blog-reply-more-btn" onclick="loadCommentReplies('${commentId}', { reset: false })">
+          Xem thêm phản hồi...
+        </button>
+      </div>
+    `;
+  }
+
+  container.innerHTML = html;
+}
+
+async function submitBlogReply(commentId) {
+  const input = document.getElementById(`blogReplyInput-${commentId}`);
+  const btn = document.getElementById(`blogReplySubmitBtn-${commentId}`);
+  if (!input) return;
+  const content = input.value.trim();
+  if (!content) {
+    input.focus();
+    return;
+  }
+
+  const slug = blogInteractionsState.activeSlug;
+  if (!slug) return;
+
+  const isLoggedIn = currentUser && currentUser.loggedIn && !currentUser.isGuest;
+  if (!isLoggedIn) {
+    blogInteractionsState.draft = { type: 'reply', commentId, content, slug };
+    showToast('Vui lòng đăng nhập để gửi phản hồi.');
+    openAuthModal();
+    return;
+  }
+
+  if (btn) {
+    btn.disabled = true;
+    btn.textContent = '...';
+  }
+
+  try {
+    const res = await blogFetchApi(`/blog/${encodeURIComponent(slug)}/comments/${encodeURIComponent(commentId)}/replies`, {
+      method: 'POST',
+      body: JSON.stringify({ content })
+    });
+    input.value = '';
+    toggleInlineReplyBox(commentId);
+    blogInteractionsState.draft = null;
+
+    if (res.comment) {
+      if (!blogInteractionsState.replies[commentId]) {
+        blogInteractionsState.replies[commentId] = { comments: [], nextCursor: null };
+      }
+      blogInteractionsState.replies[commentId].comments.push(res.comment);
+
+      // Increment root comment's reply_count
+      const rootComment = blogInteractionsState.comments.find(c => c.id === commentId);
+      if (rootComment) {
+        rootComment.reply_count = (rootComment.reply_count || 0) + 1;
+      }
+      blogInteractionsState.commentCount += 1;
+      renderBlogPostInteractions();
+
+      // Ensure container is open
+      const container = document.getElementById(`blogRepliesContainer-${commentId}`);
+      const viewBtn = document.getElementById(`blogViewRepliesBtn-${commentId}`);
+      if (container) container.classList.add('open');
+      if (viewBtn) viewBtn.classList.add('expanded');
+
+      renderRepliesContainer(commentId);
+      showToast('Đã gửi phản hồi thành công!');
+    }
+  } catch (err) {
+    if (err.status === 401) {
+      blogInteractionsState.draft = { type: 'reply', commentId, content, slug };
+      showToast('Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.');
+      openAuthModal();
+    } else {
+      showToast(err.body?.error === 'INVALID_COMMENT' ? 'Phản hồi không hợp lệ.' : 'Không thể gửi phản hồi. Vui lòng thử lại.');
+    }
+  } finally {
+    if (btn) {
+      btn.disabled = false;
+      btn.textContent = 'Gửi';
+    }
+  }
+}
+
+async function handleBlogCommentLikeClick(commentId) {
+  const slug = blogInteractionsState.activeSlug;
+  if (!slug) return;
+  const comment = blogInteractionsState.comments.find(c => c.id === commentId);
+  if (!comment) return;
+
+  const prevLiked = comment.liked;
+  const prevCount = comment.like_count;
+  const newLiked = !prevLiked;
+
+  comment.liked = newLiked;
+  comment.like_count = Math.max(0, prevCount + (newLiked ? 1 : -1));
+
+  // Update specific comment DOM
+  const commentEl = document.getElementById(`blogComment-${commentId}`);
+  if (commentEl) {
+    const likeBtn = commentEl.querySelector('.blog-comment-like-btn');
+    const countSpan = commentEl.querySelector('.blog-comment-like-count');
+    if (likeBtn) {
+      likeBtn.classList.toggle('liked', newLiked);
+      likeBtn.setAttribute('aria-pressed', newLiked ? 'true' : 'false');
+    }
+    if (countSpan) {
+      countSpan.textContent = comment.like_count > 0 ? comment.like_count : 'Thích';
+    }
+  }
+
+  try {
+    const res = await blogFetchApi(`/blog/${encodeURIComponent(slug)}/comments/${encodeURIComponent(commentId)}/like`, {
+      method: 'POST',
+      body: JSON.stringify({ liked: newLiked })
+    });
+    comment.liked = !!res.liked;
+    comment.like_count = res.like_count ?? comment.like_count;
+    if (commentEl) {
+      const likeBtn = commentEl.querySelector('.blog-comment-like-btn');
+      const countSpan = commentEl.querySelector('.blog-comment-like-count');
+      if (likeBtn) {
+        likeBtn.classList.toggle('liked', comment.liked);
+        likeBtn.setAttribute('aria-pressed', comment.liked ? 'true' : 'false');
+      }
+      if (countSpan) countSpan.textContent = comment.like_count > 0 ? comment.like_count : 'Thích';
+    }
+  } catch (err) {
+    // Rollback
+    comment.liked = prevLiked;
+    comment.like_count = prevCount;
+    if (commentEl) {
+      const likeBtn = commentEl.querySelector('.blog-comment-like-btn');
+      const countSpan = commentEl.querySelector('.blog-comment-like-count');
+      if (likeBtn) {
+        likeBtn.classList.toggle('liked', prevLiked);
+        likeBtn.setAttribute('aria-pressed', prevLiked ? 'true' : 'false');
+      }
+      if (countSpan) countSpan.textContent = prevCount > 0 ? prevCount : 'Thích';
+    }
+    showToast('Không thể cập nhật lượt thích bình luận.');
+  }
+}
+
+async function handleBlogReplyLikeClick(rootCommentId, replyId) {
+  const slug = blogInteractionsState.activeSlug;
+  if (!slug) return;
+  const replies = blogInteractionsState.replies[rootCommentId]?.comments;
+  if (!replies) return;
+  const reply = replies.find(r => r.id === replyId);
+  if (!reply) return;
+
+  const prevLiked = reply.liked;
+  const prevCount = reply.like_count;
+  const newLiked = !prevLiked;
+
+  reply.liked = newLiked;
+  reply.like_count = Math.max(0, prevCount + (newLiked ? 1 : -1));
+
+  const replyEl = document.getElementById(`blogReply-${replyId}`);
+  if (replyEl) {
+    const likeBtn = replyEl.querySelector('.blog-comment-like-btn');
+    const countSpan = replyEl.querySelector('.blog-comment-like-count');
+    if (likeBtn) likeBtn.classList.toggle('liked', newLiked);
+    if (countSpan) countSpan.textContent = reply.like_count > 0 ? reply.like_count : 'Thích';
+  }
+
+  try {
+    const res = await blogFetchApi(`/blog/${encodeURIComponent(slug)}/comments/${encodeURIComponent(replyId)}/like`, {
+      method: 'POST',
+      body: JSON.stringify({ liked: newLiked })
+    });
+    reply.liked = !!res.liked;
+    reply.like_count = res.like_count ?? reply.like_count;
+  } catch {
+    reply.liked = prevLiked;
+    reply.like_count = prevCount;
+    if (replyEl) {
+      const likeBtn = replyEl.querySelector('.blog-comment-like-btn');
+      const countSpan = replyEl.querySelector('.blog-comment-like-count');
+      if (likeBtn) likeBtn.classList.toggle('liked', prevLiked);
+      if (countSpan) countSpan.textContent = prevCount > 0 ? prevCount : 'Thích';
+    }
+  }
+}
+
+function updateBlogInteractionsAuthUI() {
+  if (typeof blogInteractionsState === 'undefined' || !blogInteractionsState) return;
+  const avatarInitials = document.getElementById('blogCommentUserAvatarInitials');
+  const guestHint = document.getElementById('blogCommentGuestHint');
+  const isLoggedIn = currentUser && currentUser.loggedIn && !currentUser.isGuest;
+
+  if (avatarInitials) {
+    avatarInitials.textContent = isLoggedIn ? getBlogAuthorInitials(currentUser.name) : 'M';
+  }
+
+  if (guestHint) {
+    guestHint.style.display = isLoggedIn ? 'none' : 'block';
+  }
+
+  // Restore draft if any
+  const slug = blogInteractionsState.activeSlug;
+  if (!slug) return;
+
+  let draft = blogInteractionsState.draft;
+  if (!draft) {
+    try {
+      const saved = sessionStorage.getItem(`melsou_blog_draft_${slug}`);
+      if (saved) draft = JSON.parse(saved);
+    } catch {}
+  }
+
+  if (draft && draft.slug === slug && draft.content) {
+    if (draft.type === 'comment') {
+      const input = document.getElementById('blogCommentInput');
+      if (input && !input.value) {
+        input.value = draft.content;
+        handleBlogCommentInput(input);
+      }
+    } else if (draft.type === 'reply' && draft.commentId) {
+      toggleInlineReplyBox(draft.commentId);
+      const input = document.getElementById(`blogReplyInput-${draft.commentId}`);
+      if (input && !input.value) {
+        input.value = draft.content;
+      }
+    }
+  }
+}
+
+window.initBlogInteractions = initBlogInteractions;
+window.handleBlogPostLikeClick = handleBlogPostLikeClick;
+window.scrollToBlogComments = scrollToBlogComments;
+window.handleBlogShareClick = handleBlogShareClick;
+window.executeBlogShare = executeBlogShare;
+window.changeBlogCommentSort = changeBlogCommentSort;
+window.handleBlogCommentInput = handleBlogCommentInput;
+window.submitBlogComment = submitBlogComment;
+window.loadMoreBlogComments = loadMoreBlogComments;
+window.toggleCommentReplies = toggleCommentReplies;
+window.toggleInlineReplyBox = toggleInlineReplyBox;
+window.submitBlogReply = submitBlogReply;
+window.handleBlogCommentLikeClick = handleBlogCommentLikeClick;
+window.handleBlogReplyLikeClick = handleBlogReplyLikeClick;
+window.updateBlogInteractionsAuthUI = updateBlogInteractionsAuthUI;
+window.blogInteractionsState = blogInteractionsState;
+window.loadBlogComments = loadBlogComments;
+
+window.dispatchEvent(new Event('melsou-blog-interactions-ready'));
 
 
 // ============================================================
