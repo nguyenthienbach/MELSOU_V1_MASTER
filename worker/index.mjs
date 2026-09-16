@@ -7,6 +7,8 @@ import { PASSWORD_ITERATIONS, assertPassword, derivePassword, normalizeOptionalE
 import { inspectVoiceBytes, processVoiceCleanupJobs } from './voice.mjs';
 import { withPrivateStorage } from './storage.mjs';
 import { handleBlogInteraction, matchBlogInteraction } from './blog-interactions.mjs';
+import { handleWordpressComment, matchWordpressComment, wordpressCommentMeta } from './wordpress-comments.mjs';
+import { exchangeWordpressToken, handleWordpressOauthCallback, handleWordpressOauthStart } from './wordpress-oauth.mjs';
 import {
   ContractError, assertCartConfiguration, assertCheckpointReason, assertIdempotencyKey, assertProjectDocument, assertUuid,
   buildPaymentInstructions, normalizeTrackingPhone, sanitizeAccountPatch, sanitizeAddress, sanitizeBlogPost, sanitizeShipments
@@ -497,7 +499,8 @@ const wordpressPost = (post) => ({
   publishedAt: post.date_gmt ? `${post.date_gmt}Z` : post.date,
   modifiedAt: post.modified_gmt ? `${post.modified_gmt}Z` : post.modified,
   category: wordpressCategory(post),
-  featuredImage: post._embedded?.['wp:featuredmedia']?.[0]?.source_url || post.jetpack_featured_media_url || null
+  featuredImage: post._embedded?.['wp:featuredmedia']?.[0]?.source_url || post.jetpack_featured_media_url || null,
+  commentsOpen: post.comment_status === 'open'
 });
 
 async function handlePublicBlog(url, slug = null) {
@@ -547,7 +550,7 @@ async function blogInteractionActor(request, env, { createGuest = false } = {}) 
 }
 
 async function routeBlogInteraction(request, env, match) {
-  return handleBlogInteraction(request, env, match, {
+  const dependencies = {
     serviceFetch: (path, options) => serviceFetch(env, path, options),
     getActor: (incoming, options) => blogInteractionActor(incoming, env, options),
     requireUser: (incoming) => authenticatedUser(incoming, env),
@@ -560,7 +563,34 @@ async function routeBlogInteraction(request, env, match) {
         return (await response.json())[0] || false;
       } catch { return null; }
     }
+  };
+  const response = await handleBlogInteraction(request, env, match, dependencies);
+  if (env.BLOG_COMMENT_SOURCE !== 'wordpress' || match.kind !== 'summary' || !response.ok) return response;
+  const meta = await wordpressCommentMeta(wordpressFetch, match.slug);
+  if (meta === null) return json({ error: 'BLOG_COMMENTS_UNAVAILABLE' }, 503);
+  if (!meta) return response;
+  const summary = await response.json();
+  return json({ ...summary, comment_count: meta.comment_count, reply_count: meta.reply_count, comments_open: meta.comments_open, wordpress_post_id: meta.post_id });
+}
+
+async function routeWordpressComment(request, env, match) {
+  const storedToken = env.WORDPRESS_OAUTH_TOKENS?.get ? await env.WORDPRESS_OAUTH_TOKENS.get('access_token') : null;
+  return handleWordpressComment(request, { ...env, WORDPRESS_ACCESS_TOKEN: env.WORDPRESS_ACCESS_TOKEN || storedToken }, match, {
+    wordpressFetch,
+    requireUser: (incoming) => authenticatedUser(incoming, env),
+    rateLimit: (incoming, action) => allowRateLimitedAction(env, `${action}:${requestNetworkKey(incoming)}`)
   });
+}
+
+async function routeWordpressOauth(request, env, action) {
+  const dependencies = {
+    requireOwner: (incoming) => ownerUser(incoming, env),
+    rateLimit: (incoming, name) => allowRateLimitedAction(env, `${name}:${requestNetworkKey(incoming)}`),
+    exchangeToken: exchangeWordpressToken
+  };
+  return action === 'start'
+    ? handleWordpressOauthStart(request, env, dependencies)
+    : handleWordpressOauthCallback(request, env, dependencies);
 }
 
 async function handlePublicBlogCategories() {
@@ -1154,6 +1184,8 @@ export default {
     if (url.pathname === '/api/auth/native/logout' && request.method === 'POST') return handleNativeLogout(request, env);
     if (url.pathname === '/api/auth/recovery/request' && request.method === 'POST') return handleRecoveryRequest(request, env);
     if (url.pathname === '/api/auth/recovery/complete' && request.method === 'POST') return handleRecoveryComplete(request, env);
+    if (url.pathname === '/api/wordpress/oauth/start' && request.method === 'GET') return routeWordpressOauth(request, env, 'start');
+    if (url.pathname === '/api/wordpress/oauth/callback' && request.method === 'POST') return routeWordpressOauth(request, env, 'callback');
     if (url.pathname === '/api/public-config' && request.method === 'GET') return json({ supabaseUrl: env.SUPABASE_URL || null, supabaseAnonKey: env.SUPABASE_ANON_KEY || null, environment: env.APP_ENV || 'unknown', payment: { provider: 'SEPAY', mode: env.SEPAY_MODE || null } });
     if (url.pathname === '/api/quote' && request.method === 'POST') {
       const pricing = await activePricing(env);
@@ -1164,6 +1196,8 @@ export default {
     if (url.pathname === '/api/blog' && request.method === 'GET') return handlePublicBlog(url);
     if (url.pathname === '/api/blog/categories' && request.method === 'GET') return handlePublicBlogCategories();
     if (url.pathname === '/api/sitemap.xml' && request.method === 'GET') return handlePublicSitemap();
+    const wordpressComment = env.BLOG_COMMENT_SOURCE === 'wordpress' ? matchWordpressComment(url.pathname, request.method) : null;
+    if (wordpressComment) return routeWordpressComment(request, env, wordpressComment);
     const blogInteraction = matchBlogInteraction(url.pathname, request.method);
     if (blogInteraction) return routeBlogInteraction(request, env, blogInteraction);
     if (url.pathname === '/api/templates' && request.method === 'GET') return handleTemplates(url);

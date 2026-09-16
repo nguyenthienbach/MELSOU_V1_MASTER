@@ -8126,6 +8126,7 @@ var blogInteractionsState = {
   commentCount: 0,
   shareCount: 0,
   viewCount: 0,
+  commentsOpen: true,
   sort: 'top', // 'top' | 'latest'
   comments: [],
   nextCursor: null,
@@ -8360,6 +8361,21 @@ function renderBlogPostInteractions() {
   const commentCountEl = document.getElementById('blogPostCommentCount');
   const shareCountEl = document.getElementById('blogPostShareCount');
   const headerCountEl = document.getElementById('blogCommentsHeaderCount');
+  const commentInput = document.getElementById('blogCommentInput');
+  const commentSubmit = document.getElementById('blogCommentSubmitBtn');
+  const guestHint = document.getElementById('blogCommentGuestHint');
+
+  if (commentInput) {
+    commentInput.disabled = !blogInteractionsState.commentsOpen;
+    commentInput.placeholder = blogInteractionsState.commentsOpen
+      ? 'Chia sẻ cảm nghĩ của bạn về câu chuyện này...'
+      : 'Bình luận cho bài viết này hiện đã được đóng.';
+  }
+  if (commentSubmit) commentSubmit.disabled = !blogInteractionsState.commentsOpen;
+  if (!blogInteractionsState.commentsOpen && guestHint) {
+    guestHint.style.display = 'block';
+    guestHint.textContent = 'Bình luận cho bài viết này hiện đã được đóng.';
+  }
 
   if (likeBtn) {
     if (blogInteractionsState.liked) {
@@ -8400,6 +8416,7 @@ async function initBlogInteractions(slug) {
   blogInteractionsState.likeCount = 0;
   blogInteractionsState.commentCount = 0;
   blogInteractionsState.shareCount = 0;
+  blogInteractionsState.commentsOpen = true;
   blogInteractionsState.comments = [];
   blogInteractionsState.nextCursor = null;
   blogInteractionsState.replies = {};
@@ -8423,6 +8440,7 @@ async function initBlogInteractions(slug) {
       blogInteractionsState.commentCount = (summary.comment_count || 0) + (summary.reply_count || 0);
       blogInteractionsState.shareCount = summary.share_count || 0;
       blogInteractionsState.viewCount = summary.view_count || 0;
+      blogInteractionsState.commentsOpen = summary.comments_open !== false;
       renderBlogPostInteractions();
     })
     .catch((err) => {
@@ -8750,6 +8768,10 @@ async function submitBlogComment() {
   const input = document.getElementById('blogCommentInput');
   const submitBtn = document.getElementById('blogCommentSubmitBtn');
   if (!input) return;
+  if (!blogInteractionsState.commentsOpen) {
+    showToast('Bình luận cho bài viết này hiện đã được đóng.');
+    return;
+  }
   const content = input.value.trim();
   if (!content) {
     input.focus();
@@ -8806,6 +8828,10 @@ async function submitBlogComment() {
 }
 
 function toggleInlineReplyBox(commentId, authorName) {
+  if (!blogInteractionsState.commentsOpen) {
+    showToast('Bình luận cho bài viết này hiện đã được đóng.');
+    return;
+  }
   const box = document.getElementById(`blogInlineReplyBox-${commentId}`);
   if (!box) return;
   const isOpen = box.classList.toggle('open');
@@ -8922,6 +8948,10 @@ async function submitBlogReply(commentId) {
   const input = document.getElementById(`blogReplyInput-${commentId}`);
   const btn = document.getElementById(`blogReplySubmitBtn-${commentId}`);
   if (!input) return;
+  if (!blogInteractionsState.commentsOpen) {
+    showToast('Bình luận cho bài viết này hiện đã được đóng.');
+    return;
+  }
   const content = input.value.trim();
   if (!content) {
     input.focus();
@@ -9105,7 +9135,10 @@ function updateBlogInteractionsAuthUI() {
   }
 
   if (guestHint) {
-    guestHint.style.display = isLoggedIn ? 'none' : 'block';
+    guestHint.style.display = blogInteractionsState.commentsOpen && isLoggedIn ? 'none' : 'block';
+    guestHint.textContent = blogInteractionsState.commentsOpen
+      ? 'Đăng nhập để tham gia bình luận và phản hồi.'
+      : 'Bình luận cho bài viết này hiện đã được đóng.';
   }
 
   // Restore draft if any

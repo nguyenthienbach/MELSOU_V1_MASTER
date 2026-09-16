@@ -462,6 +462,24 @@ This log prevents accidental overlap. Add the newest entry at the top.
 - **Protected contracts:** hooks/API/data that will remain unchanged
 - **Status:** IN PROGRESS
 
+## IN PROGRESS — Codex — WordPress OAuth callback route
+
+- **When / agent:** 2026-09-16 — Codex
+- **Files reserved:** `demo/recovery_fb38/vercel.json`, `demo/recovery_fb38/wordpress-oauth-callback.html`, `demo/recovery_fb38/wordpress-oauth-callback.js`, `worker/wordpress-oauth.mjs`, `worker/wordpress-oauth.test.mjs`, `worker/index.mjs`, `PRODUCTION_SETUP.md`
+- **Purpose:** provide a noindex callback route and OWNER-only server-side authorization-code exchange without exposing WordPress credentials to the browser.
+- **Protected contracts:** preserve FB91 routes/UI, Blog/WordPress adapter, Auth, Cart, Studio and Checkout; never log, render or persist an authorization code; never expose Client Secret/access token client-side.
+- **Checks:** callback rewrite PASS; callback/server syntax PASS; OAuth state/secret-leak/storage tests PASS; targeted WordPress routing tests PASS (11/11); demo syntax PASS; `git diff --check` PASS.
+- **Status:** DONE — ready for PO review; not committed, pushed, deployed or configured. Production activation still requires private Worker configuration and a KV binding.
+
+## IN PROGRESS — Codex — WordPress Blog interactions source migration
+
+- **When / agent:** 2026-09-16 — Codex
+- **Files reserved:** `worker/wordpress-comments.mjs`, `worker/wordpress-comments.test.mjs`, `worker/index.mjs`, `demo/recovery_fb38/app.js`, `PRODUCTION_SETUP.md`
+- **Purpose:** introduce a rollback-safe WordPress comments/replies/comment-lock adapter while retaining Supabase interactions for rollback and keeping unsupported metrics on their verified Melsou source.
+- **Protected contracts:** preserve approved Blog UI, Auth Gate/comment drafts, WordPress posts/categories/images, likes/views/share behavior, Supabase tables/endpoints, Studio, Cart, Auth, and Checkout; no dual-write and no production activation without credentials and integration tests.
+- **Checks:** live WordPress post ID/slug/comment status PASS; public approved-comments read PASS; public post-like count PASS; unauthenticated Jetpack Stats correctly returned 403; syntax/demo checks PASS; targeted WordPress/legacy interaction tests PASS (18/18); `git diff --check` PASS.
+- **Status:** BLOCKED — adapter implementation is ready for PO review, but write/moderation integration cannot be tested or enabled until `WORDPRESS_ACCESS_TOKEN` is configured privately as a Worker secret. `BLOG_COMMENT_SOURCE=wordpress` remains intentionally unset.
+
 ## IN PROGRESS — Codex — post-login return context isolation
 
 - **When / agent:** 2026-09-16 — Codex
