@@ -462,6 +462,15 @@ This log prevents accidental overlap. Add the newest entry at the top.
 - **Protected contracts:** hooks/API/data that will remain unchanged
 - **Status:** IN PROGRESS
 
+## IN PROGRESS — Codex — post-login return context isolation
+
+- **When / agent:** 2026-09-16 — Codex
+- **Files reserved:** `demo/recovery_fb38/app.js`
+- **Purpose:** ensure Blog comment/reply authentication returns to Blog while checkout resumes only from a current checkout auth gate.
+- **Protected contracts:** preserve guest drafts, cart contents, explicit checkout flow, Blog Auth Gate, comment/reply drafts, Native Login, and Blog Interactions.
+- **Checks:** JavaScript/demo syntax PASS; targeted return-context assertions PASS; auth/session/cart route tests PASS (6/6); `git diff --check` PASS.
+- **Status:** DONE — Blog auth restores its route, scroll position and comment/reply draft; shipping resumes only from an explicit current checkout auth gate.
+
 ## IN PROGRESS — Codex — production Native Login draft isolation
 
 - **When / agent:** 2026-09-16 — Codex
