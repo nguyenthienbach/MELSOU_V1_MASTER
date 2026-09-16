@@ -305,12 +305,20 @@
   async function applyAuthenticatedSession(session) {
     if (!session?.user) return;
     await claimGuestDraft(session);
-    window.MelsouAuth.handleAuthSuccess({
+    let role = 'CUSTOMER';
+    try {
+      const account = await api('/account', { headers: session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : {} });
+      if (account?.profile?.role) role = String(account.profile.role).toUpperCase();
+    } catch {}
+    const authData = {
       id: session.user.id,
       name: session.user.user_metadata?.full_name || session.user.user_metadata?.name || session.user.email,
       email: session.user.email,
-      avatar: session.user.user_metadata?.avatar_url || ''
-    });
+      avatar: session.user.user_metadata?.avatar_url || '',
+      role
+    };
+    window.MelsouAuth?.handleAuthSuccess(authData);
+    window.codexOnAuthSuccess?.(authData);
   }
 
   function canonicalSlotForUiSlot(slotKey, bridge) {
@@ -381,7 +389,14 @@
       // instead of presenting a successful login as an authentication failure.
       console.warn('[Melsou] guest draft claim deferred:', error.code || error.message);
     }
-    window.codexOnAuthSuccess?.({ id: user.id, username: user.username, name: user.username, email: user.email || '' });
+    const role = String(user.role || 'CUSTOMER').toUpperCase();
+    window.codexOnAuthSuccess?.({
+      id: user.id || user.user_id,
+      username: user.username,
+      name: user.username,
+      email: user.email || '',
+      role
+    });
   }
 
   async function nativeAuth(path, credentials) {
@@ -443,7 +458,6 @@
     } catch (error) { window.codexOnAuthError?.(error.code === 'RECOVERY_EMAIL_REQUIRED' ? 'Tài khoản chưa liên kết email khôi phục.' : error.message); throw error; }
   };
   window.codexHandleLinkEmail = async ({ email }) => api('/account/email/link', { method: 'POST', body: JSON.stringify({ email }) });
-
   function checkoutConfiguration() {
     const draft = window.melsouGetActiveDraft?.() || {};
     const packageCode = String(draft.package || 'signature').toUpperCase();
@@ -478,7 +492,12 @@
     try {
       const account = await api('/account');
       if (account?.auth?.provider === 'NATIVE') {
-        await applyNativeUser({ id: account.profile?.user_id, username: account.auth.username, email: account.auth.email });
+        await applyNativeUser({
+          id: account.profile?.user_id,
+          username: account.auth.username,
+          email: account.auth.email,
+          role: account.profile?.role || 'CUSTOMER'
+        });
         return;
       }
     } catch (error) {
