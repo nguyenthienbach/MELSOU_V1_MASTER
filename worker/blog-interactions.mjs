@@ -43,11 +43,32 @@ function publicComment(value) {
   return safe;
 }
 
+function decodeOwnerCursor(value) {
+  if (!value) return { createdAt: null, id: null };
+  if (!/^[A-Za-z0-9_-]{1,512}$/.test(value)) return null;
+  try {
+    const normalized = value.replace(/-/g, '+').replace(/_/g, '/');
+    const decoded = JSON.parse(atob(normalized.padEnd(Math.ceil(normalized.length / 4) * 4, '=')));
+    if (!decoded || typeof decoded.created_at !== 'string' || !uuidPattern.test(decoded.id || '')) return null;
+    const createdAt = new Date(decoded.created_at);
+    if (!Number.isFinite(createdAt.getTime())) return null;
+    return { createdAt: createdAt.toISOString(), id: decoded.id };
+  } catch {
+    return null;
+  }
+}
+
+function encodeOwnerCursor(value) {
+  if (!value?.created_at || !uuidPattern.test(value?.id || '')) return null;
+  return btoa(JSON.stringify({ created_at: value.created_at, id: value.id }))
+    .replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/g, '');
+}
+
 export async function handleBlogInteraction(request, env, match, dependencies) {
-  const { serviceFetch, getActor, requireUser, requireOwner, rateLimit, verifyPost } = dependencies;
+  const { serviceFetch, getActor, requireUser, requireOwner, authorizeOwner, rateLimit, verifyPost } = dependencies;
   const slug = match.slug;
-  if (!slugPattern.test(slug)) return json({ error: 'INVALID_POST_SLUG' }, 400);
-  if (match.kind !== 'moderate') {
+  if (!['moderate', 'owner-list'].includes(match.kind) && !slugPattern.test(slug)) return json({ error: 'INVALID_POST_SLUG' }, 400);
+  if (!['moderate', 'owner-list'].includes(match.kind)) {
     const post = await verifyPost(slug);
     if (post === null) return json({ error: 'BLOG_UNAVAILABLE' }, 503);
     if (!post) return json({ error: 'BLOG_POST_NOT_FOUND' }, 404);
@@ -59,9 +80,52 @@ export async function handleBlogInteraction(request, env, match, dependencies) {
     return result.ok ? json({ post_slug: slug, ...result.value }) : dbFailure(result);
   }
 
+  let ownerAuthorization = null;
+  if (match.kind === 'owner-list' || match.kind === 'moderate') {
+    const fallbackOwner = authorizeOwner ? null : await requireOwner(request);
+    ownerAuthorization = authorizeOwner
+      ? await authorizeOwner(request)
+      : (fallbackOwner ? { ok: true, user: fallbackOwner } : { ok: false, status: 403, error: 'OWNER_REQUIRED' });
+    if (!ownerAuthorization?.ok) return json(
+      { error: ownerAuthorization?.error || 'OWNER_REQUIRED' },
+      ownerAuthorization?.status || 403
+    );
+  }
+
   const limited = await rateLimit(request, `blog:${match.kind}`);
   if (limited?.configurationMissing) return json({ error: 'RATE_LIMIT_NOT_CONFIGURED' }, 503);
   if (limited && !limited.allowed) return json({ error: 'RATE_LIMITED' }, 429);
+
+  if (match.kind === 'owner-list') {
+    const url = new URL(request.url);
+    const postSlug = url.searchParams.get('post_slug') || null;
+    const status = url.searchParams.get('status') || 'all';
+    const sort = url.searchParams.get('sort') || 'newest';
+    const limit = Math.min(100, Math.max(1, Number.parseInt(url.searchParams.get('limit') || '50', 10) || 50));
+    const cursor = decodeOwnerCursor(url.searchParams.get('cursor'));
+    if (postSlug !== null && !slugPattern.test(postSlug)) return json({ error: 'INVALID_POST_SLUG' }, 400);
+    if (!['visible', 'hidden', 'deleted', 'all'].includes(status)) return json({ error: 'INVALID_STATUS' }, 400);
+    if (!['newest', 'oldest'].includes(sort)) return json({ error: 'INVALID_SORT' }, 400);
+    if (cursor === null) return json({ error: 'INVALID_CURSOR' }, 400);
+
+    const result = await rpc(serviceFetch, 'melsou_owner_list_blog_comments', {
+      p_owner_id: ownerAuthorization.user.id,
+      p_post_slug: postSlug,
+      p_status: status,
+      p_limit: limit,
+      p_cursor_created_at: cursor.createdAt,
+      p_cursor_id: cursor.id,
+      p_sort: sort
+    });
+    if (!result.ok) return dbFailure(result);
+    return json({
+      comments: (result.value?.comments || []).map(publicComment),
+      limit,
+      next_cursor: encodeOwnerCursor(result.value?.next_cursor),
+      status,
+      post_slug: postSlug
+    });
+  }
 
   if (match.kind === 'post-like') {
     const body = await parseBody(request);
@@ -137,8 +201,7 @@ export async function handleBlogInteraction(request, env, match, dependencies) {
   }
 
   if (match.kind === 'moderate') {
-    const owner = await requireOwner(request);
-    if (!owner) return json({ error: 'OWNER_REQUIRED' }, 403);
+    const owner = ownerAuthorization.user;
     const body = await parseBody(request);
     const status = request.method === 'DELETE' ? 'deleted' : body?.status;
     if (!['visible', 'hidden', 'deleted', 'pending'].includes(status) || !uuidPattern.test(match.commentId || '')) return json({ error: 'INVALID_MODERATION' }, 400);
@@ -150,6 +213,7 @@ export async function handleBlogInteraction(request, env, match, dependencies) {
 }
 
 export function matchBlogInteraction(pathname, method) {
+  if (pathname === '/api/owner/blog/comments' && method === 'GET') return { kind: 'owner-list', slug: null };
   let match = pathname.match(/^\/api\/blog\/([a-z0-9-]+)\/interactions$/);
   if (match && method === 'GET') return { kind: 'summary', slug: match[1] };
   match = pathname.match(/^\/api\/blog\/([a-z0-9-]+)\/like$/);

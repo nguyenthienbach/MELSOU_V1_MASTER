@@ -440,6 +440,18 @@ async function ownerUser(request, env) {
   return profile?.role === 'OWNER' ? user : null;
 }
 
+async function blogOwnerAuth(request, env) {
+  const user = await nativeSessionUser(request, env);
+  if (!user) return { ok: false, status: 401, error: 'UNAUTHORIZED' };
+  if (!env.OWNER_USER_ID || user.id !== env.OWNER_USER_ID) return { ok: false, status: 403, error: 'FORBIDDEN' };
+  const response = await serviceFetch(env, `profiles?user_id=eq.${user.id}&select=role&limit=1`);
+  if (!response.ok) return { ok: false, status: 503, error: 'OWNER_PROFILE_UNAVAILABLE' };
+  const [profile] = await response.json();
+  return profile?.role === 'OWNER'
+    ? { ok: true, user }
+    : { ok: false, status: 403, error: 'FORBIDDEN' };
+}
+
 async function handleAccount(request, env) {
   const user = await authenticatedUser(request, env);
   if (!user) return json({ error: 'UNAUTHENTICATED' }, 401);
@@ -565,6 +577,7 @@ async function routeBlogInteraction(request, env, match) {
     getActor: (incoming, options) => blogInteractionActor(incoming, env, options),
     requireUser: (incoming) => authenticatedUser(incoming, env),
     requireOwner: (incoming) => ownerUser(incoming, env),
+    authorizeOwner: (incoming) => blogOwnerAuth(incoming, env),
     rateLimit: (incoming, action) => allowRateLimitedAction(env, `${action}:${requestNetworkKey(incoming)}`),
     verifyPost: async (slug) => {
       try {

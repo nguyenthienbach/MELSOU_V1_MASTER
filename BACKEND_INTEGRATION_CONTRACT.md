@@ -218,11 +218,19 @@ field and switch to the POST contract above.
 | `/api/blog/:slug/comments/:commentId/like` | `POST`, account or guest cookie | `{ liked: boolean }` | `{ comment_id, liked, like_count }`; idempotent per actor |
 | `/api/blog/:slug/share` | `POST`, account or guest cookie | `{ share_type: copy_link\|native_share\|facebook\|other }` | `202 { recorded, share_count }`; duplicate actor/type clicks are deduped per minute |
 | `/api/blog/:slug/view` | `POST`, account or guest cookie | — | `202 { recorded, view_count, unique_view_count }` |
+| `/api/owner/blog/comments?post_slug=&status=all&limit=50&cursor=&sort=newest` | `GET`, native OWNER session | Optional `post_slug`; `status=visible\|hidden\|deleted\|all`; `limit` 1–100; opaque `cursor`; `sort=newest\|oldest` | `{ comments, limit, next_cursor, status, post_slug }`; includes root comments and replies in one paginated result |
 | `/api/owner/blog/comments/:commentId` | `PATCH`/`DELETE`, OWNER | `{ status: visible\|hidden\|deleted\|pending }` | Soft moderation result with audit log; `DELETE` sets `deleted` |
-| `/api/blog/:slug/comments/:commentId` | `PATCH`, authenticated owner | `{ content }` | Edit own comment/reply; response never includes `user_id` |
-| `/api/blog/:slug/comments/:commentId` | `DELETE`, authenticated owner | none | Soft-delete own comment/reply; never hard-deletes the row |
+| `/api/blog/:slug/comments/:commentId` | `PATCH`, authenticated account | `{ content }` | Edit own comment/reply; response never includes `user_id` |
+| `/api/blog/:slug/comments/:commentId` | `DELETE`, authenticated account | none | Soft-delete own comment/reply; never hard-deletes the row |
 
 Blog interaction responses expose only display-safe fields (`id`, `post_slug`, `parent_comment_id`, `content`, timestamps, status/counts, `liked`, `author_name`, `can_edit`). They never expose `user_id`, guest-session hashes, or legacy external IDs. WordPress validates post existence/content only; Supabase is the sole interaction store when `BLOG_COMMENT_SOURCE=supabase`.
+
+The OWNER inventory requires the native HttpOnly session, exact configured
+`OWNER_USER_ID`, and `profiles.role=OWNER` on every request. Its opaque cursor
+is a stable `created_at + id` keyset. Deleted records return the placeholder
+`[Đã xóa]`; no deleted content, email, user ID, session hash or other PII is
+returned. The endpoint is the canonical moderation list for all statuses; do
+not use the public visible-only comments endpoint for OWNER moderation.
 | `/api/owner/blog` | `GET`, OWNER | — | `{ posts }`, all states |
 | `/api/owner/blog` | `POST`, OWNER | `{ slug?, title, excerpt?, content, coverAssetId?, category?, tags?, status? }` | `201 { post }` |
 | `/api/owner/blog/:id` | `PUT`, OWNER | Partial fields | `{ post }` |
