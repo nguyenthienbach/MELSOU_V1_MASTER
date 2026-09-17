@@ -109,6 +109,41 @@ test('customer cannot use owner blog write API', async (t) => {
   assert.deepEqual(await response.json(), { error: 'OWNER_REQUIRED' });
 });
 
+test('OWNER Blog inventory requires native configured OWNER and returns only safe moderation fields', async (t) => {
+  const ownerId = '11111111-1111-4111-8111-111111111111';
+  const sessionCookie = `melsou_session_v1=${'a'.repeat(64)}`;
+  t.mock.method(globalThis, 'fetch', async (url, init = {}) => {
+    const value = String(url);
+    if (value.includes('/rpc/melsou_native_session_user')) {
+      return new Response(JSON.stringify({ id: ownerId, username: 'owner' }), { status: 200 });
+    }
+    if (value.includes('/profiles?')) {
+      return new Response(JSON.stringify([{ role: 'OWNER' }]), { status: 200 });
+    }
+    if (value.includes('/rpc/melsou_owner_list_blog_comments')) {
+      const body = JSON.parse(init.body);
+      assert.equal(body.p_owner_id, ownerId);
+      return new Response(JSON.stringify({
+        comments: [{ id: '22222222-2222-4222-8222-222222222222', post_slug: 'post', parent_comment_id: null, content: '[Đã xóa]', status: 'deleted', created_at: '2026-09-17T00:00:00.000Z', updated_at: '2026-09-17T00:00:00.000Z', author_name: 'Owner-safe name', reply_count: 0 }],
+        has_more: false,
+        next_cursor: null
+      }), { status: 200 });
+    }
+    throw new Error(`Unexpected fetch ${value}`);
+  });
+
+  const env = { APP_ENV: 'test', SUPABASE_URL: 'https://db.test', SUPABASE_SERVICE_ROLE_KEY: 'service', OWNER_USER_ID: ownerId };
+  const guest = await worker.fetch(new Request('https://melsou.test/api/owner/blog/comments'), env);
+  assert.equal(guest.status, 401);
+
+  const owner = await worker.fetch(new Request('https://melsou.test/api/owner/blog/comments?status=deleted', { headers: { Cookie: sessionCookie } }), env);
+  assert.equal(owner.status, 200);
+  const body = await owner.json();
+  assert.equal(body.comments[0].status, 'deleted');
+  assert.equal(Object.hasOwn(body.comments[0], 'user_id'), false);
+  assert.equal(Object.hasOwn(body.comments[0], 'email'), false);
+});
+
 test('cart ignores a client-supplied price and persists canonical configuration only', async (t) => {
   let rpcBody;
   t.mock.method(globalThis, 'fetch', async (url, init = {}) => {

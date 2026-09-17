@@ -60,6 +60,15 @@
   window.codexToggleBlogCommentLike = async (slug, commentId, liked) => api(`/blog/${encodeURIComponent(slug)}/comments/${encodeURIComponent(commentId)}/like`, { method: 'POST', body: JSON.stringify({ liked }) });
   window.codexUpdateBlogComment = async (slug, commentId, content) => api(`/blog/${encodeURIComponent(slug)}/comments/${encodeURIComponent(commentId)}`, { method: 'PATCH', body: JSON.stringify({ content }) });
   window.codexDeleteBlogComment = async (slug, commentId) => api(`/blog/${encodeURIComponent(slug)}/comments/${encodeURIComponent(commentId)}`, { method: 'DELETE' });
+  window.codexListOwnerBlogComments = async ({ postSlug = null, status = 'all', limit = 50, cursor = null, sort = 'newest' } = {}) => {
+    const params = new URLSearchParams();
+    if (postSlug) params.set('post_slug', postSlug);
+    params.set('status', status);
+    params.set('limit', String(limit));
+    if (cursor) params.set('cursor', cursor);
+    params.set('sort', sort);
+    return api(`/owner/blog/comments?${params.toString()}`);
+  };
   window.codexModerateBlogComment = async (commentId, status) => api(`/owner/blog/comments/${encodeURIComponent(commentId)}`, { method: 'PATCH', body: JSON.stringify({ status }) });
   window.codexRecordBlogShare = async (slug, shareType) => api(`/blog/${encodeURIComponent(slug)}/share`, { method: 'POST', body: JSON.stringify({ share_type: shareType }) });
   window.codexRecordBlogView = async (slug) => api(`/blog/${encodeURIComponent(slug)}/view`, { method: 'POST' });

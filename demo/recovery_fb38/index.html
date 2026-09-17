@@ -2099,6 +2099,65 @@
       </div>
     </div>
 
+    <!-- 💬 Quản lý bình luận Blog Card -->
+    <div class="owner-section-card" id="ownerBlogCommentsModerationCard" aria-busy="false" style="background:#fcfbf9;border:1px solid #ebd9c8;border-radius:14px;padding:20px;margin-bottom:20px">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px;margin-bottom:14px;flex-wrap:wrap">
+        <div>
+          <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px">
+            <span style="font-size:18px">💬</span>
+            <strong style="font-size:16px;color:var(--dark)">Quản lý bình luận Blog</strong>
+          </div>
+          <p style="font-size:13px;color:var(--gray);line-height:1.5;margin:0">
+            Xem và kiểm duyệt các bình luận, phản hồi của người dùng trên Blog Melsou. Dữ liệu lưu trữ độc lập trên Supabase.
+          </p>
+        </div>
+        <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+          <select id="ownerBlogFilterPostSelect" class="owner-blog-select" onchange="onOwnerBlogFilterPostChange()" style="padding:7px 12px;font-size:12.5px;border-radius:8px;border:1px solid var(--gray-l);background:white;color:var(--dark);max-width:200px;outline:none" aria-label="Lọc theo bài viết">
+            <option value="">Tất cả bài viết</option>
+          </select>
+          <select id="ownerBlogFilterStatusSelect" class="owner-blog-select" onchange="onOwnerBlogFilterStatusChange()" style="padding:7px 12px;font-size:12.5px;border-radius:8px;border:1px solid var(--gray-l);background:white;color:var(--dark);outline:none" aria-label="Lọc theo trạng thái">
+            <option value="all">Tất cả trạng thái</option>
+            <option value="visible">Hiển thị (visible)</option>
+            <option value="hidden">Đã ẩn (hidden)</option>
+            <option value="deleted">Đã xóa (deleted)</option>
+          </select>
+          <button class="btn-outline" id="ownerBlogCommentsRefreshBtn" onclick="refreshOwnerBlogComments()" style="padding:6px 12px;font-size:12px;border-radius:8px" aria-label="Làm mới danh sách bình luận">
+            🔄 Làm mới
+          </button>
+        </div>
+      </div>
+
+      <!-- Loading State -->
+      <div id="ownerBlogCommentsLoading" role="status" aria-live="polite" style="display:none;text-align:center;padding:24px;color:var(--gray);font-size:13px">
+        <span class="inline-spinner" style="display:inline-block;width:16px;height:16px;border:2px solid #ddd;border-top-color:var(--dark);border-radius:50%;animation:spin 0.8s linear infinite;vertical-align:middle;margin-right:6px"></span>
+        Đang tải danh sách bình luận...
+      </div>
+
+      <!-- Error State -->
+      <div id="ownerBlogCommentsError" role="alert" aria-live="assertive" style="display:none;background:#fef2f2;border:1px solid #fecaca;border-radius:8px;padding:12px 16px;color:#b91c1c;font-size:13px;margin-bottom:12px">
+        <span id="ownerBlogCommentsErrorText">Không thể tải bình luận.</span>
+      </div>
+
+      <!-- Empty State -->
+      <div id="ownerBlogCommentsEmpty" role="status" style="display:none;text-align:center;padding:28px 16px;color:var(--gray);font-size:13px;background:white;border-radius:10px;border:1px dashed var(--gray-l)">
+        <div style="font-size:24px;margin-bottom:6px">💬</div>
+        Chưa có bình luận nào phù hợp với bộ lọc.
+      </div>
+
+      <!-- Moderation Comments List Container -->
+      <div id="ownerBlogCommentsListWrap" style="display:none;max-height:360px;overflow-y:auto;border-radius:10px;border:1px solid var(--gray-l);background:white">
+        <div id="ownerBlogCommentsList" class="owner-blog-comments-table">
+          <!-- Populated dynamically via JS -->
+        </div>
+        <div id="ownerBlogCommentsPagination" style="display:none;text-align:center;padding:12px;border-top:1px solid #f3f4f6">
+          <button type="button" class="btn-outline" id="ownerBlogCommentsLoadMoreBtn" onclick="loadMoreOwnerBlogComments()" style="padding:6px 16px;font-size:12px;border-radius:8px">
+            <span id="ownerBlogCommentsLoadMoreSpinner" class="inline-spinner" style="display:none;width:12px;height:12px;border:2px solid #ccc;border-top-color:var(--dark);border-radius:50%;margin-right:6px;vertical-align:middle"></span>
+            <span id="ownerBlogCommentsLoadMoreText">Tải thêm bình luận</span>
+          </button>
+        </div>
+      </div>
+    </div>
+
     <!-- Quick Admin Actions Grid -->
     <div style="margin-bottom:20px">
       <div style="font-size:13px;font-weight:700;color:var(--gray);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:10px">Công cụ Quản trị viên</div>

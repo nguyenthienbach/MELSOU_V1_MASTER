@@ -462,6 +462,15 @@ This log prevents accidental overlap. Add the newest entry at the top.
 - **Protected contracts:** hooks/API/data that will remain unchanged
 - **Status:** IN PROGRESS
 
+## IN PROGRESS — Codex — OWNER Blog moderation inventory
+
+- **When / agent:** 2026-09-17 — Codex
+- **Files reserved:** `worker/blog-interactions.mjs`, `worker/blog-interactions.test.mjs`, `worker/blog-interactions-ui.test.mjs`, `worker/index.mjs`, `worker/routes.test.mjs`, `supabase/migrations/202609170001_owner_blog_comment_list.sql`, `tests/fixtures/202609170001_owner_blog_comment_list_post_migration.sql`, `demo/recovery_fb38/auth-client.js`, `BACKEND_INTEGRATION_CONTRACT.md`, `PRODUCTION_SETUP.md`, `COLLABORATION_LOG.md`
+- **Purpose:** add a native-OWNER-only, all-status, keyset-paginated Blog comment/reply inventory without N+1 reads or identity leakage.
+- **Protected contracts:** preserve Anti's uncommitted `index.html`, `styles.css`, and `app.js`; preserve public Blog APIs, existing moderation PATCH/DELETE, RLS, service-role isolation, Auth, Cart, Studio, Checkout, and WordPress post authority.
+- **Checks:** OWNER inventory/Blog/routes targeted suite PASS (46/46); full backend suite PASS (117/117); Worker/demo syntax PASS; `git diff --check` PASS. Dependencies were restored exactly from `package-lock.json` with `npm ci`; dependency versions and lockfile were unchanged.
+- **Status:** DONE — production migration `202609170001_owner_blog_comment_list.sql` applied successfully; post-migration verification PASS (all security/RLS/grant/index checks and 13/13 function-contract sub-checks). OWNER inventory frontend hook and fail-closed verifier are ready for commit review. No commit, push, merge, or deployment performed.
+
 ## IN PROGRESS — Codex — OWNER WordPress OAuth contract
 
 - **When / agent:** 2026-09-16 — Codex

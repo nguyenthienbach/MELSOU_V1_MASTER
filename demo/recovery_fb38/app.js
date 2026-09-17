@@ -1146,6 +1146,8 @@ window.openOwnerDashboardModal = function() {
   }
   // Khi mở Dashboard, trạng thái kết nối luôn được lấy từ backend
   window.refreshWordPressConnectionStatus?.();
+  // Khởi tạo và tải danh sách kiểm duyệt bình luận Blog cho OWNER
+  window.initOwnerBlogCommentsModeration?.();
 };
 
 window.closeOwnerDashboardModal = function() {
@@ -8516,7 +8518,9 @@ function handleLocalDevMock(path, options = {}) {
       created_at: new Date().toISOString(),
       like_count: 0,
       reply_count: 0,
-      liked: false
+      liked: false,
+      can_edit: true,
+      status: 'visible'
     };
     store.comments.unshift(newComment);
     return { comment: { ...newComment } };
@@ -8542,12 +8546,15 @@ function handleLocalDevMock(path, options = {}) {
     const newReply = {
       id: `mock-r-${Date.now()}`,
       post_slug: slug,
+      parent_comment_id: commentId,
       author_name: authorName,
       content: body.content,
       created_at: new Date().toISOString(),
       like_count: 0,
       reply_count: 0,
-      liked: false
+      liked: false,
+      can_edit: true,
+      status: 'visible'
     };
     if (!store.replies[commentId]) store.replies[commentId] = [];
     store.replies[commentId].push(newReply);
@@ -8574,6 +8581,92 @@ function handleLocalDevMock(path, options = {}) {
       return { comment_id: commentId, liked: target.liked, like_count: target.like_count };
     }
     return { comment_id: commentId, liked: body.liked, like_count: body.liked ? 1 : 0 };
+  }
+
+  // Comment edit (PATCH)
+  const commentSingleMatch = pathname.match(/\/comments\/([^/]+)$/);
+  if (commentSingleMatch && method === 'PATCH') {
+    const commentId = decodeURIComponent(commentSingleMatch[1]);
+    const body = JSON.parse(options.body || '{}');
+    let target = store.comments.find(c => c.id === commentId);
+    if (!target) {
+      for (const arr of Object.values(store.replies)) {
+        target = arr.find(r => r.id === commentId);
+        if (target) break;
+      }
+    }
+    if (target) {
+      target.content = body.content;
+      return { comment: { ...target } };
+    }
+    throw new Error('COMMENT_NOT_FOUND');
+  }
+
+  // Comment delete (DELETE)
+  if (commentSingleMatch && method === 'DELETE') {
+    const commentId = decodeURIComponent(commentSingleMatch[1]);
+    const commentIndex = store.comments.findIndex(c => c.id === commentId);
+    if (commentIndex !== -1) {
+      const removed = store.comments.splice(commentIndex, 1)[0];
+      delete store.replies[commentId];
+      return { comment: { ...removed, status: 'deleted' } };
+    }
+    for (const [parentId, arr] of Object.entries(store.replies)) {
+      const replyIndex = arr.findIndex(r => r.id === commentId);
+      if (replyIndex !== -1) {
+        const removed = arr.splice(replyIndex, 1)[0];
+        const root = store.comments.find(c => c.id === parentId);
+        if (root) root.reply_count = Math.max(0, (root.reply_count || 0) - 1);
+        return { comment: { ...removed, status: 'deleted' } };
+      }
+    }
+    throw new Error('COMMENT_NOT_FOUND');
+  }
+
+  // OWNER comment moderation (PATCH /owner/blog/comments/:commentId)
+  const ownerModMatch = pathname.match(/^\/owner\/blog\/comments\/([^/]+)$/);
+  if (ownerModMatch && (method === 'PATCH' || method === 'DELETE')) {
+    const commentId = decodeURIComponent(ownerModMatch[1]);
+    const body = JSON.parse(options.body || '{}');
+    const newStatus = method === 'DELETE' ? 'deleted' : (body.status || 'hidden');
+    let target = store.comments.find(c => c.id === commentId);
+    if (!target) {
+      for (const arr of Object.values(store.replies)) {
+        target = arr.find(r => r.id === commentId);
+        if (target) break;
+      }
+    }
+    if (target) {
+      target.status = newStatus;
+      return { comment: { ...target, status: newStatus } };
+    }
+    return { comment: { id: commentId, status: newStatus } };
+  }
+
+  // OWNER comments list (GET /owner/blog/comments)
+  if (pathname === '/owner/blog/comments' && method === 'GET') {
+    const postSlug = urlObj.searchParams.get('post_slug') || null;
+    const filterStatus = urlObj.searchParams.get('status') || 'all';
+    const limit = parseInt(urlObj.searchParams.get('limit') || '50', 10);
+    let all = [];
+    const stores = typeof localBlogDevStore !== 'undefined' ? [localBlogDevStore] : [store];
+    for (const s of stores) {
+      if (postSlug && s.slug && s.slug !== postSlug) continue;
+      for (const c of s.comments || []) {
+        all.push({ ...c, post_slug: s.slug || postSlug || 'bai-viet', is_reply: false });
+      }
+      for (const [parentId, arr] of Object.entries(s.replies || {})) {
+        for (const r of arr || []) {
+          all.push({ ...r, post_slug: s.slug || postSlug || 'bai-viet', parent_comment_id: parentId, is_reply: true });
+        }
+      }
+    }
+    if (filterStatus !== 'all') {
+      all = all.filter(c => (c.status || 'visible') === filterStatus);
+    }
+    all.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+    const slice = all.slice(0, limit);
+    return { comments: slice, limit, next_cursor: null, status: filterStatus, post_slug: postSlug };
   }
 
   throw new Error('NOT_FOUND');
@@ -8621,6 +8714,21 @@ function escapeHtml(str) {
     .replace(/>/g, '&gt;')
     .replace(/"/g, '&quot;')
     .replace(/'/g, '&#039;');
+}
+
+const BLOG_UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+function isValidBlogUuid(id) {
+  return typeof id === 'string' && BLOG_UUID_REGEX.test(id.trim());
+}
+
+const ALLOWED_OWNER_MOD_ACTIONS = new Set(['visible', 'hidden', 'deleted']);
+
+function normalizeOwnerModAction(action) {
+  if (action === 'hidden') return 'hidden';
+  if (action === 'visible') return 'visible';
+  if (action === 'deleted') return 'deleted';
+  return null;
 }
 
 function formatBlogTimeAgo(dateStr) {
@@ -8722,6 +8830,41 @@ function renderBlogPostInteractions() {
   }
 }
 
+async function refreshBlogPostInteractionsSummary(slug) {
+  const targetSlug = slug || blogInteractionsState.activeSlug;
+  if (!targetSlug) return null;
+  const summaryRequestId = ++blogInteractionsState.summaryRequestId;
+  blogInteractionsState.summaryLoading = true;
+  blogInteractionsState.summaryError = '';
+  renderBlogPostInteractions();
+
+  try {
+    let summary;
+    if (typeof window.codexGetBlogInteractions === 'function') {
+      summary = await window.codexGetBlogInteractions(targetSlug);
+    } else {
+      summary = await blogFetchApi(`/blog/${encodeURIComponent(targetSlug)}/interactions`);
+    }
+    if (blogInteractionsState.activeSlug !== targetSlug || blogInteractionsState.summaryRequestId !== summaryRequestId) return summary;
+    blogInteractionsState.liked = !!summary.liked;
+    blogInteractionsState.likeCount = summary.like_count || 0;
+    blogInteractionsState.commentCount = summary.comment_count || 0;
+    blogInteractionsState.shareCount = summary.share_count || 0;
+    blogInteractionsState.viewCount = summary.view_count || 0;
+    blogInteractionsState.commentsOpen = summary.comments_open !== false;
+    blogInteractionsState.summaryLoading = false;
+    blogInteractionsState.summaryError = '';
+    renderBlogPostInteractions();
+    return summary;
+  } catch (err) {
+    if (blogInteractionsState.activeSlug !== targetSlug || blogInteractionsState.summaryRequestId !== summaryRequestId) return null;
+    blogInteractionsState.summaryLoading = false;
+    blogInteractionsState.summaryError = 'Không thể tải tương tác. Vui lòng thử lại.';
+    renderBlogPostInteractions();
+    return null;
+  }
+}
+
 async function initBlogInteractions(slug) {
   if (!slug) return;
   blogInteractionsState.activeSlug = slug;
@@ -8738,7 +8881,6 @@ async function initBlogInteractions(slug) {
   blogInteractionsState.pendingPostLike = false;
   blogInteractionsState.pendingCommentLikes.clear();
   blogInteractionsState.pendingShares.clear();
-  const summaryRequestId = ++blogInteractionsState.summaryRequestId;
 
   const interactionsBar = document.getElementById('blogPostInteractionsBar');
   const commentsSection = document.getElementById('blogCommentsSection');
@@ -8752,25 +8894,7 @@ async function initBlogInteractions(slug) {
   blogFetchApi(`/blog/${encodeURIComponent(slug)}/view`, { method: 'POST' }).catch(() => {});
 
   // 2. Fetch interaction stats
-  blogFetchApi(`/blog/${encodeURIComponent(slug)}/interactions`)
-    .then((summary) => {
-      if (blogInteractionsState.activeSlug !== slug || blogInteractionsState.summaryRequestId !== summaryRequestId) return;
-      blogInteractionsState.liked = !!summary.liked;
-      blogInteractionsState.likeCount = summary.like_count || 0;
-      blogInteractionsState.commentCount = (summary.comment_count || 0) + (summary.reply_count || 0);
-      blogInteractionsState.shareCount = summary.share_count || 0;
-      blogInteractionsState.viewCount = summary.view_count || 0;
-      blogInteractionsState.commentsOpen = summary.comments_open !== false;
-      blogInteractionsState.summaryLoading = false;
-      blogInteractionsState.summaryError = '';
-      renderBlogPostInteractions();
-    })
-    .catch(() => {
-      if (blogInteractionsState.activeSlug !== slug || blogInteractionsState.summaryRequestId !== summaryRequestId) return;
-      blogInteractionsState.summaryLoading = false;
-      blogInteractionsState.summaryError = 'Không thể tải tương tác. Vui lòng thử lại.';
-      renderBlogPostInteractions();
-    });
+  refreshBlogPostInteractionsSummary(slug);
 
   // 3. Load initial comments
   loadBlogComments({ reset: true });
@@ -8958,6 +9082,20 @@ function handleBlogCommentInput(textarea) {
   if (charCount) charCount.textContent = `${len} / 2000`;
 }
 
+let pendingCommentEdits = new Set();
+let pendingCommentDeletions = new Set();
+let pendingModerations = new Set();
+let ownerBlogModerationState = {
+  posts: [],
+  selectedSlug: '',
+  selectedStatus: 'all',
+  comments: [],
+  nextCursor: null,
+  loading: false,
+  loadingMore: false,
+  requestSeq: 0
+};
+
 async function loadBlogComments({ reset = false } = {}) {
   const slug = blogInteractionsState.activeSlug;
   if (!slug) return;
@@ -9031,12 +9169,33 @@ function loadMoreBlogComments() {
   loadBlogComments({ reset: false });
 }
 
+function setupBlogCommentsDelegation() {
+  const listEl = document.getElementById('blogCommentsList');
+  if (!listEl || listEl._delegationAttached) return;
+  listEl._delegationAttached = true;
+  listEl.addEventListener('click', (e) => {
+    const btn = e.target && typeof e.target.closest === 'function'
+      ? e.target.closest('button[data-action][data-comment-id]')
+      : null;
+    if (!btn) return;
+    const action = btn.getAttribute('data-action');
+    const rawCommentId = btn.getAttribute('data-comment-id');
+    const commentId = rawCommentId ? rawCommentId.trim() : '';
+    if (!isValidBlogUuid(commentId)) return;
+    if (action === 'reply') {
+      toggleInlineReplyBox(commentId);
+    }
+  });
+}
+
 function renderBlogCommentsList() {
   const listEl = document.getElementById('blogCommentsList');
   if (!listEl) return;
-  const comments = blogInteractionsState.comments;
+  setupBlogCommentsDelegation();
 
-  if (!comments.length) {
+  const comments = blogInteractionsState.comments || [];
+  const validComments = comments.filter(c => c && isValidBlogUuid(c.id));
+  if (validComments.length === 0) {
     listEl.innerHTML = `
       <div class="blog-comments-empty">
         <div class="blog-comments-empty-icon">💬</div>
@@ -9047,7 +9206,8 @@ function renderBlogCommentsList() {
   }
 
   let html = '';
-  for (const c of comments) {
+  for (const c of validComments) {
+    const safeId = escapeHtml(c.id);
     const initials = getBlogAuthorInitials(c.author_name);
     const timeAgo = formatBlogTimeAgo(c.created_at);
     const likeActive = c.liked ? 'liked' : '';
@@ -9055,7 +9215,7 @@ function renderBlogCommentsList() {
     const replyCountText = hasReplies ? `Xem ${c.reply_count} phản hồi` : '';
 
     html += `
-      <div class="blog-comment-item" id="blogComment-${c.id}" data-id="${c.id}">
+      <div class="blog-comment-item" id="blogComment-${safeId}" data-id="${safeId}">
         <div class="blog-comment-main">
           <div class="blog-avatar-circle" title="${escapeHtml(c.author_name)}">${escapeHtml(initials)}</div>
           <div class="blog-comment-content-wrap">
@@ -9063,19 +9223,34 @@ function renderBlogCommentsList() {
               <span class="blog-comment-author-name">${escapeHtml(c.author_name || 'Khách hàng')}</span>
               <span class="blog-comment-time">${escapeHtml(timeAgo)}</span>
             </div>
-            <div class="blog-comment-body-text">${escapeHtml(c.content)}</div>
+            <div class="blog-comment-body-text" id="blogCommentBody-${safeId}">${escapeHtml(c.content)}</div>
+
+            <!-- Inline Edit Box for comment -->
+            <div class="blog-inline-edit-box" id="blogCommentEditBox-${safeId}" style="display:none">
+              <textarea class="blog-edit-textarea" id="blogCommentEditTextarea-${safeId}" maxlength="2000" rows="3" placeholder="Chỉnh sửa bình luận..."></textarea>
+              <div class="blog-edit-actions">
+                <button type="button" class="btn-outline blog-edit-cancel-btn" id="blogCommentCancelEditBtn-${safeId}" onclick="cancelEditBlogComment('${safeId}', false)">Hủy</button>
+                <button type="button" class="btn-primary blog-edit-save-btn" id="blogCommentSaveEditBtn-${safeId}" onclick="saveEditBlogComment('${safeId}', false)">Lưu</button>
+              </div>
+              <div class="blog-edit-error" id="blogCommentEditError-${safeId}" style="display:none"></div>
+            </div>
+
             <div class="blog-comment-actions-row">
-              <button type="button" class="blog-comment-like-btn ${likeActive}" onclick="handleBlogCommentLikeClick('${c.id}')" aria-label="Thích bình luận" aria-pressed="${c.liked ? 'true' : 'false'}">
+              <button type="button" class="blog-comment-like-btn ${likeActive}" onclick="handleBlogCommentLikeClick('${safeId}')" aria-label="Thích bình luận" aria-pressed="${c.liked ? 'true' : 'false'}">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                   <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"></path>
                 </svg>
                 <span class="blog-comment-like-count">${c.like_count > 0 ? c.like_count : 'Thích'}</span>
               </button>
-              <button type="button" class="blog-comment-reply-btn" onclick="toggleInlineReplyBox('${c.id}', '${escapeHtml(c.author_name)}')">
+              <button type="button" class="blog-comment-reply-btn" data-action="reply" data-comment-id="${safeId}">
                 Trả lời
               </button>
+              ${c.can_edit ? `
+                <button type="button" class="blog-comment-action-link blog-comment-edit-btn" id="blogCommentEditBtn-${safeId}" onclick="startEditBlogComment('${safeId}', false)">Sửa</button>
+                <button type="button" class="blog-comment-action-link blog-comment-del-btn" id="blogCommentDelBtn-${safeId}" onclick="deleteBlogComment('${safeId}', false)">Xóa</button>
+              ` : ''}
               ${hasReplies ? `
-                <button type="button" class="blog-view-replies-btn" id="blogViewRepliesBtn-${c.id}" onclick="toggleCommentReplies('${c.id}')">
+                <button type="button" class="blog-view-replies-btn" id="blogViewRepliesBtn-${safeId}" onclick="toggleCommentReplies('${safeId}')">
                   <span class="reply-label">${replyCountText}</span>
                   <span class="chevron">▼</span>
                 </button>
@@ -9083,16 +9258,16 @@ function renderBlogCommentsList() {
             </div>
 
             <!-- Inline Reply Form for this comment -->
-            <div class="blog-inline-reply-box" id="blogInlineReplyBox-${c.id}">
-              <textarea class="blog-reply-textarea" id="blogReplyInput-${c.id}" placeholder="Phản hồi cho ${escapeHtml(c.author_name)}..." rows="2" maxlength="2000"></textarea>
+            <div class="blog-inline-reply-box" id="blogInlineReplyBox-${safeId}">
+              <textarea class="blog-reply-textarea" id="blogReplyInput-${safeId}" placeholder="Nhập phản hồi của bạn..." rows="2" maxlength="2000"></textarea>
               <div class="blog-reply-actions">
-                <button type="button" class="blog-reply-cancel-btn" onclick="toggleInlineReplyBox('${c.id}')">Hủy</button>
-                <button type="button" class="btn-primary blog-reply-submit-btn" id="blogReplySubmitBtn-${c.id}" onclick="submitBlogReply('${c.id}')">Gửi</button>
+                <button type="button" class="blog-reply-cancel-btn" onclick="toggleInlineReplyBox('${safeId}')">Hủy</button>
+                <button type="button" class="btn-primary blog-reply-submit-btn" id="blogReplySubmitBtn-${safeId}" onclick="submitBlogReply('${safeId}')">Gửi</button>
               </div>
             </div>
 
             <!-- Replies Container (Max 2 Levels) -->
-            <div class="blog-comment-replies" id="blogRepliesContainer-${c.id}">
+            <div class="blog-comment-replies" id="blogRepliesContainer-${safeId}">
               <!-- Dynamic replies -->
             </div>
           </div>
@@ -9146,7 +9321,8 @@ async function submitBlogComment() {
     try { sessionStorage.removeItem(`melsou_blog_draft_${slug}`); } catch {}
 
     if (res.comment) {
-      blogInteractionsState.comments.unshift(res.comment);
+      const newComment = { ...res.comment, can_edit: true };
+      blogInteractionsState.comments.unshift(newComment);
       blogInteractionsState.commentCount += 1;
       renderBlogPostInteractions();
       renderBlogCommentsList();
@@ -9166,7 +9342,22 @@ async function submitBlogComment() {
   }
 }
 
+function findCommentAuthor(commentId) {
+  if (!commentId) return null;
+  const root = blogInteractionsState?.comments?.find(c => c.id === commentId);
+  if (root) return root.author_name || null;
+  if (blogInteractionsState?.replies) {
+    for (const arr of Object.values(blogInteractionsState.replies)) {
+      const list = Array.isArray(arr) ? arr : (Array.isArray(arr?.comments) ? arr.comments : []);
+      const r = list.find(x => x.id === commentId);
+      if (r) return r.author_name || null;
+    }
+  }
+  return null;
+}
+
 function toggleInlineReplyBox(commentId, authorName) {
+  if (!isValidBlogUuid(commentId)) return;
   if (!blogInteractionsState.commentsOpen) {
     showToast('Bình luận cho bài viết này hiện đã được đóng.');
     return;
@@ -9177,15 +9368,15 @@ function toggleInlineReplyBox(commentId, authorName) {
   if (isOpen) {
     const input = document.getElementById(`blogReplyInput-${commentId}`);
     if (input) {
-      if (authorName && !input.placeholder.includes(authorName)) {
-        input.placeholder = `Phản hồi cho ${authorName}...`;
-      }
+      const resolvedAuthor = authorName || findCommentAuthor(commentId);
+      input.placeholder = resolvedAuthor ? `Phản hồi cho ${resolvedAuthor}...` : 'Nhập phản hồi của bạn...';
       input.focus();
     }
   }
 }
 
 async function toggleCommentReplies(commentId) {
+  if (!isValidBlogUuid(commentId)) return;
   const container = document.getElementById(`blogRepliesContainer-${commentId}`);
   const btn = document.getElementById(`blogViewRepliesBtn-${commentId}`);
   if (!container || !btn) return;
@@ -9206,6 +9397,7 @@ async function toggleCommentReplies(commentId) {
 }
 
 async function loadCommentReplies(commentId, { reset = false } = {}) {
+  if (!isValidBlogUuid(commentId)) return;
   const slug = blogInteractionsState.activeSlug;
   if (!slug) return;
   const container = document.getElementById(`blogRepliesContainer-${commentId}`);
@@ -9237,33 +9429,52 @@ async function loadCommentReplies(commentId, { reset = false } = {}) {
 }
 
 function renderRepliesContainer(commentId) {
+  if (!isValidBlogUuid(commentId)) return;
   const container = document.getElementById(`blogRepliesContainer-${commentId}`);
   const state = blogInteractionsState.replies[commentId];
   if (!container || !state) return;
 
+  const safeParentId = escapeHtml(commentId);
   let html = '';
   for (const r of state.comments) {
+    if (!r || !isValidBlogUuid(r.id)) continue;
+    const safeReplyId = escapeHtml(r.id);
     const initials = getBlogAuthorInitials(r.author_name);
     const timeAgo = formatBlogTimeAgo(r.created_at);
     const likeActive = r.liked ? 'liked' : '';
 
     html += `
-      <div class="blog-reply-item" id="blogReply-${r.id}">
+      <div class="blog-reply-item" id="blogReply-${safeReplyId}">
         <div class="blog-avatar-circle" title="${escapeHtml(r.author_name)}">${escapeHtml(initials)}</div>
         <div class="blog-comment-content-wrap">
           <div class="blog-comment-author-row">
             <span class="blog-comment-author-name">${escapeHtml(r.author_name || 'Khách hàng')}</span>
             <span class="blog-comment-time">${escapeHtml(timeAgo)}</span>
           </div>
-          <div class="blog-comment-body-text">${escapeHtml(r.content)}</div>
+          <div class="blog-comment-body-text" id="blogReplyBody-${safeReplyId}">${escapeHtml(r.content)}</div>
+
+          <!-- Inline Edit Box for reply -->
+          <div class="blog-inline-edit-box" id="blogReplyEditBox-${safeReplyId}" style="display:none">
+            <textarea class="blog-edit-textarea" id="blogReplyEditTextarea-${safeReplyId}" maxlength="2000" rows="2" placeholder="Chỉnh sửa phản hồi..."></textarea>
+            <div class="blog-edit-actions">
+              <button type="button" class="btn-outline blog-edit-cancel-btn" id="blogReplyCancelEditBtn-${safeReplyId}" onclick="cancelEditBlogComment('${safeReplyId}', true, '${safeParentId}')">Hủy</button>
+              <button type="button" class="btn-primary blog-edit-save-btn" id="blogReplySaveEditBtn-${safeReplyId}" onclick="saveEditBlogComment('${safeReplyId}', true, '${safeParentId}')">Lưu</button>
+            </div>
+            <div class="blog-edit-error" id="blogReplyEditError-${safeReplyId}" style="display:none"></div>
+          </div>
+
           <div class="blog-comment-actions-row">
-            <button type="button" class="blog-comment-like-btn ${likeActive}" onclick="handleBlogReplyLikeClick('${commentId}', '${r.id}')" aria-label="Thích phản hồi">
+            <button type="button" class="blog-comment-like-btn ${likeActive}" onclick="handleBlogReplyLikeClick('${safeParentId}', '${safeReplyId}')" aria-label="Thích phản hồi">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"></path></svg>
               <span class="blog-comment-like-count">${r.like_count > 0 ? r.like_count : 'Thích'}</span>
             </button>
-            <button type="button" class="blog-comment-reply-btn" onclick="toggleInlineReplyBox('${commentId}', '${escapeHtml(r.author_name)}')">
+            <button type="button" class="blog-comment-reply-btn" data-action="reply" data-comment-id="${safeParentId}">
               Trả lời
             </button>
+            ${r.can_edit ? `
+              <button type="button" class="blog-comment-action-link blog-comment-edit-btn" id="blogReplyEditBtn-${safeReplyId}" onclick="startEditBlogComment('${safeReplyId}', true, '${safeParentId}')">Sửa</button>
+              <button type="button" class="blog-comment-action-link blog-comment-del-btn" id="blogReplyDelBtn-${safeReplyId}" onclick="deleteBlogComment('${safeReplyId}', true, '${safeParentId}')">Xóa</button>
+            ` : ''}
           </div>
         </div>
       </div>
@@ -9273,7 +9484,7 @@ function renderRepliesContainer(commentId) {
   if (state.nextCursor !== null) {
     html += `
       <div class="blog-reply-more-wrap">
-        <button type="button" class="blog-reply-more-btn" onclick="loadCommentReplies('${commentId}', { reset: false })">
+        <button type="button" class="blog-reply-more-btn" onclick="loadCommentReplies('${safeParentId}', { reset: false })">
           Xem thêm phản hồi...
         </button>
       </div>
@@ -9284,6 +9495,7 @@ function renderRepliesContainer(commentId) {
 }
 
 async function submitBlogReply(commentId) {
+  if (!isValidBlogUuid(commentId)) return;
   const input = document.getElementById(`blogReplyInput-${commentId}`);
   const btn = document.getElementById(`blogReplySubmitBtn-${commentId}`);
   if (!input) return;
@@ -9326,14 +9538,14 @@ async function submitBlogReply(commentId) {
       if (!blogInteractionsState.replies[commentId]) {
         blogInteractionsState.replies[commentId] = { comments: [], nextCursor: null };
       }
-      blogInteractionsState.replies[commentId].comments.push(res.comment);
+      const newReply = { ...res.comment, can_edit: true };
+      blogInteractionsState.replies[commentId].comments.push(newReply);
 
       // Increment root comment's reply_count
       const rootComment = blogInteractionsState.comments.find(c => c.id === commentId);
       if (rootComment) {
         rootComment.reply_count = (rootComment.reply_count || 0) + 1;
       }
-      blogInteractionsState.commentCount += 1;
       renderBlogPostInteractions();
 
       // Ensure container is open
@@ -9362,6 +9574,7 @@ async function submitBlogReply(commentId) {
 }
 
 async function handleBlogCommentLikeClick(commentId) {
+  if (!isValidBlogUuid(commentId)) return;
   const slug = blogInteractionsState.activeSlug;
   if (!slug || blogInteractionsState.pendingCommentLikes.has(commentId)) return;
   const comment = blogInteractionsState.comments.find(c => c.id === commentId);
@@ -9435,6 +9648,7 @@ async function handleBlogCommentLikeClick(commentId) {
 }
 
 async function handleBlogReplyLikeClick(rootCommentId, replyId) {
+  if (!isValidBlogUuid(rootCommentId) || !isValidBlogUuid(replyId)) return;
   const slug = blogInteractionsState.activeSlug;
   if (!slug || blogInteractionsState.pendingCommentLikes.has(replyId)) return;
   const replies = blogInteractionsState.replies[rootCommentId]?.comments;
@@ -9538,6 +9752,639 @@ function updateBlogInteractionsAuthUI() {
   }
 }
 
+// ════════ ✏️ BLOG COMMENTS INLINE EDIT & DELETE HANDLERS ════════
+
+function startEditBlogComment(id, isReply, parentId) {
+  if (!isValidBlogUuid(id) || (isReply && !isValidBlogUuid(parentId))) return;
+  // Cross-lock: if comment is currently being deleted or edited, return
+  if (pendingCommentDeletions.has(id) || pendingCommentEdits.has(id)) return;
+
+  const prefix = isReply ? 'blogReply' : 'blogComment';
+  const bodyEl = document.getElementById(`${prefix}Body-${id}`);
+  const editBox = document.getElementById(`${prefix}EditBox-${id}`);
+  const textarea = document.getElementById(`${prefix}EditTextarea-${id}`);
+  const errorEl = document.getElementById(`${prefix}EditError-${id}`);
+  if (!editBox || !textarea) return;
+
+  let currentContent = '';
+  if (isReply) {
+    const replies = blogInteractionsState.replies[parentId]?.comments;
+    const r = replies?.find(x => x.id === id);
+    currentContent = r ? r.content : (bodyEl ? bodyEl.textContent : '');
+  } else {
+    const c = blogInteractionsState.comments.find(x => x.id === id);
+    currentContent = c ? c.content : (bodyEl ? bodyEl.textContent : '');
+  }
+
+  textarea.value = currentContent;
+  if (errorEl) {
+    errorEl.style.display = 'none';
+    errorEl.textContent = '';
+  }
+  if (bodyEl) bodyEl.style.display = 'none';
+  editBox.style.display = 'block';
+  textarea.focus();
+}
+
+function cancelEditBlogComment(id, isReply, parentId) {
+  if (!isValidBlogUuid(id) || (isReply && !isValidBlogUuid(parentId))) return;
+  const prefix = isReply ? 'blogReply' : 'blogComment';
+  const bodyEl = document.getElementById(`${prefix}Body-${id}`);
+  const editBox = document.getElementById(`${prefix}EditBox-${id}`);
+  const errorEl = document.getElementById(`${prefix}EditError-${id}`);
+  if (bodyEl) bodyEl.style.display = '';
+  if (editBox) editBox.style.display = 'none';
+  if (errorEl) {
+    errorEl.style.display = 'none';
+    errorEl.textContent = '';
+  }
+}
+
+async function saveEditBlogComment(id, isReply, parentId) {
+  if (!isValidBlogUuid(id) || (isReply && !isValidBlogUuid(parentId))) return;
+  // Cross-lock: if comment is being deleted or already saving edit, return
+  if (pendingCommentDeletions.has(id) || pendingCommentEdits.has(id)) return;
+
+  const prefix = isReply ? 'blogReply' : 'blogComment';
+  const bodyEl = document.getElementById(`${prefix}Body-${id}`);
+  const editBox = document.getElementById(`${prefix}EditBox-${id}`);
+  const textarea = document.getElementById(`${prefix}EditTextarea-${id}`);
+  const saveBtn = document.getElementById(`${prefix}SaveEditBtn-${id}`);
+  const cancelBtn = document.getElementById(`${prefix}CancelEditBtn-${id}`);
+  const delBtn = document.getElementById(`${prefix}DelBtn-${id}`);
+  const errorEl = document.getElementById(`${prefix}EditError-${id}`);
+
+  if (!textarea) return;
+  const content = textarea.value.trim();
+  if (!content) {
+    if (errorEl) {
+      errorEl.textContent = 'Nội dung bình luận không được để trống.';
+      errorEl.style.display = 'block';
+    }
+    textarea.focus();
+    return;
+  }
+  if (content.length > 2000) {
+    if (errorEl) {
+      errorEl.textContent = 'Bình luận tối đa 2000 ký tự.';
+      errorEl.style.display = 'block';
+    }
+    return;
+  }
+
+  const slug = blogInteractionsState.activeSlug;
+  if (!slug) return;
+
+  pendingCommentEdits.add(id);
+  if (saveBtn) {
+    saveBtn.disabled = true;
+    saveBtn.textContent = 'Đang lưu...';
+  }
+  if (cancelBtn) cancelBtn.disabled = true;
+  if (delBtn) delBtn.disabled = true;
+  if (textarea) textarea.disabled = true;
+  if (errorEl) {
+    errorEl.style.display = 'none';
+    errorEl.textContent = '';
+  }
+
+  try {
+    let res;
+    if (typeof window.codexUpdateBlogComment === 'function') {
+      res = await window.codexUpdateBlogComment(slug, id, content);
+    } else {
+      res = await blogFetchApi(`/blog/${encodeURIComponent(slug)}/comments/${encodeURIComponent(id)}`, {
+        method: 'PATCH',
+        body: JSON.stringify({ content })
+      });
+    }
+
+    const updatedContent = res?.comment?.content || content;
+
+    // Update in state
+    if (isReply) {
+      const replies = blogInteractionsState.replies[parentId]?.comments;
+      const target = replies?.find(x => x.id === id);
+      if (target) target.content = updatedContent;
+    } else {
+      const target = blogInteractionsState.comments.find(x => x.id === id);
+      if (target) target.content = updatedContent;
+    }
+
+    // Update in DOM safely via textContent (no innerHTML)
+    if (bodyEl) {
+      bodyEl.textContent = updatedContent;
+      bodyEl.style.display = '';
+    }
+    if (editBox) editBox.style.display = 'none';
+
+    showToast('Đã lưu thay đổi bình luận!');
+  } catch (err) {
+    if (errorEl) {
+      errorEl.textContent = err.body?.error === 'INVALID_COMMENT' ? 'Bình luận không hợp lệ.' : 'Không thể lưu bình luận. Vui lòng thử lại.';
+      errorEl.style.display = 'block';
+    } else {
+      showToast('Không thể lưu bình luận. Vui lòng thử lại.');
+    }
+  } finally {
+    pendingCommentEdits.delete(id);
+    if (saveBtn) {
+      saveBtn.disabled = false;
+      saveBtn.textContent = 'Lưu';
+    }
+    if (cancelBtn) cancelBtn.disabled = false;
+    if (delBtn) delBtn.disabled = false;
+    if (textarea) textarea.disabled = false;
+  }
+}
+
+async function deleteBlogComment(id, isReply, parentId) {
+  if (!isValidBlogUuid(id) || (isReply && !isValidBlogUuid(parentId))) return;
+  // Cross-lock: if comment is being edited or already being deleted, return
+  if (pendingCommentEdits.has(id) || pendingCommentDeletions.has(id)) return;
+
+  const confirmMsg = isReply
+    ? 'Bạn có chắc chắn muốn xóa phản hồi này?'
+    : 'Bạn có chắc chắn muốn xóa bình luận này?';
+  if (!window.confirm(confirmMsg)) return;
+
+  const slug = blogInteractionsState.activeSlug;
+  if (!slug) return;
+
+  const prefix = isReply ? 'blogReply' : 'blogComment';
+  const delBtn = document.getElementById(`${prefix}DelBtn-${id}`);
+  const editBtn = document.getElementById(`${prefix}EditBtn-${id}`);
+  const saveBtn = document.getElementById(`${prefix}SaveEditBtn-${id}`);
+  const cancelBtn = document.getElementById(`${prefix}CancelEditBtn-${id}`);
+
+  pendingCommentDeletions.add(id);
+  if (delBtn) {
+    delBtn.disabled = true;
+    delBtn.textContent = 'Đang xóa...';
+  }
+  if (editBtn) editBtn.disabled = true;
+  if (saveBtn) saveBtn.disabled = true;
+  if (cancelBtn) cancelBtn.disabled = true;
+
+  try {
+    if (typeof window.codexDeleteBlogComment === 'function') {
+      await window.codexDeleteBlogComment(slug, id);
+    } else {
+      await blogFetchApi(`/blog/${encodeURIComponent(slug)}/comments/${encodeURIComponent(id)}`, {
+        method: 'DELETE'
+      });
+    }
+
+    if (isReply) {
+      // Remove reply from local state
+      const state = blogInteractionsState.replies[parentId];
+      if (state && Array.isArray(state.comments)) {
+        state.comments = state.comments.filter(r => r.id !== id);
+      }
+      // Decrement root comment's reply count
+      const root = blogInteractionsState.comments.find(c => c.id === parentId);
+      if (root) {
+        root.reply_count = Math.max(0, (root.reply_count || 0) - 1);
+      }
+      // Finding 2: Deleting reply does NOT reduce commentCount
+      renderBlogPostInteractions();
+      renderRepliesContainer(parentId);
+
+      // Update reply button count text
+      const viewBtn = document.getElementById(`blogViewRepliesBtn-${parentId}`);
+      if (viewBtn) {
+        const count = root ? root.reply_count : 0;
+        const isOpen = document.getElementById(`blogRepliesContainer-${parentId}`)?.classList.contains('open');
+        const label = viewBtn.querySelector('.reply-label');
+        if (label) {
+          label.textContent = isOpen ? (count > 0 ? `Ẩn ${count} phản hồi` : 'Ẩn phản hồi') : (count > 0 ? `Xem ${count} phản hồi` : 'Xem phản hồi');
+        }
+        if (count === 0) {
+          viewBtn.style.display = 'none';
+        }
+      }
+    } else {
+      // Remove root comment from local state
+      blogInteractionsState.comments = blogInteractionsState.comments.filter(c => c.id !== id);
+      delete blogInteractionsState.replies[id];
+      // Finding 2: Deleting root reduces commentCount by exactly 1
+      blogInteractionsState.commentCount = Math.max(0, blogInteractionsState.commentCount - 1);
+
+      renderBlogPostInteractions();
+      renderBlogCommentsList();
+    }
+
+    showToast('Đã xóa bình luận thành công!');
+  } catch (err) {
+    showToast('Không thể xóa bình luận. Vui lòng thử lại.');
+  } finally {
+    pendingCommentDeletions.delete(id);
+    const currDelBtn = document.getElementById(`${prefix}DelBtn-${id}`);
+    const currEditBtn = document.getElementById(`${prefix}EditBtn-${id}`);
+    const currSaveBtn = document.getElementById(`${prefix}SaveEditBtn-${id}`);
+    const currCancelBtn = document.getElementById(`${prefix}CancelEditBtn-${id}`);
+    if (currDelBtn) {
+      currDelBtn.disabled = false;
+      currDelBtn.textContent = 'Xóa';
+    }
+    if (currEditBtn) currEditBtn.disabled = false;
+    if (currSaveBtn) currSaveBtn.disabled = false;
+    if (currCancelBtn) currCancelBtn.disabled = false;
+  }
+}
+
+// ════════ 👑 OWNER BLOG COMMENTS MODERATION ════════
+
+function setupOwnerBlogCommentsDelegation() {
+  const listEl = document.getElementById('ownerBlogCommentsList');
+  if (!listEl || listEl._delegationAttached) return;
+  listEl._delegationAttached = true;
+  listEl.addEventListener('click', (e) => {
+    const btn = e.target && typeof e.target.closest === 'function'
+      ? e.target.closest('button[data-action][data-comment-id]')
+      : null;
+    if (!btn) return;
+    if (btn.disabled || btn.getAttribute('aria-busy') === 'true') return;
+
+    const rawCommentId = btn.getAttribute('data-comment-id');
+    const commentId = rawCommentId ? rawCommentId.trim() : '';
+    if (!isValidBlogUuid(commentId)) return;
+
+    const rawAction = btn.getAttribute('data-action');
+    const targetStatus = normalizeOwnerModAction(rawAction);
+    if (!targetStatus) return;
+
+    executeOwnerCommentModeration(commentId, targetStatus);
+  });
+}
+
+async function initOwnerBlogCommentsModeration() {
+  if (!currentUser || !currentUser.loggedIn || currentUser.role !== 'OWNER') {
+    console.warn('[Melsou Security] Access denied: OWNER role required.');
+    return;
+  }
+
+  setupOwnerBlogCommentsDelegation();
+
+  const postSelect = document.getElementById('ownerBlogFilterPostSelect');
+  const statusSelect = document.getElementById('ownerBlogFilterStatusSelect');
+  if (!postSelect) return;
+
+  postSelect.innerHTML = '<option value="">-- Đang tải danh sách bài viết... --</option>';
+
+  try {
+    let postsData;
+    if (typeof window.codexGetPublishedPosts === 'function') {
+      postsData = await window.codexGetPublishedPosts({ perPage: 50 });
+    } else {
+      postsData = await blogFetchApi('/blog?per_page=50');
+    }
+
+    const posts = Array.isArray(postsData?.posts) ? postsData.posts : (Array.isArray(postsData) ? postsData : []);
+    ownerBlogModerationState.posts = posts;
+
+    let optionsHtml = '<option value="">Tất cả bài viết</option>';
+    for (const p of posts) {
+      optionsHtml += `<option value="${escapeHtml(p.slug)}">${escapeHtml(p.title || p.slug)}</option>`;
+    }
+    postSelect.innerHTML = optionsHtml;
+
+    // Prefer active post slug if in blogInteractionsState and valid
+    if (blogInteractionsState?.activeSlug && posts.some(p => p.slug === blogInteractionsState.activeSlug)) {
+      postSelect.value = blogInteractionsState.activeSlug;
+      ownerBlogModerationState.selectedSlug = blogInteractionsState.activeSlug;
+    } else {
+      postSelect.value = '';
+      ownerBlogModerationState.selectedSlug = '';
+    }
+
+    if (statusSelect) {
+      statusSelect.value = ownerBlogModerationState.selectedStatus || 'all';
+    }
+
+    loadOwnerBlogComments({ reset: true });
+  } catch (err) {
+    postSelect.innerHTML = '<option value="">Tất cả bài viết</option>';
+    loadOwnerBlogComments({ reset: true });
+  }
+}
+
+function onOwnerBlogFilterPostChange() {
+  if (!currentUser || !currentUser.loggedIn || currentUser.role !== 'OWNER') return;
+  const select = document.getElementById('ownerBlogFilterPostSelect');
+  if (!select) return;
+  ownerBlogModerationState.selectedSlug = select.value || '';
+  loadOwnerBlogComments({ reset: true });
+}
+
+function onOwnerBlogFilterStatusChange() {
+  if (!currentUser || !currentUser.loggedIn || currentUser.role !== 'OWNER') return;
+  const select = document.getElementById('ownerBlogFilterStatusSelect');
+  if (!select) return;
+  ownerBlogModerationState.selectedStatus = select.value || 'all';
+  loadOwnerBlogComments({ reset: true });
+}
+
+function refreshOwnerBlogComments() {
+  if (!currentUser || !currentUser.loggedIn || currentUser.role !== 'OWNER') return;
+  const postSelect = document.getElementById('ownerBlogFilterPostSelect');
+  const statusSelect = document.getElementById('ownerBlogFilterStatusSelect');
+  if (postSelect) ownerBlogModerationState.selectedSlug = postSelect.value || '';
+  if (statusSelect) ownerBlogModerationState.selectedStatus = statusSelect.value || 'all';
+  loadOwnerBlogComments({ reset: true });
+}
+
+function loadMoreOwnerBlogComments() {
+  if (!currentUser || !currentUser.loggedIn || currentUser.role !== 'OWNER') return;
+  if (ownerBlogModerationState.loadingMore || !ownerBlogModerationState.nextCursor) return;
+  loadOwnerBlogComments({ reset: false });
+}
+
+function showOwnerBlogCommentsLoading() {
+  const loading = document.getElementById('ownerBlogCommentsLoading');
+  const error = document.getElementById('ownerBlogCommentsError');
+  const empty = document.getElementById('ownerBlogCommentsEmpty');
+  const listWrap = document.getElementById('ownerBlogCommentsListWrap');
+  if (loading) loading.style.display = 'block';
+  if (error) error.style.display = 'none';
+  if (empty) empty.style.display = 'none';
+  if (listWrap) listWrap.style.display = 'none';
+}
+
+function showOwnerBlogCommentsError(msg) {
+  const loading = document.getElementById('ownerBlogCommentsLoading');
+  const error = document.getElementById('ownerBlogCommentsError');
+  const errorText = document.getElementById('ownerBlogCommentsErrorText');
+  const empty = document.getElementById('ownerBlogCommentsEmpty');
+  const listWrap = document.getElementById('ownerBlogCommentsListWrap');
+  if (loading) loading.style.display = 'none';
+  if (error) {
+    error.style.display = 'block';
+    if (errorText) errorText.textContent = msg || 'Không thể tải bình luận.';
+  }
+  if (empty) empty.style.display = 'none';
+  if (listWrap) listWrap.style.display = 'none';
+}
+
+function showOwnerBlogCommentsEmpty() {
+  const loading = document.getElementById('ownerBlogCommentsLoading');
+  const error = document.getElementById('ownerBlogCommentsError');
+  const empty = document.getElementById('ownerBlogCommentsEmpty');
+  const listWrap = document.getElementById('ownerBlogCommentsListWrap');
+  if (loading) loading.style.display = 'none';
+  if (error) error.style.display = 'none';
+  if (empty) empty.style.display = 'block';
+  if (listWrap) listWrap.style.display = 'none';
+}
+
+async function loadOwnerBlogComments({ reset = true } = {}) {
+  if (!currentUser || !currentUser.loggedIn || currentUser.role !== 'OWNER') return;
+
+  // Stale response tracking (anti-race for rapid filter changes)
+  ownerBlogModerationState.requestSeq = (ownerBlogModerationState.requestSeq || 0) + 1;
+  const currentSeq = ownerBlogModerationState.requestSeq;
+
+  const card = document.getElementById('ownerBlogCommentsModerationCard');
+  const loadMoreBtn = document.getElementById('ownerBlogCommentsLoadMoreBtn');
+  const loadMoreSpinner = document.getElementById('ownerBlogCommentsLoadMoreSpinner');
+  const loadMoreText = document.getElementById('ownerBlogCommentsLoadMoreText');
+
+  if (card) card.setAttribute('aria-busy', 'true');
+
+  if (reset) {
+    ownerBlogModerationState.loading = true;
+    ownerBlogModerationState.comments = [];
+    ownerBlogModerationState.nextCursor = null;
+    showOwnerBlogCommentsLoading();
+  } else {
+    ownerBlogModerationState.loadingMore = true;
+    if (loadMoreBtn) {
+      loadMoreBtn.disabled = true;
+      loadMoreBtn.setAttribute('aria-busy', 'true');
+    }
+    if (loadMoreSpinner) loadMoreSpinner.style.display = 'inline-block';
+    if (loadMoreText) loadMoreText.textContent = 'Đang tải...';
+  }
+
+  const postSlug = ownerBlogModerationState.selectedSlug || null;
+  const status = ownerBlogModerationState.selectedStatus || 'all';
+  const cursor = reset ? null : (ownerBlogModerationState.nextCursor || null);
+
+  try {
+    if (typeof window.codexListOwnerBlogComments !== 'function') {
+      showOwnerBlogCommentsError('Thiếu hook window.codexListOwnerBlogComments. Vui lòng kiểm tra tích hợp.');
+      return;
+    }
+
+    const res = await window.codexListOwnerBlogComments({
+      postSlug,
+      status,
+      limit: 50,
+      cursor,
+      sort: 'newest'
+    });
+
+    // Drop stale response
+    if (currentSeq !== ownerBlogModerationState.requestSeq) return;
+
+    const incoming = Array.isArray(res?.comments) ? res.comments : [];
+    ownerBlogModerationState.comments = reset ? incoming : ownerBlogModerationState.comments.concat(incoming);
+    ownerBlogModerationState.nextCursor = res?.next_cursor || null;
+
+    renderOwnerBlogCommentsList();
+
+    const paginationEl = document.getElementById('ownerBlogCommentsPagination');
+    if (paginationEl) {
+      paginationEl.style.display = ownerBlogModerationState.nextCursor ? 'block' : 'none';
+    }
+  } catch (err) {
+    if (currentSeq !== ownerBlogModerationState.requestSeq) return;
+    if (reset) {
+      showOwnerBlogCommentsError('Không thể tải danh sách bình luận kiểm duyệt. Vui lòng thử lại.');
+    } else {
+      showToast('Không thể tải thêm bình luận.');
+    }
+  } finally {
+    if (currentSeq === ownerBlogModerationState.requestSeq) {
+      ownerBlogModerationState.loading = false;
+      ownerBlogModerationState.loadingMore = false;
+      if (card) card.removeAttribute('aria-busy');
+      if (loadMoreBtn) {
+        loadMoreBtn.disabled = false;
+        loadMoreBtn.removeAttribute('aria-busy');
+      }
+      if (loadMoreSpinner) loadMoreSpinner.style.display = 'none';
+      if (loadMoreText) loadMoreText.textContent = 'Tải thêm bình luận';
+    }
+  }
+}
+
+function renderOwnerBlogCommentsList() {
+  const loading = document.getElementById('ownerBlogCommentsLoading');
+  const error = document.getElementById('ownerBlogCommentsError');
+  const empty = document.getElementById('ownerBlogCommentsEmpty');
+  const listWrap = document.getElementById('ownerBlogCommentsListWrap');
+  const listEl = document.getElementById('ownerBlogCommentsList');
+  const paginationEl = document.getElementById('ownerBlogCommentsPagination');
+
+  setupOwnerBlogCommentsDelegation();
+
+  if (loading) loading.style.display = 'none';
+  if (error) error.style.display = 'none';
+
+  const comments = ownerBlogModerationState.comments || [];
+  const validComments = comments.filter(c => c && isValidBlogUuid(c.id));
+  if (validComments.length === 0) {
+    if (empty) empty.style.display = 'block';
+    if (listWrap) listWrap.style.display = 'none';
+    if (paginationEl) paginationEl.style.display = 'none';
+    return;
+  }
+
+  if (empty) empty.style.display = 'none';
+  if (listWrap) listWrap.style.display = 'block';
+
+  let html = '';
+  for (const item of validComments) {
+    html += renderOwnerCommentRow(item);
+  }
+  listEl.innerHTML = html;
+
+  if (paginationEl) {
+    paginationEl.style.display = ownerBlogModerationState.nextCursor ? 'block' : 'none';
+  }
+}
+
+function renderOwnerCommentRow(item) {
+  if (!item || !isValidBlogUuid(item.id)) return '';
+  const safeId = escapeHtml(item.id);
+  const status = item.status || 'visible';
+  const statusText = status === 'hidden' ? 'Đã ẩn' : (status === 'deleted' ? 'Đã xóa' : 'Hiển thị');
+  const statusBadgeClass = status === 'hidden' ? 'hidden' : (status === 'deleted' ? 'deleted' : 'visible');
+  const timeStr = formatBlogTimeAgo(item.created_at);
+  const isDeleted = status === 'deleted';
+  const isReply = !!item.is_reply || !!item.parent_comment_id;
+
+  // Safe content rendering: if deleted, render placeholder; else escape
+  const displayContent = isDeleted ? '[Đã xóa]' : escapeHtml(item.content);
+  const contentClass = isDeleted ? 'owner-comment-content deleted' : 'owner-comment-content';
+
+  return `
+    <div class="owner-comment-row" id="ownerCommentRow-${safeId}" data-id="${safeId}">
+      <div class="owner-comment-meta">
+        <div class="owner-comment-author-info">
+          <span class="owner-comment-author">${escapeHtml(item.author_name || 'Khách hàng')}</span>
+          ${isReply ? '<span class="owner-comment-reply-badge">Phản hồi</span>' : ''}
+          ${item.post_slug ? `<span style="font-size:11px;color:var(--gray);background:#f3f4f6;padding:2px 6px;border-radius:4px" title="Bài viết">${escapeHtml(item.post_slug)}</span>` : ''}
+          <span class="owner-comment-date">${escapeHtml(timeStr)}</span>
+        </div>
+        <div class="owner-comment-status-badges">
+          <span class="owner-status-badge ${statusBadgeClass}" id="ownerCommentStatusBadge-${safeId}">${statusText}</span>
+        </div>
+      </div>
+      <div class="${contentClass}" id="ownerCommentContent-${safeId}">${displayContent}</div>
+      <div class="owner-comment-actions">
+        ${status === 'visible' ? `
+          <button type="button" class="owner-mod-btn hide-btn" id="ownerModHideBtn-${safeId}" data-action="hidden" data-comment-id="${safeId}" aria-label="Ẩn bình luận">
+            Ẩn
+          </button>
+          <button type="button" class="owner-mod-btn del-btn" id="ownerModDelBtn-${safeId}" data-action="deleted" data-comment-id="${safeId}" aria-label="Xóa bình luận">
+            Xóa
+          </button>
+        ` : ''}
+        ${status === 'hidden' ? `
+          <button type="button" class="owner-mod-btn show-btn" id="ownerModShowBtn-${safeId}" data-action="visible" data-comment-id="${safeId}" aria-label="Hiện bình luận">
+            Hiện
+          </button>
+          <button type="button" class="owner-mod-btn del-btn" id="ownerModDelBtn-${safeId}" data-action="deleted" data-comment-id="${safeId}" aria-label="Xóa bình luận">
+            Xóa
+          </button>
+        ` : ''}
+        ${status === 'deleted' ? `
+          <span class="owner-deleted-note">Đã xóa khỏi hiển thị</span>
+        ` : ''}
+      </div>
+    </div>
+  `;
+}
+
+async function executeOwnerCommentModeration(commentId, targetStatus) {
+  if (!isValidBlogUuid(commentId)) return;
+  if (!['visible', 'hidden', 'deleted'].includes(targetStatus)) return;
+  if (!currentUser || !currentUser.loggedIn || currentUser.role !== 'OWNER') {
+    console.warn('[Melsou Security] Access denied: OWNER role required.');
+    return;
+  }
+
+  // Anti-race: don't allow duplicate moderation on same comment
+  if (pendingModerations.has(commentId)) return;
+
+  const actionText = targetStatus === 'hidden' ? 'ẩn' : (targetStatus === 'visible' ? 'cho phép hiển thị' : 'xóa');
+  if (!window.confirm(`Bạn có chắc chắn muốn ${actionText} bình luận này?`)) return;
+
+  pendingModerations.add(commentId);
+  const row = document.getElementById(`ownerCommentRow-${commentId}`);
+  if (row) row.setAttribute('aria-busy', 'true');
+  const buttons = row ? row.querySelectorAll('.owner-mod-btn') : [];
+  buttons.forEach(b => {
+    b.disabled = true;
+    b.setAttribute('aria-busy', 'true');
+  });
+
+  const target = ownerBlogModerationState.comments.find(c => c.id === commentId);
+  const isReply = !!target?.is_reply || !!target?.parent_comment_id;
+  const postSlug = target?.post_slug || null;
+
+  try {
+    if (typeof window.codexModerateBlogComment === 'function') {
+      await window.codexModerateBlogComment(commentId, targetStatus);
+    } else {
+      await blogFetchApi(`/owner/blog/comments/${encodeURIComponent(commentId)}`, {
+        method: 'PATCH',
+        body: JSON.stringify({ status: targetStatus })
+      });
+    }
+
+    // Active status filter transitions:
+    const currentFilter = ownerBlogModerationState.selectedStatus || 'all';
+    if (currentFilter !== 'all' && currentFilter !== targetStatus) {
+      // Filter comment out of the active view
+      ownerBlogModerationState.comments = ownerBlogModerationState.comments.filter(c => c.id !== commentId);
+    } else {
+      // In-place update
+      if (target) {
+        target.status = targetStatus;
+        if (targetStatus === 'deleted') target.content = '[Đã xóa]';
+      }
+    }
+
+    // Re-render list & empty/pagination state
+    renderOwnerBlogCommentsList();
+
+    // Summary reconciliation:
+    if (blogInteractionsState?.activeSlug && (!postSlug || postSlug === blogInteractionsState.activeSlug)) {
+      if (!isReply) {
+        await refreshBlogPostInteractionsSummary(blogInteractionsState.activeSlug);
+      }
+      loadBlogComments({ reset: true });
+    }
+
+    showToast(`Đã ${actionText} bình luận thành công!`);
+  } catch (err) {
+    showToast('Không thể thực hiện kiểm duyệt lúc này. Vui lòng thử lại.');
+  } finally {
+    pendingModerations.delete(commentId);
+    const currRow = document.getElementById(`ownerCommentRow-${commentId}`);
+    if (currRow) {
+      currRow.removeAttribute('aria-busy');
+      currRow.querySelectorAll('.owner-mod-btn').forEach(b => {
+        b.disabled = false;
+        b.removeAttribute('aria-busy');
+      });
+    }
+  }
+}
+
 window.initBlogInteractions = initBlogInteractions;
 window.handleBlogPostLikeClick = handleBlogPostLikeClick;
 window.scrollToBlogComments = scrollToBlogComments;
@@ -9555,6 +10402,25 @@ window.handleBlogReplyLikeClick = handleBlogReplyLikeClick;
 window.updateBlogInteractionsAuthUI = updateBlogInteractionsAuthUI;
 window.blogInteractionsState = blogInteractionsState;
 window.loadBlogComments = loadBlogComments;
+
+window.startEditBlogComment = startEditBlogComment;
+window.cancelEditBlogComment = cancelEditBlogComment;
+window.saveEditBlogComment = saveEditBlogComment;
+window.deleteBlogComment = deleteBlogComment;
+window.initOwnerBlogCommentsModeration = initOwnerBlogCommentsModeration;
+window.onOwnerBlogFilterPostChange = onOwnerBlogFilterPostChange;
+window.onOwnerBlogFilterStatusChange = onOwnerBlogFilterStatusChange;
+window.refreshOwnerBlogComments = refreshOwnerBlogComments;
+window.loadMoreOwnerBlogComments = loadMoreOwnerBlogComments;
+window.loadOwnerBlogComments = loadOwnerBlogComments;
+window.executeOwnerCommentModeration = executeOwnerCommentModeration;
+window.refreshBlogPostInteractionsSummary = refreshBlogPostInteractionsSummary;
+window.setupOwnerBlogCommentsDelegation = setupOwnerBlogCommentsDelegation;
+window.setupBlogCommentsDelegation = setupBlogCommentsDelegation;
+window.ownerBlogModerationState = ownerBlogModerationState;
+window.findCommentAuthor = findCommentAuthor;
+window.renderOwnerCommentRow = renderOwnerCommentRow;
+window.isValidBlogUuid = isValidBlogUuid;
 
 window.dispatchEvent(new Event('melsou-blog-interactions-ready'));
 

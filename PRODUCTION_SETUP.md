@@ -16,7 +16,11 @@ Native sessions require no external identity credential, but do require HTTPS, t
 
 ## 2B. WordPress Blog comments migration
 
-Supabase is the canonical store for Melsou Blog likes, shares, comments, replies, comment likes, and moderation. After migration `202609160002_blog_interactions_hardening.sql` is reviewed and applied, set the non-secret Worker variable `BLOG_COMMENT_SOURCE=supabase` in a separately approved production change. Until then, leave the production binding unchanged. The legacy `wordpress` adapter remains rollback-only and must never dual-write with Supabase. WordPress remains the source of truth for post content and every interaction write continues to verify the published post slug server-side.
+Supabase is the canonical store for Melsou Blog likes, shares, comments, replies, comment likes, and moderation. Production migrations `202609160002_blog_interactions_hardening.sql` and `202609170001_owner_blog_comment_list.sql` have been applied and post-verified successfully. The latter adds the private, service-role-only OWNER moderation inventory RPC and two keyset-pagination indexes without altering or deleting existing interaction rows. The retained verifier is `tests/fixtures/202609170001_owner_blog_comment_list_post_migration.sql`; it checks security, RLS, grants, indexes and independent function-contract conditions without a brittle aggregate regex. Set the non-secret Worker variable `BLOG_COMMENT_SOURCE=supabase` only in a separately approved production change. Until then, leave the production binding unchanged. The legacy `wordpress` adapter remains rollback-only and must never dual-write with Supabase. WordPress remains the source of truth for post content and every interaction write continues to verify the published post slug server-side.
+
+The OWNER moderation inventory endpoint requires a native session whose user ID
+matches `OWNER_USER_ID` and whose profile role is `OWNER`. Its RPC is executable
+only by `service_role`; do not grant browser roles direct table or RPC access.
 
 The two production comments inspected before this migration are already Supabase UUID records, so no WordPress-comment backfill is required. Do not create a second copy during the source switch.
 

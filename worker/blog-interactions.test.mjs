@@ -26,6 +26,18 @@ function harness() {
     else if (path.endsWith('melsou_update_blog_comment')) { const comment = state.comments.find((c) => c.id === body.p_comment_id && c.post_slug === body.p_post_slug); if (!comment || comment.user_id !== body.p_user_id) return new Response(JSON.stringify({ message: comment ? 'COMMENT_FORBIDDEN' : 'COMMENT_NOT_FOUND' }), { status: 400, headers: { 'Content-Type': 'application/json' } }); if (body.p_delete) comment.status = 'deleted'; else comment.content = body.p_content; comment.updated_at = new Date().toISOString(); value = commentJson(comment, body); }
     else if (path.endsWith('melsou_toggle_blog_comment_like')) { const likes = state.commentLikes.get(body.p_comment_id) || new Set(); body.p_liked ? likes.add(actorKey(body)) : likes.delete(actorKey(body)); state.commentLikes.set(body.p_comment_id, likes); value = { liked: body.p_liked, like_count: likes.size }; }
     else if (path.endsWith('melsou_list_blog_comments')) { let rows = state.comments.filter((c) => c.post_slug === body.p_post_slug && c.parent_comment_id === body.p_parent_comment_id && c.status === 'visible'); rows = body.p_sort === 'top' ? rows.sort((a, b) => (state.commentLikes.get(b.id)?.size || 0) - (state.commentLikes.get(a.id)?.size || 0)) : rows.sort((a, b) => b.created_at.localeCompare(a.created_at)); const page = rows.slice(body.p_offset, body.p_offset + body.p_limit); value = { comments: page.map((c) => commentJson(c, body)), next_cursor: body.p_offset + body.p_limit < rows.length ? String(body.p_offset + body.p_limit) : null }; }
+    else if (path.endsWith('melsou_owner_list_blog_comments')) {
+      let rows = state.comments.filter((c) => (!body.p_post_slug || c.post_slug === body.p_post_slug) && (body.p_status === 'all' || c.status === body.p_status));
+      rows.sort((a, b) => body.p_sort === 'oldest' ? a.created_at.localeCompare(b.created_at) || a.id.localeCompare(b.id) : b.created_at.localeCompare(a.created_at) || b.id.localeCompare(a.id));
+      if (body.p_cursor_created_at && body.p_cursor_id) rows = rows.filter((c) => body.p_sort === 'oldest' ? c.created_at > body.p_cursor_created_at || (c.created_at === body.p_cursor_created_at && c.id > body.p_cursor_id) : c.created_at < body.p_cursor_created_at || (c.created_at === body.p_cursor_created_at && c.id < body.p_cursor_id));
+      const page = rows.slice(0, body.p_limit);
+      const boundary = page.at(-1);
+      value = {
+        comments: page.map((c) => ({ id: c.id, post_slug: c.post_slug, parent_comment_id: c.parent_comment_id, content: c.status === 'deleted' ? '[Đã xóa]' : c.content, status: c.status, created_at: c.created_at, updated_at: c.updated_at, author_name: 'Test user', is_reply: Boolean(c.parent_comment_id), reply_count: state.comments.filter((r) => r.parent_comment_id === c.id).length })),
+        has_more: rows.length > body.p_limit,
+        next_cursor: rows.length > body.p_limit && boundary ? { created_at: boundary.created_at, id: boundary.id } : null
+      };
+    }
     else if (path.endsWith('melsou_record_blog_share')) { const key = `${actorKey(body)}:${body.p_share_type}`; const recorded = !state.shares.has(key); state.shares.add(key); value = { recorded, share_count: state.shares.size }; }
     else if (path.endsWith('melsou_record_blog_view')) { state.views.push(actorKey(body)); value = { recorded: true, view_count: state.views.length, unique_view_count: new Set(state.views).size }; }
     else if (path.endsWith('melsou_moderate_blog_comment')) { const comment = state.comments.find((c) => c.id === body.p_comment_id); comment.status = body.p_status; value = { id: comment.id, post_slug: comment.post_slug, parent_comment_id: comment.parent_comment_id, status: comment.status, created_at: comment.created_at, updated_at: comment.updated_at }; }
@@ -36,6 +48,9 @@ function harness() {
     getActor: async (request, options) => actor(request, options.createGuest),
     requireUser: async (request) => request.headers.get('X-Test-User') ? { id: request.headers.get('X-Test-User') } : null,
     requireOwner: async (request) => request.headers.get('X-Test-Owner') ? { id: request.headers.get('X-Test-Owner') } : null,
+    authorizeOwner: async (request) => request.headers.get('X-Test-Owner')
+      ? { ok: true, user: { id: request.headers.get('X-Test-Owner') } }
+      : (request.headers.get('X-Test-User') ? { ok: false, status: 403, error: 'FORBIDDEN' } : { ok: false, status: 401, error: 'UNAUTHORIZED' }),
     rateLimit: async () => ({ allowed: true }),
     verifyPost: async (candidate) => candidate === slug ? { id: 42, slug: candidate } : false
   };
@@ -148,9 +163,41 @@ test('share tracking dedupes repeated actor/type events and analytics expose cou
 test('OWNER moderation hides without hard deleting and non-owner is rejected', async () => {
   const { call, state } = harness(); const user = ids[10];
   const root = await call(`/api/blog/${slug}/comments`, { method: 'POST', body: { content: 'Moderate' }, user });
-  assert.equal((await call(`/api/owner/blog/comments/${root.body.comment.id}`, { method: 'PATCH', body: { status: 'hidden' } })).response.status, 403);
+  assert.equal((await call(`/api/owner/blog/comments/${root.body.comment.id}`, { method: 'PATCH', body: { status: 'hidden' } })).response.status, 401);
+  assert.equal((await call(`/api/owner/blog/comments/${root.body.comment.id}`, { method: 'PATCH', body: { status: 'hidden' }, user: ids[9] })).response.status, 403);
   const moderated = await call(`/api/owner/blog/comments/${root.body.comment.id}`, { method: 'PATCH', body: { status: 'hidden' }, owner: ids[11] });
   assert.equal(moderated.body.comment.status, 'hidden'); assert.equal(state.comments.length, 1);
+});
+
+test('OWNER comment inventory lists all statuses with filters, privacy and stable cursor pagination', async () => {
+  const { call, state } = harness();
+  state.comments.push(
+    { id: ids[0], post_slug: slug, user_id: ids[8], parent_comment_id: null, content: 'Visible', status: 'visible', created_at: '2026-09-17T00:00:01.000Z', updated_at: '2026-09-17T00:00:01.000Z' },
+    { id: ids[1], post_slug: slug, user_id: ids[8], parent_comment_id: ids[0], content: 'Hidden reply', status: 'hidden', created_at: '2026-09-17T00:00:02.000Z', updated_at: '2026-09-17T00:00:02.000Z' },
+    { id: ids[2], post_slug: slug, user_id: ids[8], parent_comment_id: null, content: 'Secret deleted body', status: 'deleted', created_at: '2026-09-17T00:00:03.000Z', updated_at: '2026-09-17T00:00:03.000Z' },
+    { id: ids[3], post_slug: 'another-post', user_id: ids[8], parent_comment_id: null, content: 'Other', status: 'visible', created_at: '2026-09-17T00:00:04.000Z', updated_at: '2026-09-17T00:00:04.000Z' }
+  );
+
+  assert.equal((await call('/api/owner/blog/comments')).response.status, 401);
+  assert.equal((await call('/api/owner/blog/comments', { user: ids[9] })).response.status, 403);
+
+  const first = await call(`/api/owner/blog/comments?post_slug=${slug}&status=all&limit=2&sort=newest`, { owner: ids[11] });
+  assert.equal(first.response.status, 200);
+  assert.deepEqual(first.body.comments.map((comment) => comment.status), ['deleted', 'hidden']);
+  assert.equal(first.body.comments[0].content, '[Đã xóa]');
+  assert.equal(typeof first.body.next_cursor, 'string');
+  for (const comment of first.body.comments) {
+    for (const field of ['user_id', 'guest_session_hash', 'email', 'external_id']) assert.equal(Object.hasOwn(comment, field), false);
+  }
+
+  const second = await call(`/api/owner/blog/comments?post_slug=${slug}&status=all&limit=2&sort=newest&cursor=${encodeURIComponent(first.body.next_cursor)}`, { owner: ids[11] });
+  assert.deepEqual(second.body.comments.map((comment) => comment.status), ['visible']);
+  assert.equal(second.body.next_cursor, null);
+
+  const hidden = await call(`/api/owner/blog/comments?post_slug=${slug}&status=hidden&sort=oldest`, { owner: ids[11] });
+  assert.deepEqual(hidden.body.comments.map((comment) => comment.id), [ids[1]]);
+  assert.equal(hidden.body.post_slug, slug);
+  assert.equal(hidden.body.status, 'hidden');
 });
 
 test('unknown WordPress slug is rejected before persistence', async () => {
@@ -190,4 +237,29 @@ test('migration enables RLS, denies browser roles and grants only service RPC ex
   const definerFunctions = sql.split(/create or replace function/i).slice(1).filter((definition) => /security definer/i.test(definition));
   assert.ok(definerFunctions.length >= 8);
   for (const definition of definerFunctions) assert.match(definition, /set search_path = pg_catalog, public/i);
+});
+
+test('OWNER inventory migration is service-only, RLS-preserving and uses trusted search path', async () => {
+  const sql = await readFile(new URL('../supabase/migrations/202609170001_owner_blog_comment_list.sql', import.meta.url), 'utf8');
+  const verifier = await readFile(new URL('../tests/fixtures/202609170001_owner_blog_comment_list_post_migration.sql', import.meta.url), 'utf8');
+  assert.match(sql, /^begin;/mi);
+  assert.match(sql, /create index if not exists blog_comments_owner_global_cursor_idx\s+on public\.blog_comments\(created_at desc, id desc\)/i);
+  assert.match(sql, /create index if not exists blog_comments_owner_post_cursor_idx\s+on public\.blog_comments\(post_slug, created_at desc, id desc\)/i);
+  assert.match(sql, /create or replace function public\.melsou_owner_list_blog_comments/i);
+  assert.match(sql, /security definer\s+set search_path = pg_catalog, public/i);
+  assert.match(sql, /public\.melsou_is_owner\(p_owner_id\)/i);
+  assert.match(sql, /revoke all on function[\s\S]+from public, anon, authenticated/i);
+  assert.match(sql, /grant execute on function[\s\S]+to service_role/i);
+  assert.doesNotMatch(sql, /\b(?:drop table|truncate|delete from public\.blog_comments)\b/i);
+  assert.match(sql, /commit;\s*$/i);
+  for (const check of [
+    'owner_check_ok', 'comments_reference_ok', 'profiles_reference_ok',
+    'visible_status_ok', 'hidden_status_ok', 'deleted_status_ok',
+    'deleted_placeholder_ok', 'no_insert_ok', 'no_update_statement_ok',
+    'no_delete_statement_ok', 'no_truncate_ok', 'no_drop_ok', 'no_alter_ok'
+  ]) assert.match(verifier, new RegExp(`\\b${check}\\b`, 'i'));
+  assert.doesNotMatch(verifier, /function_contract_ok/i);
+  assert.match(verifier, /blog_comments_owner_global_cursor_idx/i);
+  assert.match(verifier, /blog_comments_owner_post_cursor_idx/i);
+  assert.match(verifier, /OWNER_BLOG_MODERATION_MIGRATION_APPLIED/i);
 });
