@@ -10018,6 +10018,79 @@ function setupOwnerBlogCommentsDelegation() {
   });
 }
 
+const BLOG_POST_NAMED_ENTITIES = {
+  nbsp: '\u00A0',
+  amp: '&',
+  quot: '"',
+  apos: "'",
+  lt: '<',
+  gt: '>',
+  ndash: '–',
+  mdash: '—',
+  hellip: '…',
+  lsquo: '‘',
+  rsquo: '’',
+  ldquo: '“',
+  rdquo: '”',
+  copy: '©',
+  reg: '®',
+  trade: '™',
+  deg: '°',
+  plusmn: '±',
+  times: '×',
+  divide: '÷',
+  cent: '¢',
+  pound: '£',
+  euro: '€',
+  yen: '¥',
+  sect: '§',
+  bull: '•'
+};
+
+const BLOG_HTML_ENTITY_REGEX = /&(?:#(\d+)|#[xX]([0-9a-fA-F]+)|([a-zA-Z0-9]+));/g;
+
+function decodeBlogFilterTitle(raw) {
+  if (!raw) return '';
+  const str = String(raw);
+
+  // Single-pass decoding: prevents double-decoding produced entities (e.g. &#38;lt; -> &lt;)
+  const decoded = str.replace(BLOG_HTML_ENTITY_REGEX, (match, dec, hex, name) => {
+    if (dec !== undefined) {
+      try {
+        const cp = parseInt(dec, 10);
+        if (cp > 0 && cp <= 0x10FFFF) return String.fromCodePoint(cp);
+      } catch (_) {}
+      return match;
+    }
+    if (hex !== undefined) {
+      try {
+        const cp = parseInt(hex, 16);
+        if (cp > 0 && cp <= 0x10FFFF) return String.fromCodePoint(cp);
+      } catch (_) {}
+      return match;
+    }
+    if (name !== undefined) {
+      if (Object.prototype.hasOwnProperty.call(BLOG_POST_NAMED_ENTITIES, name)) {
+        return BLOG_POST_NAMED_ENTITIES[name];
+      }
+      try {
+        if (typeof document !== 'undefined' && typeof document.createElement === 'function') {
+          const textarea = document.createElement('textarea');
+          textarea.innerHTML = '&' + name + ';';
+          const val = textarea.value;
+          if (val && val !== '&' + name + ';') return val;
+        }
+      } catch (_) {}
+      return match;
+    }
+    return match;
+  });
+
+  // Normalize \u00A0 (non-breaking space) to regular space and collapse redundant whitespace
+  return decoded.replace(/\u00A0/g, ' ').replace(/\s+/g, ' ').trim();
+}
+window.decodeBlogFilterTitle = decodeBlogFilterTitle;
+
 async function initOwnerBlogCommentsModeration() {
   if (!currentUser || !currentUser.loggedIn || currentUser.role !== 'OWNER') {
     console.warn('[Melsou Security] Access denied: OWNER role required.');
@@ -10030,7 +10103,15 @@ async function initOwnerBlogCommentsModeration() {
   const statusSelect = document.getElementById('ownerBlogFilterStatusSelect');
   if (!postSelect) return;
 
-  postSelect.innerHTML = '<option value="">-- Đang tải danh sách bài viết... --</option>';
+  if (typeof postSelect.replaceChildren === 'function') {
+    postSelect.replaceChildren();
+  } else {
+    postSelect.children = [];
+  }
+  const loadingOption = document.createElement('option');
+  loadingOption.value = '';
+  loadingOption.textContent = '-- Đang tải danh sách bài viết... --';
+  postSelect.appendChild(loadingOption);
 
   try {
     let postsData;
@@ -10043,11 +10124,23 @@ async function initOwnerBlogCommentsModeration() {
     const posts = Array.isArray(postsData?.posts) ? postsData.posts : (Array.isArray(postsData) ? postsData : []);
     ownerBlogModerationState.posts = posts;
 
-    let optionsHtml = '<option value="">Tất cả bài viết</option>';
-    for (const p of posts) {
-      optionsHtml += `<option value="${escapeHtml(p.slug)}">${escapeHtml(p.title || p.slug)}</option>`;
+    if (typeof postSelect.replaceChildren === 'function') {
+      postSelect.replaceChildren();
+    } else {
+      postSelect.children = [];
     }
-    postSelect.innerHTML = optionsHtml;
+
+    const defaultOption = document.createElement('option');
+    defaultOption.value = '';
+    defaultOption.textContent = 'Tất cả bài viết';
+    postSelect.appendChild(defaultOption);
+
+    for (const p of posts) {
+      const option = document.createElement('option');
+      option.value = p.slug || '';
+      option.textContent = decodeBlogFilterTitle(p.title || p.slug || '');
+      postSelect.appendChild(option);
+    }
 
     // Prefer active post slug if in blogInteractionsState and valid
     if (blogInteractionsState?.activeSlug && posts.some(p => p.slug === blogInteractionsState.activeSlug)) {
@@ -10064,7 +10157,15 @@ async function initOwnerBlogCommentsModeration() {
 
     loadOwnerBlogComments({ reset: true });
   } catch (err) {
-    postSelect.innerHTML = '<option value="">Tất cả bài viết</option>';
+    if (typeof postSelect.replaceChildren === 'function') {
+      postSelect.replaceChildren();
+    } else {
+      postSelect.children = [];
+    }
+    const fallbackOption = document.createElement('option');
+    fallbackOption.value = '';
+    fallbackOption.textContent = 'Tất cả bài viết';
+    postSelect.appendChild(fallbackOption);
     loadOwnerBlogComments({ reset: true });
   }
 }

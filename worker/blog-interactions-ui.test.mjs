@@ -44,6 +44,12 @@ function createMockElement(id = '', tag = 'div') {
       child.parentElement = el;
       return child;
     },
+    replaceChildren(...nodes) {
+      el.children = [];
+      for (const child of nodes) {
+        el.appendChild(child);
+      }
+    },
     querySelectorAll(sel) {
       const results = [];
       const match = (item) => {
@@ -698,4 +704,96 @@ test('executable behavioral: Public comment and reply handlers validate UUIDs an
   listEl.dispatchEvent({ type: 'click', target: replyBtn });
   assert.equal(replyBox.classList.contains('open'), true, 'Delegated click on reply button must open reply box');
   assert.equal(replyInput.placeholder, 'Phản hồi cho Regular Customer...');
+});
+
+test('executable behavioral: Owner blog post filter options decode HTML entities and protect from script injection', async () => {
+  const { window, getOrCreate } = createTestHarness();
+
+  // 1. Direct unit assertions on single-pass decodeBlogFilterTitle preventing double decoding
+  assert.equal(window.decodeBlogFilterTitle('&#38;lt;script&#38;gt;'), '&lt;script&gt;', 'Must decode numeric &#38; to & without decoding resulting &lt; to <');
+  assert.equal(window.decodeBlogFilterTitle('&amp;lt;script&amp;gt;'), '&lt;script&gt;', 'Must decode named &amp; to & without decoding resulting &lt; to <');
+  assert.equal(window.decodeBlogFilterTitle('&lt;script&gt;'), '<script>', 'Single entity &lt;script&gt; decodes to <script>');
+  assert.equal(window.decodeBlogFilterTitle('&#8211;'), '–', 'Decimal entity &#8211; decodes to en-dash');
+  assert.equal(window.decodeBlogFilterTitle('&#x2013;'), '–', 'Hexadecimal entity &#x2013; decodes to en-dash');
+  assert.equal(window.decodeBlogFilterTitle('a&nbsp;b'), 'a b', '&nbsp; decodes to standard space');
+  assert.equal(window.decodeBlogFilterTitle('a &amp; b'), 'a & b', '&amp; decodes to ampersand');
+
+  // 2. Full integration flow through initOwnerBlogCommentsModeration
+  const mockPosts = [
+    {
+      slug: 'post-double-numeric',
+      title: 'Bài viết &#38;lt;script&#38;gt; double numeric'
+    },
+    {
+      slug: 'post-double-named',
+      title: 'Bài viết &amp;lt;script&amp;gt; double named'
+    },
+    {
+      slug: 'post-single-script',
+      title: 'Bài viết &lt;script&gt;alert("xss")&lt;/script&gt;'
+    },
+    {
+      slug: 'post-standard-entities',
+      title: 'Câu chuyện về melsou &#8211; &#x2013; khi cảm xúc cần một nơi để cất&nbsp;giữ &amp; chia sẻ'
+    },
+    {
+      slug: 'post-raw-script',
+      title: 'Bài viết <script>alert("raw")</script> &quot;an toàn&quot;'
+    },
+    {
+      slug: 'post-excess-spaces',
+      title: 'Tiêu đề   chứa\u00A0\u00A0nhiều&nbsp;&nbsp;khoảng   trắng   '
+    }
+  ];
+
+  window.codexGetPublishedPosts = async () => ({ posts: mockPosts });
+  window.codexListOwnerBlogComments = async () => ({ comments: [], next_cursor: null });
+
+  const postSelect = getOrCreate('ownerBlogFilterPostSelect', 'select');
+
+  await window.initOwnerBlogCommentsModeration();
+
+  // Verify options were created via DOM API (1 default + 6 posts)
+  assert.equal(postSelect.children.length, 7, 'Must create 1 default option + 6 post options');
+
+  // Default option
+  const optDefault = postSelect.children[0];
+  assert.equal(optDefault.value, '');
+  assert.equal(optDefault.textContent, 'Tất cả bài viết');
+
+  // Option 1: Double-encoded numeric entity: &#38;lt;script&#38;gt; -> &lt;script&gt;
+  const opt1 = postSelect.children[1];
+  assert.equal(opt1.value, 'post-double-numeric', 'slug must be set on option.value');
+  assert.equal(opt1.textContent, 'Bài viết &lt;script&gt; double numeric');
+  assert.doesNotMatch(opt1.textContent, /<script>/, 'Must NOT double-decode into <script>');
+
+  // Option 2: Double-encoded named entity: &amp;lt;script&amp;gt; -> &lt;script&gt;
+  const opt2 = postSelect.children[2];
+  assert.equal(opt2.value, 'post-double-named', 'slug must be set on option.value');
+  assert.equal(opt2.textContent, 'Bài viết &lt;script&gt; double named');
+  assert.doesNotMatch(opt2.textContent, /<script>/, 'Must NOT double-decode into <script>');
+
+  // Option 3: Single entity &lt;script&gt; -> <script> plain text only
+  const opt3 = postSelect.children[3];
+  assert.equal(opt3.value, 'post-single-script', 'slug must be set on option.value');
+  assert.equal(opt3.textContent, 'Bài viết <script>alert("xss")</script>');
+  assert.equal(opt3.children.length, 0, 'Option must not contain child script elements');
+
+  // Option 4: Standard entities: &#8211;, &#x2013;, &nbsp;, &amp;
+  const opt4 = postSelect.children[4];
+  assert.equal(opt4.value, 'post-standard-entities', 'slug must be set on option.value');
+  assert.equal(opt4.textContent, 'Câu chuyện về melsou – – khi cảm xúc cần một nơi để cất giữ & chia sẻ');
+  assert.doesNotMatch(opt4.textContent, /&#8211;|&#x2013;|&nbsp;|&amp;/);
+
+  // Option 5: Raw script tag preserved as plain text without DOM element injection
+  const opt5 = postSelect.children[5];
+  assert.equal(opt5.value, 'post-raw-script', 'slug must be set on option.value');
+  assert.equal(opt5.textContent, 'Bài viết <script>alert("raw")</script> "an toàn"');
+  assert.equal(opt5.children.length, 0, 'Option must not contain child script elements');
+
+  // Option 6: \u00A0 and redundant whitespace normalization
+  const opt6 = postSelect.children[6];
+  assert.equal(opt6.value, 'post-excess-spaces', 'slug must be set on option.value');
+  assert.equal(opt6.textContent, 'Tiêu đề chứa nhiều khoảng trắng');
+  assert.doesNotMatch(opt6.textContent, /\u00A0/);
 });
