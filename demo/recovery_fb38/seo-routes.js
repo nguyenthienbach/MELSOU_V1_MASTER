@@ -1,7 +1,7 @@
 (function () {
   const routes = {
     '/': {
-      title: 'melsou — Gói tâm tình trong dáng hình thanh âm',
+      title: 'Melsou | Gói tâm tình trong dáng hình thanh âm',
       description: 'Chiếc máy ảnh có thể giữ lại hình dáng khoảnh khắc, nhưng lại vô tình bỏ quên âm thanh. Melsou hòa quyện giai điệu và kỷ vật để mỗi trang ảnh biết cất lời.',
       view: 'home'
     },
