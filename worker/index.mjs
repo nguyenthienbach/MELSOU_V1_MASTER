@@ -567,7 +567,7 @@ async function handlePublicBlogHtml(request, env, slug) {
   }).replace(/</g, '\\u003c');
 
   let shellResponse;
-  try { shellResponse = await env.ASSETS.fetch(new Request(new URL('/index.html', request.url), request)); }
+  try { shellResponse = await env.ASSETS.fetch(new Request(new URL('/', request.url), request)); }
   catch { return new Response('Câu chuyện đang tạm thời chưa tải được.', { status: 503, headers: { 'Content-Type': 'text/plain; charset=utf-8' } }); }
   if (!shellResponse.ok) return new Response('Câu chuyện đang tạm thời chưa tải được.', { status: 503, headers: { 'Content-Type': 'text/plain; charset=utf-8' } });
   let html = await shellResponse.text();
