@@ -586,6 +586,8 @@ async function handlePublicBlogHtml(request, env, slug) {
     .replace(/<meta\s+name="description"\s+content="[^"]*"\s*\/?>/i, '<meta name="description" content="' + htmlEscape(description) + '">')
     .replace(/<link\s+rel="canonical"\s+href="[^"]*"\s*\/?>/i, '<link rel="canonical" href="' + canonical + '">')
     .replace('</head>', socialMetadata + '</head>')
+    .replace('<h1 class="hero-title" id="heroHeadlineText">', '<div class="hero-title" id="heroHeadlineText">')
+    .replace('</h1>', '</div>')
     .replace(/<img id="readerCoverImg"[^>]*>/i, '<img id="readerCoverImg" src="' + htmlEscape(image) + '" alt="' + htmlEscape(title) + '" style="width:100%;height:100%;object-fit:cover">')
     .replace(/<span id="readerCategoryBadge"[^>]*>[\s\S]*?<\/span>/i, '<span id="readerCategoryBadge" style="font-size:11.5px;font-weight:800;color:var(--red);text-transform:uppercase;letter-spacing:1.2px;background:var(--red-light);padding:3px 10px;border-radius:100px">' + htmlEscape(category) + '</span>')
     .replace(/<span id="readerPublishDate"[^>]*>[\s\S]*?<\/span>/i, '<span id="readerPublishDate" style="font-size:12.5px;color:var(--gray)">' + htmlEscape(post.publishedAt || '') + '</span>')

@@ -134,6 +134,8 @@ test('Googlebot receives server-rendered article metadata and body with a self c
     assert.match(html, /type="application\/ld\+json">[\s\S]*"@type":"Article"/);
     assert.match(html, /<h1 id="blogPostPageHeading"[^>]*>Câu chuyện đầu tiên của Melsou<\/h1>/);
     assert.match(html, /Nội dung bài viết có mặt trong HTML ban đầu\./);
+    assert.doesNotMatch(html, /<h1[^>]*id="heroHeadlineText"/);
+    assert.equal((html.match(/<h1\b/g) || []).length, 1);
     assert.doesNotMatch(html, /<title>Melsou \| Gói tâm tình/);
     assert.doesNotMatch(html, /rel="canonical" href="https:\/\/melsou\.com\/"/);
   } finally { globalThis.fetch = originalFetch; }
