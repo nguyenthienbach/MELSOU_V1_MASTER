@@ -1,6 +1,10 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { readFile } from 'node:fs/promises';
 import worker from './index.mjs';
+
+const blogShell = await readFile(new URL('../demo/recovery_fb38/index.html', import.meta.url), 'utf8');
+const assetEnv = { ASSETS: { fetch: async () => new Response(blogShell, { headers: { 'Content-Type': 'text/html' } }) } };
 
 const wpPost = (overrides = {}) => ({
   id: 9,
@@ -103,4 +107,54 @@ test('dynamic sitemap follows the current WordPress published collection', async
     assert.doesNotMatch(secondXml, /cau-chuyen-dau-tien-cua-melsou/);
     assert.equal((secondXml.match(/<url>/g) || []).length, 6);
   } finally { globalThis.fetch = originalFetch; }
+});
+
+test('Googlebot receives server-rendered article metadata and body with a self canonical', async () => {
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = async () => wpResponse([wpPost({
+    excerpt: { rendered: '<p>Mô tả riêng cho bài viết Melsou.</p>' },
+    content: { rendered: '<p>Nội dung bài viết có mặt trong HTML ban đầu.</p>' },
+    _embedded: {
+      'wp:term': [[{ id: 1, name: 'Nhật ký Melsou', slug: 'nhat-ky-melsou' }], []],
+      'wp:featuredmedia': [{ source_url: 'https://cdn.example.test/article.jpg' }]
+    }
+  })]);
+  try {
+    const request = new Request('https://melsou.test/blog/cau-chuyen-dau-tien-cua-melsou', { headers: { 'User-Agent': 'Googlebot' } });
+    const response = await worker.fetch(request, assetEnv, {});
+    assert.equal(response.status, 200);
+    assert.match(response.headers.get('content-type'), /^text\/html/);
+    const html = await response.text();
+    assert.match(html, /<title>Câu chuyện đầu tiên của Melsou \| Melsou<\/title>/);
+    assert.match(html, /<meta name="description" content="Mô tả riêng cho bài viết Melsou\.">/);
+    assert.match(html, /<link rel="canonical" href="https:\/\/melsou\.com\/blog\/cau-chuyen-dau-tien-cua-melsou">/);
+    assert.match(html, /property="og:type" content="article"/);
+    assert.match(html, /property="og:image" content="https:\/\/cdn\.example\.test\/article\.jpg"/);
+    assert.match(html, /name="twitter:card" content="summary_large_image"/);
+    assert.match(html, /type="application\/ld\+json">[\s\S]*"@type":"Article"/);
+    assert.match(html, /<h1 id="blogPostPageHeading"[^>]*>Câu chuyện đầu tiên của Melsou<\/h1>/);
+    assert.match(html, /Nội dung bài viết có mặt trong HTML ban đầu\./);
+    assert.doesNotMatch(html, /<title>Melsou \| Gói tâm tình/);
+    assert.doesNotMatch(html, /rel="canonical" href="https:\/\/melsou\.com\/"/);
+  } finally { globalThis.fetch = originalFetch; }
+});
+
+test('server-rendered blog route returns 404 for an unpublished or unknown slug', async () => {
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = async () => wpResponse([]);
+  try {
+    const request = new Request('https://melsou.test/blog/khong-ton-tai', { headers: { 'User-Agent': 'Googlebot' } });
+    const response = await worker.fetch(request, assetEnv, {});
+    assert.equal(response.status, 404);
+    assert.equal(response.headers.get('x-robots-tag'), 'noindex');
+    assert.doesNotMatch(await response.text(), /rel="canonical" href="https:\/\/melsou\.com\/"/);
+  } finally { globalThis.fetch = originalFetch; }
+});
+
+test('production routing sends blog documents through the Worker SSR route', async () => {
+  const vercel = JSON.parse(await readFile(new URL('../demo/recovery_fb38/vercel.json', import.meta.url), 'utf8'));
+  const blogRewrite = vercel.rewrites.find((rewrite) => rewrite.source === '/blog/:slug');
+  assert.equal(blogRewrite?.destination, 'https://melsou.nguyenthienbach18042007.workers.dev/blog/:slug');
+  const wrangler = await readFile(new URL('../wrangler.jsonc', import.meta.url), 'utf8');
+  assert.match(wrangler, /"run_worker_first":\s*\["\/api\/\*",\s*"\/blog\/\*"\]/);
 });

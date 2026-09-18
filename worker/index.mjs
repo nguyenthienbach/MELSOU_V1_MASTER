@@ -515,6 +515,88 @@ const wordpressPost = (post) => ({
   commentsOpen: post.comment_status === 'open'
 });
 
+const decodeHtmlText = (value) => String(value || '')
+  .replace(/<[^>]*>/g, ' ')
+  .replace(/&#(\d+);|&#x([0-9a-f]+);|&([a-z]+);/gi, (match, decimal, hexadecimal, named) => {
+    if (decimal) return String.fromCodePoint(Number(decimal));
+    if (hexadecimal) return String.fromCodePoint(Number.parseInt(hexadecimal, 16));
+    return ({ amp: '&', apos: "'", gt: '>', lt: '<', nbsp: ' ', quot: '"' })[named.toLowerCase()] || match;
+  })
+  .replace(/\s+/g, ' ')
+  .trim();
+const htmlEscape = (value) => String(value || '').replace(/[&<>"']/g, (character) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[character]);
+const safeImageUrl = (value) => {
+  try {
+    const parsed = new URL(String(value || ''));
+    return parsed.protocol === 'https:' ? parsed.href : null;
+  } catch { return null; }
+};
+const sanitizeWordpressArticleHtml = (value) => String(value || '')
+  .replace(/<(script|style|iframe|object|embed|form)\b[^>]*>[\s\S]*?<\/\1\s*>/gi, '')
+  .replace(/<(script|style|iframe|object|embed|form)\b[^>]*\/?>/gi, '')
+  .replace(/\s+on[a-z]+\s*=\s*(?:"[^"]*"|'[^']*'|[^\s>]+)/gi, '')
+  .replace(/\s+(href|src)\s*=\s*(["'])\s*(?:javascript:|data:text\/html)[\s\S]*?\2/gi, '');
+
+async function handlePublicBlogHtml(request, env, slug) {
+  const query = new URLSearchParams({ status: 'publish', slug, per_page: '1', _embed: '1' });
+  let response;
+  try { response = await wordpressFetch('/posts?' + query); }
+  catch { return new Response('Câu chuyện đang tạm thời chưa tải được.', { status: 503, headers: { 'Content-Type': 'text/plain; charset=utf-8' } }); }
+  if (!response.ok) return new Response('Không tìm thấy câu chuyện.', { status: response.status === 404 ? 404 : 503, headers: { 'Content-Type': 'text/plain; charset=utf-8', 'X-Robots-Tag': 'noindex' } });
+  const [rawPost] = await response.json();
+  if (!rawPost) return new Response('Không tìm thấy câu chuyện.', { status: 404, headers: { 'Content-Type': 'text/plain; charset=utf-8', 'X-Robots-Tag': 'noindex' } });
+
+  const post = wordpressPost(rawPost);
+  const title = decodeHtmlText(post.title) || 'Câu chuyện Melsou';
+  const description = (decodeHtmlText(post.excerpt) || decodeHtmlText(post.content)).slice(0, 180);
+  const canonical = 'https://melsou.com/blog/' + slug;
+  const image = safeImageUrl(post.featuredImage) || 'https://melsou.com/favicon.png';
+  const category = decodeHtmlText(post.category?.name) || 'Câu chuyện';
+  const articleHtml = sanitizeWordpressArticleHtml(post.content);
+  const jsonLd = JSON.stringify({
+    '@context': 'https://schema.org',
+    '@type': 'Article',
+    headline: title,
+    description,
+    image: [image],
+    datePublished: post.publishedAt || undefined,
+    dateModified: post.modifiedAt || post.publishedAt || undefined,
+    mainEntityOfPage: { '@type': 'WebPage', '@id': canonical },
+    author: { '@type': 'Organization', name: 'Melsou' },
+    publisher: { '@type': 'Organization', name: 'Melsou', logo: { '@type': 'ImageObject', url: 'https://melsou.com/favicon.png' } }
+  }).replace(/</g, '\\u003c');
+
+  let shellResponse;
+  try { shellResponse = await env.ASSETS.fetch(new Request(new URL('/index.html', request.url), request)); }
+  catch { return new Response('Câu chuyện đang tạm thời chưa tải được.', { status: 503, headers: { 'Content-Type': 'text/plain; charset=utf-8' } }); }
+  if (!shellResponse.ok) return new Response('Câu chuyện đang tạm thời chưa tải được.', { status: 503, headers: { 'Content-Type': 'text/plain; charset=utf-8' } });
+  let html = await shellResponse.text();
+  const socialMetadata = '<meta property="og:title" content="' + htmlEscape(title) + ' | Melsou">\n'
+    + '<meta property="og:description" content="' + htmlEscape(description) + '">\n'
+    + '<meta property="og:url" content="' + canonical + '">\n'
+    + '<meta property="og:type" content="article">\n'
+    + '<meta property="og:image" content="' + htmlEscape(image) + '">\n'
+    + '<meta name="twitter:card" content="summary_large_image">\n'
+    + '<meta name="twitter:title" content="' + htmlEscape(title) + ' | Melsou">\n'
+    + '<meta name="twitter:description" content="' + htmlEscape(description) + '">\n'
+    + '<meta name="twitter:image" content="' + htmlEscape(image) + '">\n'
+    + '<script type="application/ld+json">' + jsonLd + '</script>\n';
+  html = html
+    .replace(/<title>[\s\S]*?<\/title>/i, '<title>' + htmlEscape(title) + ' | Melsou</title>')
+    .replace(/<meta\s+name="description"\s+content="[^"]*"\s*\/?>/i, '<meta name="description" content="' + htmlEscape(description) + '">')
+    .replace(/<link\s+rel="canonical"\s+href="[^"]*"\s*\/?>/i, '<link rel="canonical" href="' + canonical + '">')
+    .replace('</head>', socialMetadata + '</head>')
+    .replace(/<img id="readerCoverImg"[^>]*>/i, '<img id="readerCoverImg" src="' + htmlEscape(image) + '" alt="' + htmlEscape(title) + '" style="width:100%;height:100%;object-fit:cover">')
+    .replace(/<span id="readerCategoryBadge"[^>]*>[\s\S]*?<\/span>/i, '<span id="readerCategoryBadge" style="font-size:11.5px;font-weight:800;color:var(--red);text-transform:uppercase;letter-spacing:1.2px;background:var(--red-light);padding:3px 10px;border-radius:100px">' + htmlEscape(category) + '</span>')
+    .replace(/<span id="readerPublishDate"[^>]*>[\s\S]*?<\/span>/i, '<span id="readerPublishDate" style="font-size:12.5px;color:var(--gray)">' + htmlEscape(post.publishedAt || '') + '</span>')
+    .replace(/<h2 id="readerTitle"[^>]*>[\s\S]*?<\/h2>/i, '<h1 id="blogPostPageHeading" style="font-family:\'Playfair Display\',serif;font-size:28px;line-height:1.35;color:var(--dark);margin-bottom:20px">' + htmlEscape(title) + '</h1>')
+    .replace('<!-- Article body paragraphs -->', articleHtml);
+  return new Response(request.method === 'HEAD' ? null : html, {
+    status: 200,
+    headers: { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'public, max-age=30, stale-while-revalidate=30', 'X-Content-Type-Options': 'nosniff' }
+  });
+}
+
 async function handlePublicBlog(url, slug = null) {
   const query = new URLSearchParams({ status: 'publish', _embed: '1' });
   if (slug) query.set('slug', slug);
@@ -1245,6 +1327,8 @@ export default {
     if (blogCover && request.method === 'GET') return handleBlogCover(env, blogCover[1]);
     const publicBlogPost = url.pathname.match(/^\/api\/blog\/([a-z0-9-]+)$/);
     if (publicBlogPost && request.method === 'GET') return handlePublicBlog(url, publicBlogPost[1]);
+    const publicBlogHtml = url.pathname.match(/^\/blog\/([a-z0-9-]+)$/);
+    if (publicBlogHtml && (request.method === 'GET' || request.method === 'HEAD')) return handlePublicBlogHtml(request, env, publicBlogHtml[1]);
     if (url.pathname === '/api/guest/projects' && (request.method === 'GET' || request.method === 'POST')) return handleGuestProjects(request, env);
     const guestProjectSave = url.pathname.match(/^\/api\/guest\/projects\/([0-9a-f-]{36})$/i);
     if (guestProjectSave && request.method === 'PUT') return handleGuestProjectSave(request, env, guestProjectSave[1]);
