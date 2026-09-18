@@ -2,6 +2,7 @@
   "cleanUrls": true,
   "trailingSlash": false,
   "rewrites": [
+    { "source": "/", "destination": "https://melsou.nguyenthienbach18042007.workers.dev/" },
     { "source": "/ve-melsou", "destination": "/" },
     { "source": "/goi-san-pham", "destination": "/" },
     { "source": "/templates", "destination": "/" },

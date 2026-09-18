@@ -158,5 +158,66 @@ test('production routing sends blog documents through the Worker SSR route', asy
   const blogRewrite = vercel.rewrites.find((rewrite) => rewrite.source === '/blog/:slug');
   assert.equal(blogRewrite?.destination, 'https://melsou.nguyenthienbach18042007.workers.dev/blog/:slug');
   const wrangler = await readFile(new URL('../wrangler.jsonc', import.meta.url), 'utf8');
-  assert.match(wrangler, /"run_worker_first":\s*\["\/api\/\*",\s*"\/blog\/\*"\]/);
+  assert.match(wrangler, /"run_worker_first":\s*\["\/",\s*"\/api\/\*",\s*"\/blog\/\*"\]/);
+});
+
+test('homepage SSR emits crawlable safe links for every returned published post in one request', async () => {
+  const originalFetch = globalThis.fetch;
+  let fetchCount = 0;
+  let requestedUrl = '';
+  globalThis.fetch = async (input) => {
+    fetchCount += 1;
+    requestedUrl = String(input);
+    return wpResponse([
+      wpPost(),
+      wpPost({
+        id: 10,
+        slug: 'bai-viet-moi',
+        title: { rendered: 'Bài viết &amp; mới <script>alert(1)</script>' },
+        excerpt: { rendered: '<p>Mô tả <img src=x onerror=alert(1)> an toàn.</p>' },
+        jetpack_featured_media_url: 'javascript:alert(1)'
+      }),
+      wpPost({ id: 11, slug: 'ban-nhap', status: 'draft' }),
+      wpPost({ id: 12, slug: 'bai-rieng-tu', status: 'private' }),
+      wpPost({ id: 13, slug: 'bai-da-xoa', status: 'deleted' })
+    ]);
+  };
+  try {
+    const response = await worker.fetch(new Request('https://melsou.test/', { headers: { 'User-Agent': 'Googlebot' } }), assetEnv, {});
+    assert.equal(response.status, 200);
+    const html = await response.text();
+    const list = /<div class="blog-feed-track" id="publicBlogList">([\s\S]*?)<\/div>\s*<button class="blog-carousel-arrow blog-arrow-next"/.exec(html)?.[1] || '';
+    assert.match(list, /<a href="\/blog\/cau-chuyen-dau-tien-cua-melsou" class="blog-card-link">/);
+    assert.match(list, /<a href="\/blog\/bai-viet-moi" class="blog-card-link">/);
+    assert.doesNotMatch(list, /ban-nhap|bai-rieng-tu|bai-da-xoa/);
+    assert.doesNotMatch(list, /javascript:void\(0\)|<script>alert|onerror=|javascript:alert/);
+    assert.equal((list.match(/class="blog-card-link"/g) || []).length, 2);
+    assert.equal(fetchCount, 1);
+    assert.match(requestedUrl, /status=publish/);
+    assert.match(requestedUrl, /per_page=100/);
+  } finally { globalThis.fetch = originalFetch; }
+});
+
+test('homepage SSR gives Googlebot and normal browsers the same Blog links', async () => {
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = async () => wpResponse([wpPost(), wpPost({ id: 10, slug: 'bai-viet-moi' })]);
+  const links = (html) => [...html.matchAll(/<a href="(\/blog\/[a-z0-9-]+)" class="blog-card-link">/g)].map((match) => match[1]);
+  try {
+    const googlebot = await worker.fetch(new Request('https://melsou.test/', { headers: { 'User-Agent': 'Googlebot' } }), assetEnv, {});
+    const browser = await worker.fetch(new Request('https://melsou.test/', { headers: { 'User-Agent': 'Mozilla/5.0' } }), assetEnv, {});
+    assert.deepEqual(links(await googlebot.text()), links(await browser.text()));
+  } finally { globalThis.fetch = originalFetch; }
+});
+
+test('WordPress list failure leaves the homepage available without fake Blog links', async () => {
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = async () => { throw new Error('upstream unavailable'); };
+  try {
+    const response = await worker.fetch(new Request('https://melsou.test/'), assetEnv, {});
+    assert.equal(response.status, 200);
+    const html = await response.text();
+    assert.match(html, /id="publicBlogList"/);
+    assert.doesNotMatch(html, /id="melsouSsrBlogPosts"/);
+    assert.doesNotMatch(html, /class="blog-card-link"/);
+  } finally { globalThis.fetch = originalFetch; }
 });
