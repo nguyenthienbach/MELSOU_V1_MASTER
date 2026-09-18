@@ -155,6 +155,7 @@ test('server-rendered blog route returns 404 for an unpublished or unknown slug'
 
 test('production routing sends blog documents through the Worker SSR route', async () => {
   const vercel = JSON.parse(await readFile(new URL('../demo/recovery_fb38/vercel.json', import.meta.url), 'utf8'));
+  assert.deepEqual(vercel.routes, [{ src: '^/$', dest: 'https://melsou.nguyenthienbach18042007.workers.dev/' }]);
   const blogRewrite = vercel.rewrites.find((rewrite) => rewrite.source === '/blog/:slug');
   assert.equal(blogRewrite?.destination, 'https://melsou.nguyenthienbach18042007.workers.dev/blog/:slug');
   const wrangler = await readFile(new URL('../wrangler.jsonc', import.meta.url), 'utf8');
