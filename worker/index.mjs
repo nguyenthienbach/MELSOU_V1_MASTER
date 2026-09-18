@@ -537,6 +537,69 @@ const sanitizeWordpressArticleHtml = (value) => String(value || '')
   .replace(/\s+on[a-z]+\s*=\s*(?:"[^"]*"|'[^']*'|[^\s>]+)/gi, '')
   .replace(/\s+(href|src)\s*=\s*(["'])\s*(?:javascript:|data:text\/html)[\s\S]*?\2/gi, '');
 
+const blogFallbackImage = 'https://images.unsplash.com/photo-1517841905240-472988babdf9?w=600';
+const renderPublicBlogCard = (post) => {
+  const slug = /^[a-z0-9-]+$/.test(post.slug || '') ? post.slug : null;
+  if (!slug) return '';
+  const title = decodeHtmlText(post.title);
+  const excerpt = decodeHtmlText(post.excerpt);
+  const category = decodeHtmlText(post.category?.name) || 'Kỷ vật';
+  const image = safeImageUrl(post.featuredImage) || blogFallbackImage;
+  const publishedDate = post.publishedAt
+    ? new Intl.DateTimeFormat('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' }).format(new Date(post.publishedAt))
+    : '';
+  return '<article class="blog-card-item" data-blog-slug="' + htmlEscape(slug) + '">'
+    + '<a href="/blog/' + htmlEscape(slug) + '" class="blog-card-link">'
+    + '<div class="blog-card-image-wrap"><img src="' + htmlEscape(image) + '" alt="' + htmlEscape(title) + '" class="blog-card-img" loading="lazy"></div>'
+    + '<div class="blog-card-body"><div><div class="blog-card-meta">'
+    + '<span class="blog-card-category">' + htmlEscape(category) + '</span>'
+    + '<span class="blog-card-date">' + htmlEscape(publishedDate) + '</span>'
+    + '</div><h3 class="blog-card-title">' + htmlEscape(title) + '</h3>'
+    + '<p class="blog-card-excerpt">' + htmlEscape(excerpt) + '</p></div>'
+    + '<div class="blog-card-footer"><span class="blog-card-cta">Đọc tiếp câu chuyện →</span></div>'
+    + '</div></a></article>';
+};
+
+async function handlePublicHome(request, env) {
+  let shellResponse;
+  try { shellResponse = await env.ASSETS.fetch(new Request(new URL('/', request.url), request)); }
+  catch { return new Response('Melsou đang tạm thời chưa tải được.', { status: 503 }); }
+  if (!shellResponse.ok) return shellResponse;
+  let html = await shellResponse.text();
+  try {
+    const query = new URLSearchParams({ status: 'publish', per_page: '100', page: '1', orderby: 'date', order: 'desc', _embed: '1' });
+    const response = await wordpressFetch('/posts?' + query);
+    if (response.ok) {
+      const posts = (await response.json())
+        .filter((post) => post?.status === 'publish' && /^[a-z0-9-]+$/.test(post.slug || ''))
+        .map(wordpressPost);
+      const cards = posts.map(renderPublicBlogCard).join('');
+      const hydrationPosts = posts.map((post) => ({
+        ...post,
+        title: decodeHtmlText(post.title),
+        content: decodeHtmlText(post.content),
+        excerpt: decodeHtmlText(post.excerpt),
+        category: post.category ? { ...post.category, name: decodeHtmlText(post.category.name) } : null,
+        featuredImage: safeImageUrl(post.featuredImage)
+      }));
+      const serialized = JSON.stringify({
+        posts: hydrationPosts,
+        pagination: { page: 1, total: posts.length, totalPages: 1 }
+      }).replace(/</g, '\\u003c');
+      html = html.replace(
+        '<!-- Rendered dynamically by renderPublicBlog() -->',
+        cards + '<script type="application/json" id="melsouSsrBlogPosts">' + serialized + '</script>'
+      );
+    }
+  } catch {
+    // WordPress availability must never make the rest of the homepage unavailable.
+  }
+  return new Response(request.method === 'HEAD' ? null : html, {
+    status: 200,
+    headers: { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'public, max-age=30, stale-while-revalidate=30', 'X-Content-Type-Options': 'nosniff' }
+  });
+}
+
 async function handlePublicBlogHtml(request, env, slug) {
   const query = new URLSearchParams({ status: 'publish', slug, per_page: '1', _embed: '1' });
   let response;
@@ -604,7 +667,7 @@ async function handlePublicBlog(url, slug = null) {
   if (slug) query.set('slug', slug);
   else {
     query.set('page', String(Math.max(1, Number(url.searchParams.get('page')) || 1)));
-    query.set('per_page', String(Math.min(20, Math.max(1, Number(url.searchParams.get('perPage')) || 10))));
+    query.set('per_page', String(Math.min(100, Math.max(1, Number(url.searchParams.get('perPage')) || 10))));
     query.set('orderby', 'date');
     query.set('order', 'desc');
     const category = url.searchParams.get('category');
@@ -1299,6 +1362,7 @@ export default {
   async fetch(request, env, ctx) {
     env = withPrivateStorage(env);
     const url = new URL(request.url);
+    if (url.pathname === '/' && (request.method === 'GET' || request.method === 'HEAD')) return handlePublicHome(request, env);
     if (url.pathname === '/api/health' && request.method === 'GET') return json({ ok: true, environment: env.APP_ENV || 'unknown' });
     if (url.pathname === '/api/auth/native/register' && request.method === 'POST') return handleNativeRegister(request, env);
     if (url.pathname === '/api/auth/native/login' && request.method === 'POST') return handleNativeLogin(request, env);

@@ -8157,6 +8157,60 @@ var currentBlogPage = 1;
 var currentBlogTotalPages = 1;
 var currentBlogCategories = [];
 var blogSearchQuery = '';
+var blogListRequestId = 0;
+var blogSsrFingerprint = '';
+
+function blogPostsFingerprint(posts) {
+  return JSON.stringify((Array.isArray(posts) ? posts : []).map((post) => [
+    post?.slug || '',
+    post?.modifiedAt || '',
+    plainWordPressText(post?.title || ''),
+    plainWordPressText(post?.excerpt || ''),
+    plainWordPressText(post?.content || ''),
+    safeBlogImageUrl(post?.featuredImage || ''),
+    post?.category?.id || ''
+  ]));
+}
+
+function hydrateSsrBlogPosts() {
+  const payload = document.getElementById('melsouSsrBlogPosts');
+  if (!payload) return false;
+  try {
+    const parsed = JSON.parse(payload.textContent || '{}');
+    const posts = Array.isArray(parsed.posts)
+      ? parsed.posts.filter((post) => post && /^[a-z0-9-]+$/.test(String(post.slug || '')))
+      : [];
+    currentLoadedBlogPosts = posts;
+    currentBlogPage = Number(parsed.pagination?.page) || 1;
+    currentBlogTotalPages = Number(parsed.pagination?.totalPages) || 1;
+    blogSsrFingerprint = blogPostsFingerprint(posts);
+    return true;
+  } catch (error) {
+    console.warn('Invalid SSR Blog payload:', error);
+    return false;
+  }
+}
+
+function escapeBlogHtml(value) {
+  return String(value || '').replace(/[&<>"']/g, (character) => ({
+    '&': '&amp;',
+    '<': '&lt;',
+    '>': '&gt;',
+    '"': '&quot;',
+    "'": '&#39;'
+  })[character]);
+}
+
+function safeBlogImageUrl(value) {
+  const fallback = 'https://images.unsplash.com/photo-1517841905240-472988babdf9?w=600';
+  if (!value) return fallback;
+  try {
+    const parsed = new URL(String(value || ''), window.location.origin);
+    return parsed.protocol === 'https:' ? parsed.href : fallback;
+  } catch {
+    return fallback;
+  }
+}
 
 function sanitizeWordPressHtml(html) {
   const documentValue = new DOMParser().parseFromString(String(html || ''), 'text/html');
@@ -8279,22 +8333,34 @@ function getFilteredBlogPosts() {
 async function renderPublicBlog(category = 'all', page = 1) {
   const list = document.getElementById('publicBlogList');
   if (!list) return;
+  const requestId = ++blogListRequestId;
   const isEn = (currentAppLanguage === 'en');
   if (!currentLoadedBlogPosts || !currentLoadedBlogPosts.length) {
     list.innerHTML = `<div class="blog-empty-state"><div style="font-size:32px;margin-bottom:10px">⏳</div><p>${isEn ? 'Loading stories...' : 'Đang tải những câu chuyện...'}</p></div>`;
   }
   if (typeof window.codexGetPublishedPosts !== 'function') return;
   let result;
-  try { result = await window.codexGetPublishedPosts({ page, perPage: 10, category }); }
+  try { result = await window.codexGetPublishedPosts({ page, perPage: 100, category }); }
   catch (error) {
+    if (requestId !== blogListRequestId) return;
     console.warn('codexGetPublishedPosts error:', error);
+    if (currentLoadedBlogPosts.length > 0) return;
     list.innerHTML = `<div class="blog-empty-state"><div style="font-size:32px;margin-bottom:10px">📖</div><p>${isEn ? 'Stories are temporarily unavailable. Please try again later.' : 'Câu chuyện đang tạm thời chưa tải được. Vui lòng thử lại sau.'}</p></div>`;
     return;
   }
+  if (requestId !== blogListRequestId) return;
   const allPosts = result.posts || [];
   currentBlogPage = result.pagination?.page || page;
   currentBlogTotalPages = result.pagination?.totalPages || 1;
-  currentLoadedBlogPosts = page > 1 ? currentLoadedBlogPosts.concat(allPosts) : allPosts;
+  const nextPosts = page > 1 ? currentLoadedBlogPosts.concat(allPosts) : allPosts;
+  const nextFingerprint = blogPostsFingerprint(nextPosts);
+  currentLoadedBlogPosts = nextPosts;
+  if (page === 1 && category === 'all' && !blogSearchQuery && blogSsrFingerprint === nextFingerprint) {
+    blogSsrFingerprint = '';
+    updateBlogCarouselArrows();
+    return;
+  }
+  blogSsrFingerprint = '';
   renderFilteredBlogPosts();
 }
 
@@ -8326,20 +8392,20 @@ function renderFilteredBlogPosts() {
     return;
   }
 
-  list.innerHTML = filtered.map((post) => `
+  list.innerHTML = filtered.filter((post) => /^[a-z0-9-]+$/.test(String(post?.slug || ''))).map((post) => `
     <article class="blog-card-item">
-      <a href="/blog/${encodeURIComponent(post.slug)}" class="blog-card-link">
+      <a href="/blog/${escapeBlogHtml(post.slug)}" class="blog-card-link">
         <div class="blog-card-image-wrap">
-          <img src="${post.featuredImage || 'https://images.unsplash.com/photo-1517841905240-472988babdf9?w=600'}" alt="${post.title ? String(post.title).replace(/"/g, '&quot;') : ''}" class="blog-card-img" loading="lazy" />
+          <img src="${escapeBlogHtml(safeBlogImageUrl(post.featuredImage))}" alt="${escapeBlogHtml(plainWordPressText(post.title))}" class="blog-card-img" loading="lazy" />
         </div>
         <div class="blog-card-body">
           <div>
             <div class="blog-card-meta">
-              <span class="blog-card-category">${post.category?.name || 'Kỷ vật'}</span>
+              <span class="blog-card-category">${escapeBlogHtml(plainWordPressText(post.category?.name || 'Kỷ vật'))}</span>
               <span class="blog-card-date">${post.publishedAt ? new Date(post.publishedAt).toLocaleDateString('vi-VN') : ''}</span>
             </div>
-            <h3 class="blog-card-title">${post.title}</h3>
-            <p class="blog-card-excerpt">${plainWordPressText(post.excerpt)}</p>
+            <h3 class="blog-card-title">${escapeBlogHtml(plainWordPressText(post.title))}</h3>
+            <p class="blog-card-excerpt">${escapeBlogHtml(plainWordPressText(post.excerpt))}</p>
           </div>
           <div class="blog-card-footer">
             <span class="blog-card-cta">Đọc tiếp câu chuyện →</span>
@@ -10917,6 +10983,7 @@ function sendAdminReply() {
   if (inp) inp.value = '';
 }
 
+hydrateSsrBlogPosts();
 resetBlogSearchState();
 window.addEventListener('pageshow', resetBlogSearchState);
 renderCustomerReviews();

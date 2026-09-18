@@ -2,6 +2,15 @@
 
 This log prevents accidental overlap. Add the newest entry at the top.
 
+## DONE — Codex — crawlable SSR Blog links on homepage
+
+- **When / agent:** 2026-09-18 — Codex
+- **Files reserved:** worker/index.mjs, worker/wordpress-blog.test.mjs, worker/blog-home-ssr.test.mjs, demo/recovery_fb38/app.js, demo/recovery_fb38/vercel.json, wrangler.jsonc
+- **Purpose:** server-render published WordPress Blog cards with real /blog/:slug anchors into the existing homepage carousel and hydrate without duplicate cards or stale-response overwrite.
+- **Protected contracts:** preserve FB91 Blog presentation/responsive behavior, WordPress detail SSR and sitemap, Blog interactions/moderation, OWNER Dashboard, Auth, Studio, Cart, Checkout, migrations and production variables.
+- **Checks:** targeted SSR/hydration tests PASS (13/13); full backend suite PASS (138/138); demo/Worker syntax PASS; git diff check PASS; bounded local Worker curl as Googlebot returned HTTP 200 with 4 real Blog anchors and no javascript-only card link.
+- **Status:** DONE — local implementation and review complete; no commit, push or deploy.
+
 ## DONE — Codex — Blog interactions V1 backend contract
 
 - **When / agent:** 2026-09-15 — Codex
