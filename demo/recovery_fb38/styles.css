@@ -690,6 +690,7 @@ header {
 .value-icon { width: 50px; height: 50px; border-radius: 14px; display: flex; align-items: center; justify-content: center; font-size: 24px; margin-bottom: 18px; }
 .value-icon.red { background: var(--red-light); color: var(--red); }
 .value-icon.green { background: rgba(109,158,81,0.15); color: var(--green-d); }
+.value-step-num { font-size: 14px; font-weight: 800; letter-spacing: 0.12em; color: var(--red); margin-bottom: 14px; display: inline-block; text-transform: uppercase; }
 .value-card h3 { font-size: 17px; font-weight: 700; margin-bottom: 10px; line-height: 1.4; text-wrap: balance; color: var(--dark); }
 .value-card p { font-size: 13.5px; color: #4b4b4b; line-height: 1.65; flex: 1; }
 .value-card-more { display: inline-flex; align-items: center; gap: 6px; margin-top: 16px; font-size: 12.5px; font-weight: 700; color: var(--red); transition: var(--transition); }
