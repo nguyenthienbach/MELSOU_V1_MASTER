@@ -12,6 +12,10 @@
     {
       "source": "/api/:path*",
       "destination": "https://melsou.nguyenthienbach18042007.workers.dev/api/:path*"
+    },
+    {
+      "source": "/:path*",
+      "destination": "https://melsou.nguyenthienbach18042007.workers.dev/:path*"
     }
   ]
 }

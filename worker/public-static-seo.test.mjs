@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { readFile } from 'node:fs/promises';
+import { access, readFile } from 'node:fs/promises';
+import { fileURLToPath } from 'node:url';
 import vm from 'node:vm';
 import worker from './index.mjs';
 
@@ -105,6 +106,41 @@ test('production routing sends every sitemap static URL through Worker SSR witho
   assert.equal(vercel.rewrites.some(({ source }) => routes.some(([path]) => source === path)), false);
   assert.ok(vercel.rewrites.some(({ source }) => source === '/api/:path*'));
   assert.ok(vercel.rewrites.some(({ source }) => source === '/blog/:slug'));
+  assert.deepEqual(vercel.rewrites.at(-1), {
+    source: '/:path*', destination: 'https://melsou.nguyenthienbach18042007.workers.dev/:path*'
+  });
+});
+
+test('Vercel filesystem wins for real assets while unknown navigation falls through to Worker 404/noindex', async () => {
+  const publicRoot = fileURLToPath(new URL('../demo/recovery_fb38/', import.meta.url));
+  const vercel = JSON.parse(await readFile(new URL('../demo/recovery_fb38/vercel.json', import.meta.url), 'utf8'));
+  assert.deepEqual(vercel.rewrites.at(-1), {
+    source: '/:path*', destination: 'https://melsou.nguyenthienbach18042007.workers.dev/:path*'
+  });
+
+  const route = async (pathname) => {
+    const assetUrl = new URL(`../demo/recovery_fb38${pathname}`, import.meta.url);
+    try {
+      await access(fileURLToPath(assetUrl));
+      return new Response(await readFile(assetUrl), { status: 200, headers: { 'X-Test-Route': 'filesystem' } });
+    } catch {
+      return worker.fetch(new Request(`https://melsou.test${pathname}`), env, {});
+    }
+  };
+
+  assert.ok(publicRoot.endsWith('recovery_fb38\\') || publicRoot.endsWith('recovery_fb38/'));
+  for (const pathname of ['/app.js', '/styles.css', '/seo-routes.js', '/favicon.png']) {
+    const response = await route(pathname);
+    assert.equal(response.status, 200);
+    assert.equal(response.headers.get('X-Test-Route'), 'filesystem');
+    assert.equal(response.headers.has('X-Robots-Tag'), false);
+  }
+  for (const pathname of ['/duong-dan-khong-ton-tai', '/abc/xyz-khong-ton-tai']) {
+    const response = await route(pathname);
+    assert.equal(response.status, 404);
+    assert.equal(response.headers.get('X-Robots-Tag'), 'noindex');
+    assert.doesNotMatch(await response.text(), /Gói tâm tình/);
+  }
 });
 
 test('static SSR retains crawlable navigation and excludes private routes from the dynamic sitemap contract', async () => {
