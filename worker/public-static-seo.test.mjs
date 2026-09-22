@@ -97,35 +97,47 @@ test('browser and Googlebot receive identical static-route SEO signals', async (
   }
 });
 
-test('production routing sends every sitemap static URL through Worker SSR without changing other rewrites', async () => {
+test('production routing orders canonical Worker routes before callback, filesystem and unknown fallback', async () => {
   const vercel = JSON.parse(await readFile(new URL('../demo/recovery_fb38/vercel.json', import.meta.url), 'utf8'));
   assert.deepEqual(vercel.routes, [
     { src: '^/$', dest: 'https://melsou.nguyenthienbach18042007.workers.dev/' },
-    { src: '^/(ve-melsou|goi-san-pham|templates|chinh-sach-bao-mat|chinh-sach-bao-hanh)$', dest: 'https://melsou.nguyenthienbach18042007.workers.dev/$1' }
+    { src: '^/(ve-melsou|goi-san-pham|templates|chinh-sach-bao-mat|chinh-sach-bao-hanh)$', dest: 'https://melsou.nguyenthienbach18042007.workers.dev/$1' },
+    { src: '^/blog/([^/]+)$', dest: 'https://melsou.nguyenthienbach18042007.workers.dev/blog/$1' },
+    { src: '^/sitemap\\.xml$', dest: 'https://melsou.nguyenthienbach18042007.workers.dev/api/sitemap.xml' },
+    { src: '^/api/(.*)$', dest: 'https://melsou.nguyenthienbach18042007.workers.dev/api/$1' },
+    { src: '^/wordpress-oauth-callback$', dest: '/index.html' },
+    { handle: 'filesystem' },
+    { src: '^/(.*)$', dest: 'https://melsou.nguyenthienbach18042007.workers.dev/$1' }
   ]);
-  assert.equal(vercel.rewrites.some(({ source }) => routes.some(([path]) => source === path)), false);
-  assert.ok(vercel.rewrites.some(({ source }) => source === '/api/:path*'));
-  assert.ok(vercel.rewrites.some(({ source }) => source === '/blog/:slug'));
-  assert.deepEqual(vercel.rewrites.at(-1), {
-    source: '/:path*', destination: 'https://melsou.nguyenthienbach18042007.workers.dev/:path*'
-  });
+  assert.equal('rewrites' in vercel, false);
 });
 
-test('Vercel filesystem wins for real assets while unknown navigation falls through to Worker 404/noindex', async () => {
+test('Vercel route order serves real assets before sending unknown navigation to Worker 404/noindex', async () => {
   const publicRoot = fileURLToPath(new URL('../demo/recovery_fb38/', import.meta.url));
   const vercel = JSON.parse(await readFile(new URL('../demo/recovery_fb38/vercel.json', import.meta.url), 'utf8'));
-  assert.deepEqual(vercel.rewrites.at(-1), {
-    source: '/:path*', destination: 'https://melsou.nguyenthienbach18042007.workers.dev/:path*'
-  });
 
   const route = async (pathname) => {
-    const assetUrl = new URL(`../demo/recovery_fb38${pathname}`, import.meta.url);
-    try {
-      await access(fileURLToPath(assetUrl));
-      return new Response(await readFile(assetUrl), { status: 200, headers: { 'X-Test-Route': 'filesystem' } });
-    } catch {
-      return worker.fetch(new Request(`https://melsou.test${pathname}`), env, {});
+    for (const rule of vercel.routes) {
+      if (rule.handle === 'filesystem') {
+        const assetUrl = new URL(`../demo/recovery_fb38${pathname}`, import.meta.url);
+        try {
+          await access(fileURLToPath(assetUrl));
+          return new Response(await readFile(assetUrl), { status: 200, headers: { 'X-Test-Route': 'filesystem' } });
+        } catch {}
+        continue;
+      }
+      const match = pathname.match(new RegExp(rule.src));
+      if (!match) continue;
+      if (rule.dest === '/index.html') {
+        return new Response(await readFile(new URL('../demo/recovery_fb38/index.html', import.meta.url)), {
+          status: 200, headers: { 'X-Test-Route': 'spa-callback' }
+        });
+      }
+      const destination = rule.dest.replace(/\$(\d+)/g, (_, index) => match[Number(index)] || '');
+      const target = new URL(destination);
+      return worker.fetch(new Request(`https://melsou.test${target.pathname}${target.search}`), env, {});
     }
+    throw new Error(`No route matched ${pathname}`);
   };
 
   assert.ok(publicRoot.endsWith('recovery_fb38\\') || publicRoot.endsWith('recovery_fb38/'));
@@ -141,6 +153,9 @@ test('Vercel filesystem wins for real assets while unknown navigation falls thro
     assert.equal(response.headers.get('X-Robots-Tag'), 'noindex');
     assert.doesNotMatch(await response.text(), /Gói tâm tình/);
   }
+  const callback = await route('/wordpress-oauth-callback');
+  assert.equal(callback.status, 200);
+  assert.equal(callback.headers.get('X-Test-Route'), 'spa-callback');
 });
 
 test('static SSR retains crawlable navigation and excludes private routes from the dynamic sitemap contract', async () => {
