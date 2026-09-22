@@ -2,13 +2,13 @@
 
 This log prevents accidental overlap. Add the newest entry at the top.
 
-## DONE — Codex — crawlable SSR Blog links on homepage
+## DONE — Codex — public SSR, brand entity and WordPress Blog SEO
 
 - **When / agent:** 2026-09-18 — Codex
-- **Files reserved:** worker/index.mjs, worker/wordpress-blog.test.mjs, worker/blog-home-ssr.test.mjs, demo/recovery_fb38/app.js, demo/recovery_fb38/vercel.json, wrangler.jsonc
-- **Purpose:** server-render published WordPress Blog cards with real /blog/:slug anchors into the existing homepage carousel and hydrate without duplicate cards or stale-response overwrite.
+- **Files reserved:** `worker/index.mjs`, `worker/wordpress-blog.test.mjs`, `worker/brand-blog-seo.test.mjs`, `worker/public-static-seo.test.mjs`, `worker/seo-metadata-hydration.test.mjs`, `demo/recovery_fb38/app.js`, `demo/recovery_fb38/index.html`, `demo/recovery_fb38/seo-routes.js`, `demo/recovery_fb38/vercel.json`, `wrangler.jsonc`
+- **Purpose:** serve route-specific initial HTML for every public static sitemap URL, publish crawlable WordPress Blog cards on the homepage, normalize per-article SEO descriptions, and expose one consistent Melsou Organization/WebSite entity without inventing legal-business data.
 - **Protected contracts:** preserve FB91 Blog presentation/responsive behavior, WordPress detail SSR and sitemap, Blog interactions/moderation, OWNER Dashboard, Auth, Studio, Cart, Checkout, migrations and production variables.
-- **Checks:** targeted SSR/hydration tests PASS (13/13); full backend suite PASS (138/138); demo/Worker syntax PASS; git diff check PASS; bounded local Worker curl as Googlebot returned HTTP 200 with 4 real Blog anchors and no javascript-only card link.
+- **Checks:** targeted Blog/static/brand/routes/hydration suite PASS (76/76); full backend suite PASS (156/156); demo/Worker syntax PASS; `git diff --check` PASS; executable client tests confirm SSR metadata remains byte-for-byte stable after hydration and stale Blog responses cannot overwrite a newer route.
 - **Status:** DONE — local implementation and review complete; no commit, push or deploy.
 
 ## DONE — Codex — Blog interactions V1 backend contract

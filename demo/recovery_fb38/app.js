@@ -6971,7 +6971,7 @@ const MELSOU_I18N = {
     heroBadge: '📖 Album ảnh liền trang 180° kết hợp thanh âm',
     heroTitle: 'Gói tâm tình',
     heroTitleAccent: 'trong dáng hình thanh âm',
-    heroDesc: 'Chiếc máy ảnh có thể giữ lại hình dáng khoảnh khắc, nhưng lại vô tình bỏ quên âm thanh. melsou hòa quyện giai điệu (melody) và kỷ vật (souvenir) để mỗi trang ảnh không chỉ đẹp, mà còn biết cất lời.',
+    heroDesc: 'Chiếc máy ảnh có thể giữ lại hình dáng khoảnh khắc, nhưng lại vô tình bỏ quên âm thanh. Melsou hòa quyện giai điệu (melody) và kỷ vật (souvenir) để mỗi trang ảnh không chỉ đẹp, mà còn biết cất lời.',
     btnStartStudio: '🪄 Bắt đầu tạo album',
     btn3DFlip: '📖 Xem 3D',
     heroTrustOffgrid: '🔒 Bảo mật vật lý off-grid',

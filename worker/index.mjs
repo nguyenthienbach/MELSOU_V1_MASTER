@@ -502,19 +502,6 @@ const wordpressCategory = (post) => {
   const category = Array.isArray(terms?.[0]) ? terms[0][0] : null;
   return category ? { id: category.id, name: category.name, slug: category.slug } : null;
 };
-const wordpressPost = (post) => ({
-  id: post.id,
-  slug: post.slug,
-  title: post.title?.rendered || '',
-  content: post.content?.rendered || '',
-  excerpt: post.excerpt?.rendered || '',
-  publishedAt: post.date_gmt ? `${post.date_gmt}Z` : post.date,
-  modifiedAt: post.modified_gmt ? `${post.modified_gmt}Z` : post.modified,
-  category: wordpressCategory(post),
-  featuredImage: post._embedded?.['wp:featuredmedia']?.[0]?.source_url || post.jetpack_featured_media_url || null,
-  commentsOpen: post.comment_status === 'open'
-});
-
 const decodeHtmlText = (value) => String(value || '')
   .replace(/<[^>]*>/g, ' ')
   .replace(/&#(\d+);|&#x([0-9a-f]+);|&([a-z]+);/gi, (match, decimal, hexadecimal, named) => {
@@ -524,6 +511,56 @@ const decodeHtmlText = (value) => String(value || '')
   })
   .replace(/\s+/g, ' ')
   .trim();
+const decodeHtmlEntitiesOnce = (value) => String(value || '').replace(/&#(\d+);|&#x([0-9a-f]+);|&([a-z]+);/gi, (match, decimal, hexadecimal, named) => {
+  if (decimal) return String.fromCodePoint(Number(decimal));
+  if (hexadecimal) return String.fromCodePoint(Number.parseInt(hexadecimal, 16));
+  return ({ amp: '&', apos: "'", gt: '>', hellip: '…', lt: '<', nbsp: ' ', ndash: '–', mdash: '—', quot: '"' })[named.toLowerCase()] || match;
+});
+const cleanWordpressDescription = (value) => decodeHtmlEntitiesOnce(String(value || '')
+  .replace(/<(script|style)\b[^>]*>[\s\S]*?<\/\1\s*>/gi, ' ')
+  .replace(/<[^>]*>/g, ' ')
+  .replace(/\[[^\]]*\]/g, ' '))
+  .replace(/\[?…\]?/g, ' ')
+  .replace(/(?:Đọc|Xem)\s+tiếp(?:[^.!?]|\.{3})*/giu, ' ')
+  .replace(/\u00a0/g, ' ')
+  .replace(/\s+/g, ' ')
+  .trim();
+const sentenceBoundedDescription = (value, maximum = 180) => {
+  const characters = Array.from(value);
+  if (characters.length <= maximum) return value;
+  const candidate = characters.slice(0, maximum + 1).join('');
+  const sentence = candidate.match(/^([\s\S]*[.!?])(?:\s|$)/u)?.[1];
+  if (sentence && Array.from(sentence).length >= 80) return sentence.trim();
+  const words = characters.slice(0, maximum).join('').replace(/\s+\S*$/u, '').trim();
+  return (words || characters.slice(0, maximum).join('').trim()) + '…';
+};
+function resolveWordpressDescription(post) {
+  const jetpackSeo = cleanWordpressDescription(post?.meta?.advanced_seo_description);
+  if (jetpackSeo) return { description: jetpackSeo, source: 'meta.advanced_seo_description' };
+  const seo = cleanWordpressDescription(post?.yoast_head_json?.description);
+  if (seo) return { description: seo, source: 'yoast_head_json.description' };
+  const excerpt = cleanWordpressDescription(post?.excerpt?.rendered ?? post?.excerpt);
+  if (excerpt) return { description: excerpt, source: 'excerpt' };
+  return { description: sentenceBoundedDescription(cleanWordpressDescription(post?.content?.rendered ?? post?.content)), source: 'content_fallback' };
+}
+const wordpressPost = (post) => {
+  const resolvedDescription = resolveWordpressDescription(post);
+  return {
+    id: post.id,
+    slug: post.slug,
+    title: post.title?.rendered || '',
+    content: post.content?.rendered || '',
+    excerpt: post.excerpt?.rendered || '',
+    description: resolvedDescription.description,
+    descriptionSource: resolvedDescription.source,
+    publishedAt: post.date_gmt ? `${post.date_gmt}Z` : post.date,
+    modifiedAt: post.modified_gmt ? `${post.modified_gmt}Z` : post.modified,
+    category: wordpressCategory(post),
+    featuredImage: post._embedded?.['wp:featuredmedia']?.[0]?.source_url || post.jetpack_featured_media_url || null,
+    commentsOpen: post.comment_status === 'open',
+    author: post._embedded?.author?.[0]?.name ? decodeHtmlText(post._embedded.author[0].name) : null
+  };
+};
 const htmlEscape = (value) => String(value || '').replace(/[&<>"']/g, (character) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[character]);
 const safeImageUrl = (value) => {
   try {
@@ -535,9 +572,23 @@ const sanitizeWordpressArticleHtml = (value) => String(value || '')
   .replace(/<(script|style|iframe|object|embed|form)\b[^>]*>[\s\S]*?<\/\1\s*>/gi, '')
   .replace(/<(script|style|iframe|object|embed|form)\b[^>]*\/?>/gi, '')
   .replace(/\s+on[a-z]+\s*=\s*(?:"[^"]*"|'[^']*'|[^\s>]+)/gi, '')
-  .replace(/\s+(href|src)\s*=\s*(["'])\s*(?:javascript:|data:text\/html)[\s\S]*?\2/gi, '');
+  .replace(/\s+(href|src)\s*=\s*(?:(['"])\s*(?:javascript:|data:text\/html)[\s\S]*?\2|(?:javascript:|data:text\/html)[^\s>]*)/gi, '');
 
 const blogFallbackImage = 'https://images.unsplash.com/photo-1517841905240-472988babdf9?w=600';
+const melsouFullDescription = 'Chiếc máy ảnh có thể giữ lại hình dáng khoảnh khắc, nhưng lại vô tình bỏ quên âm thanh. Melsou hòa quyện giai điệu (melody) và kỷ vật (souvenir) để mỗi trang ảnh không chỉ đẹp, mà còn biết cất lời.';
+const melsouHomepageDescription = 'Melsou kết hợp album ảnh cá nhân hóa với giai điệu và kỷ vật, để mỗi trang ảnh không chỉ lưu giữ khoảnh khắc mà còn biết cất lời.';
+const melsouOrganizationId = 'https://melsou.com/#organization';
+const homepageEntityGraph = JSON.stringify({
+  '@context': 'https://schema.org',
+  '@graph': [
+    {
+      '@type': 'Organization', '@id': melsouOrganizationId, name: 'Melsou', alternateName: 'Melsou Melody & Souvenir',
+      url: 'https://melsou.com/', description: melsouFullDescription, logo: 'https://melsou.com/favicon.png',
+      sameAs: ['https://www.facebook.com/share/1EikCbdn3N/?mibextid=wwXIfr', 'https://www.tiktok.com/@melsou.vn']
+    },
+    { '@type': 'WebSite', '@id': 'https://melsou.com/#website', url: 'https://melsou.com/', name: 'Melsou', inLanguage: 'vi-VN', publisher: { '@id': melsouOrganizationId } }
+  ]
+}).replace(/</g, '\\u003c');
 const renderPublicBlogCard = (post) => {
   const slug = /^[a-z0-9-]+$/.test(post.slug || '') ? post.slug : null;
   if (!slug) return '';
@@ -566,6 +617,17 @@ async function handlePublicHome(request, env) {
   catch { return new Response('Melsou đang tạm thời chưa tải được.', { status: 503 }); }
   if (!shellResponse.ok) return shellResponse;
   let html = await shellResponse.text();
+  const homepageSocialMetadata = '<meta property="og:title" content="Melsou | Gói tâm tình trong dáng hình thanh âm">\n'
+    + '<meta property="og:description" content="' + htmlEscape(melsouHomepageDescription) + '">\n'
+    + '<meta property="og:url" content="https://melsou.com/">\n<meta property="og:type" content="website">\n'
+    + '<meta property="og:image" content="https://melsou.com/favicon.png">\n'
+    + '<meta name="twitter:card" content="summary_large_image">\n<meta name="twitter:title" content="Melsou | Gói tâm tình trong dáng hình thanh âm">\n'
+    + '<meta name="twitter:description" content="' + htmlEscape(melsouHomepageDescription) + '">\n'
+    + '<meta name="twitter:image" content="https://melsou.com/favicon.png">\n'
+    + '<script type="application/ld+json" id="melsou-homepage-entities">' + homepageEntityGraph + '</script>\n';
+  html = html
+    .replace(/<meta\s+name="description"\s+content="[^"]*"\s*\/?>/i, '<meta name="description" content="' + htmlEscape(melsouHomepageDescription) + '">')
+    .replace('</head>', homepageSocialMetadata + '</head>');
   try {
     const query = new URLSearchParams({ status: 'publish', per_page: '100', page: '1', orderby: 'date', order: 'desc', _embed: '1' });
     const response = await wordpressFetch('/posts?' + query);
@@ -600,6 +662,85 @@ async function handlePublicHome(request, env) {
   });
 }
 
+const publicStaticRoutes = Object.freeze({
+  '/ve-melsou': {
+    title: 'Về Melsou | Gói tâm tình trong dáng hình thanh âm',
+    description: 'Melsou hòa quyện giai điệu và kỷ vật để mỗi trang ảnh không chỉ đẹp, mà còn biết cất lời.',
+    kind: 'hero'
+  },
+  '/goi-san-pham': {
+    title: 'Gói sản phẩm Melsou | Melody, Voice và Signature',
+    description: 'Khám phá các gói Melody, Voice và Signature cho album ảnh liền trang mở phẳng 180° kết hợp hình ảnh và thanh âm.',
+    kind: 'pricing'
+  },
+  '/templates': {
+    title: 'Thư viện Template Melsou | 8 bộ mẫu nghệ thuật',
+    description: 'Khám phá 8 bộ mẫu nghệ thuật độc bản của Melsou với bố cục bìa và ruột album dành cho những câu chuyện riêng.',
+    kind: 'templates'
+  },
+  '/chinh-sach-bao-mat': {
+    title: 'Chính sách bảo mật | Melsou',
+    description: 'Chính sách bảo mật giải thích cách Melsou thu thập, sử dụng và bảo vệ dữ liệu của người dùng.',
+    kind: 'privacy'
+  },
+  '/chinh-sach-bao-hanh': {
+    title: 'Chính sách bảo hành, đổi trả và hoàn tiền | Melsou',
+    description: 'Chính sách bảo hành, đổi trả và hoàn tiền dành cho các sản phẩm Melsou được sản xuất theo yêu cầu và cá nhân hóa.',
+    kind: 'warranty'
+  }
+});
+
+const staticRouteStyle = (kind) => {
+  if (kind === 'hero') return '#page-home>section{display:none!important}';
+  if (kind === 'pricing') return '#page-home>.hero,#page-home>section:not(#pricing){display:none!important}';
+  if (kind === 'templates') return '#page-home{display:none!important}#page-templates{display:block!important}';
+  const modalId = kind === 'privacy' ? 'privacyPolicyModal' : 'warrantyPolicyModal';
+  return '#page-home{display:block!important}#page-home>.hero,#page-home>section{display:none!important}'
+    + '#' + modalId + '{display:flex!important}'
+    + '#' + modalId + '>.modal-box{display:block!important}';
+};
+
+const renderStaticRouteShell = (html, pathname, route) => {
+  const canonical = 'https://melsou.com' + pathname;
+  const socialMetadata = '<meta property="og:title" content="' + htmlEscape(route.title) + '">\n'
+    + '<meta property="og:description" content="' + htmlEscape(route.description) + '">\n'
+    + '<meta property="og:url" content="' + canonical + '">\n<meta property="og:type" content="website">\n'
+    + '<meta name="twitter:card" content="summary_large_image">\n<meta name="twitter:title" content="' + htmlEscape(route.title) + '">\n'
+    + '<meta name="twitter:description" content="' + htmlEscape(route.description) + '">\n';
+  let rendered = html
+    .replace(/<title>[\s\S]*?<\/title>/i, '<title>' + htmlEscape(route.title) + '</title>')
+    .replace(/<meta\s+name="description"\s+content="[^"]*"\s*\/?>/i, '<meta name="description" content="' + htmlEscape(route.description) + '">')
+    .replace(/<link\s+rel="canonical"\s+href="[^"]*"\s*\/?>/i, '<link rel="canonical" href="' + canonical + '">')
+    .replace('</head>', socialMetadata + '<meta name="robots" content="index,follow">\n<style id="melsou-static-route-ssr">' + staticRouteStyle(route.kind) + '</style>\n'
+      + '<script>addEventListener("DOMContentLoaded",()=>document.getElementById("melsou-static-route-ssr")?.remove(),{once:true})</script>\n</head>');
+
+  if (route.kind !== 'hero') {
+    rendered = rendered
+      .replace('<h1 class="hero-title" id="heroHeadlineText">', '<div class="hero-title" id="heroHeadlineText">')
+      .replace('</h1>', '</div>');
+  }
+  if (route.kind === 'pricing') rendered = rendered.replace(/<h2([^>]*\bid="pricingTitle"[^>]*)>([\s\S]*?)<\/h2>/i, '<h1$1>$2</h1>');
+  if (route.kind === 'templates') rendered = rendered.replace(/<h2([^>]*\bid="tplLibraryHeading"[^>]*)>([\s\S]*?)<\/h2>/i, '<h1$1>$2</h1>');
+  if (route.kind === 'privacy') rendered = rendered.replace('<h3 style="font-size:20px;color:var(--dark)">Chính Sách Bảo Mật Melsou 📜</h3>', '<h1 id="privacyPageHeading" style="font-size:20px;color:var(--dark)">Chính Sách Bảo Mật Melsou 📜</h1>');
+  if (route.kind === 'warranty') rendered = rendered.replace('<h3 style="font-size:20px;color:var(--dark)">Chính Sách Bảo Hành, Đổi Trả &amp; Hoàn Tiền 🛡️</h3>', '<h1 id="warrantyPageHeading" style="font-size:20px;color:var(--dark)">Chính Sách Bảo Hành, Đổi Trả &amp; Hoàn Tiền 🛡️</h1>');
+  if (route.kind === 'hero') rendered = rendered.replace(/(<p class="hero-desc" id="heroSubheadlineText">[\s\S]*?)(<\/p>)/i, '$1 Melsou là dự án thương hiệu album ảnh cá nhân hóa kết hợp hình ảnh và thanh âm, được phát triển tại Việt Nam.$2');
+  return rendered;
+};
+
+async function handlePublicStaticHtml(request, env, pathname) {
+  const route = publicStaticRoutes[pathname];
+  if (!route) return new Response('Không tìm thấy trang.', { status: 404, headers: { 'Content-Type': 'text/plain; charset=utf-8', 'X-Robots-Tag': 'noindex' } });
+  let shellResponse;
+  try { shellResponse = await env.ASSETS.fetch(new Request(new URL('/', request.url), request)); }
+  catch { return new Response('Melsou đang tạm thời chưa tải được.', { status: 503 }); }
+  if (!shellResponse.ok) return shellResponse;
+  const html = renderStaticRouteShell(await shellResponse.text(), pathname, route);
+  return new Response(request.method === 'HEAD' ? null : html, {
+    status: 200,
+    headers: { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'public, max-age=300, stale-while-revalidate=60', 'X-Content-Type-Options': 'nosniff' }
+  });
+}
+
 async function handlePublicBlogHtml(request, env, slug) {
   const query = new URLSearchParams({ status: 'publish', slug, per_page: '1', _embed: '1' });
   let response;
@@ -607,27 +748,32 @@ async function handlePublicBlogHtml(request, env, slug) {
   catch { return new Response('Câu chuyện đang tạm thời chưa tải được.', { status: 503, headers: { 'Content-Type': 'text/plain; charset=utf-8' } }); }
   if (!response.ok) return new Response('Không tìm thấy câu chuyện.', { status: response.status === 404 ? 404 : 503, headers: { 'Content-Type': 'text/plain; charset=utf-8', 'X-Robots-Tag': 'noindex' } });
   const [rawPost] = await response.json();
-  if (!rawPost) return new Response('Không tìm thấy câu chuyện.', { status: 404, headers: { 'Content-Type': 'text/plain; charset=utf-8', 'X-Robots-Tag': 'noindex' } });
+  if (!rawPost || rawPost.status !== 'publish') return new Response('Không tìm thấy câu chuyện.', { status: 404, headers: { 'Content-Type': 'text/plain; charset=utf-8', 'X-Robots-Tag': 'noindex' } });
 
   const post = wordpressPost(rawPost);
   const title = decodeHtmlText(post.title) || 'Câu chuyện Melsou';
-  const description = (decodeHtmlText(post.excerpt) || decodeHtmlText(post.content)).slice(0, 180);
+  const description = post.description;
   const canonical = 'https://melsou.com/blog/' + slug;
-  const image = safeImageUrl(post.featuredImage) || 'https://melsou.com/favicon.png';
+  const image = safeImageUrl(post.featuredImage);
   const category = decodeHtmlText(post.category?.name) || 'Câu chuyện';
   const articleHtml = sanitizeWordpressArticleHtml(post.content);
-  const jsonLd = JSON.stringify({
-    '@context': 'https://schema.org',
-    '@type': 'Article',
-    headline: title,
-    description,
-    image: [image],
-    datePublished: post.publishedAt || undefined,
-    dateModified: post.modifiedAt || post.publishedAt || undefined,
+  const article = {
+    '@type': 'Article', headline: title, description,
+    ...(image ? { image: [image] } : {}),
+    ...(post.publishedAt ? { datePublished: post.publishedAt } : {}),
+    ...(post.modifiedAt || post.publishedAt ? { dateModified: post.modifiedAt || post.publishedAt } : {}),
     mainEntityOfPage: { '@type': 'WebPage', '@id': canonical },
-    author: { '@type': 'Organization', name: 'Melsou' },
-    publisher: { '@type': 'Organization', name: 'Melsou', logo: { '@type': 'ImageObject', url: 'https://melsou.com/favicon.png' } }
-  }).replace(/</g, '\\u003c');
+    ...(post.author ? { author: { '@type': 'Person', name: post.author } } : {}),
+    publisher: { '@id': melsouOrganizationId }
+  };
+  const breadcrumb = {
+    '@type': 'BreadcrumbList', itemListElement: [
+      { '@type': 'ListItem', position: 1, name: 'Trang chủ', item: 'https://melsou.com/' },
+      { '@type': 'ListItem', position: 2, name: 'Chuyện của Melsou', item: 'https://melsou.com/#blog-section' },
+      { '@type': 'ListItem', position: 3, name: title, item: canonical }
+    ]
+  };
+  const jsonLd = JSON.stringify({ '@context': 'https://schema.org', '@graph': [article, breadcrumb] }).replace(/</g, '\\u003c');
 
   let shellResponse;
   try { shellResponse = await env.ASSETS.fetch(new Request(new URL('/', request.url), request)); }
@@ -638,11 +784,10 @@ async function handlePublicBlogHtml(request, env, slug) {
     + '<meta property="og:description" content="' + htmlEscape(description) + '">\n'
     + '<meta property="og:url" content="' + canonical + '">\n'
     + '<meta property="og:type" content="article">\n'
-    + '<meta property="og:image" content="' + htmlEscape(image) + '">\n'
     + '<meta name="twitter:card" content="summary_large_image">\n'
     + '<meta name="twitter:title" content="' + htmlEscape(title) + ' | Melsou">\n'
     + '<meta name="twitter:description" content="' + htmlEscape(description) + '">\n'
-    + '<meta name="twitter:image" content="' + htmlEscape(image) + '">\n'
+    + (image ? '<meta property="og:image" content="' + htmlEscape(image) + '">\n<meta name="twitter:image" content="' + htmlEscape(image) + '">\n' : '')
     + '<script type="application/ld+json">' + jsonLd + '</script>\n';
   html = html
     .replace(/<title>[\s\S]*?<\/title>/i, '<title>' + htmlEscape(title) + ' | Melsou</title>')
@@ -651,10 +796,10 @@ async function handlePublicBlogHtml(request, env, slug) {
     .replace('</head>', socialMetadata + '</head>')
     .replace('<h1 class="hero-title" id="heroHeadlineText">', '<div class="hero-title" id="heroHeadlineText">')
     .replace('</h1>', '</div>')
-    .replace(/<img id="readerCoverImg"[^>]*>/i, '<img id="readerCoverImg" src="' + htmlEscape(image) + '" alt="' + htmlEscape(title) + '" style="width:100%;height:100%;object-fit:cover">')
+    .replace(/<img id="readerCoverImg"[^>]*>/i, image ? '<img id="readerCoverImg" src="' + htmlEscape(image) + '" alt="' + htmlEscape(title) + '" style="width:100%;height:100%;object-fit:cover">' : '<img id="readerCoverImg" alt="" style="display:none">')
     .replace(/<span id="readerCategoryBadge"[^>]*>[\s\S]*?<\/span>/i, '<span id="readerCategoryBadge" style="font-size:11.5px;font-weight:800;color:var(--red);text-transform:uppercase;letter-spacing:1.2px;background:var(--red-light);padding:3px 10px;border-radius:100px">' + htmlEscape(category) + '</span>')
     .replace(/<span id="readerPublishDate"[^>]*>[\s\S]*?<\/span>/i, '<span id="readerPublishDate" style="font-size:12.5px;color:var(--gray)">' + htmlEscape(post.publishedAt || '') + '</span>')
-    .replace(/<h2 id="readerTitle"[^>]*>[\s\S]*?<\/h2>/i, '<h1 id="blogPostPageHeading" style="font-family:\'Playfair Display\',serif;font-size:28px;line-height:1.35;color:var(--dark);margin-bottom:20px">' + htmlEscape(title) + '</h1>')
+    .replace(/<h2 id="readerTitle"[^>]*>[\s\S]*?<\/h2>/i, '<h1 id="blogPostPageHeading" style="font-family:\'Playfair Display\',serif;font-size:28px;line-height:1.35;color:var(--dark);margin-bottom:12px">' + htmlEscape(title) + '</h1><p id="blogPostDescription" style="font-size:15px;line-height:1.7;color:var(--gray);margin-bottom:20px">' + htmlEscape(description) + '</p>')
     .replace('<!-- Article body paragraphs -->', articleHtml);
   return new Response(request.method === 'HEAD' ? null : html, {
     status: 200,
@@ -680,7 +825,7 @@ async function handlePublicBlog(url, slug = null) {
     if (slug && response.status === 404) return publicJson({ error: 'BLOG_POST_NOT_FOUND' }, 404);
     return publicJson({ error: 'BLOG_UNAVAILABLE' }, 503);
   }
-  const posts = (await response.json()).map(wordpressPost);
+  const posts = (await response.json()).filter((post) => post?.status === 'publish').map(wordpressPost);
   if (slug && !posts[0]) return publicJson({ error: 'BLOG_POST_NOT_FOUND' }, 404);
   if (slug) return publicJson({ post: posts[0] });
   return publicJson({
@@ -801,16 +946,16 @@ async function handlePublicSitemap() {
   try {
     do {
       const response = await wordpressFetch(`/posts?status=publish&per_page=100&page=${page}&orderby=date&order=desc`);
-      if (!response.ok) return new Response('Sitemap temporarily unavailable', { status: 503 });
+      if (!response.ok) return new Response('<?xml version="1.0" encoding="UTF-8"?><error>Sitemap temporarily unavailable</error>', { status: 503, headers: { 'Content-Type': 'application/xml; charset=utf-8', 'X-Robots-Tag': 'noindex' } });
       posts.push(...await response.json());
       totalPages = Number(response.headers.get('X-WP-TotalPages') || 1);
       page += 1;
     } while (page <= totalPages);
-  } catch { return new Response('Sitemap temporarily unavailable', { status: 503 }); }
+  } catch { return new Response('<?xml version="1.0" encoding="UTF-8"?><error>Sitemap temporarily unavailable</error>', { status: 503, headers: { 'Content-Type': 'application/xml; charset=utf-8', 'X-Robots-Tag': 'noindex' } }); }
   const staticUrls = ['/', '/ve-melsou', '/goi-san-pham', '/templates', '/chinh-sach-bao-mat', '/chinh-sach-bao-hanh'];
   const urls = [
     ...staticUrls.map((path) => ({ loc: `https://melsou.com${path === '/' ? '/' : path}` })),
-    ...posts.filter((post) => /^[a-z0-9-]+$/.test(post.slug || '')).map((post) => ({ loc: `https://melsou.com/blog/${post.slug}`, lastmod: post.modified_gmt ? `${post.modified_gmt}Z` : post.modified }))
+    ...posts.filter((post) => post?.status === 'publish' && /^[a-z0-9-]+$/.test(post.slug || '')).map((post) => ({ loc: `https://melsou.com/blog/${post.slug}`, lastmod: post.modified_gmt ? `${post.modified_gmt}Z` : post.modified }))
   ];
   const entries = urls.map(({ loc, lastmod }) => `  <url>\n    <loc>${xmlEscape(loc)}</loc>${lastmod ? `\n    <lastmod>${xmlEscape(lastmod)}</lastmod>` : ''}\n  </url>`).join('\n');
   return new Response(`<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${entries}\n</urlset>\n`, { headers: { 'Content-Type': 'application/xml; charset=utf-8', 'Cache-Control': 'public, max-age=30, stale-while-revalidate=30', 'X-Content-Type-Options': 'nosniff' } });
@@ -1363,6 +1508,7 @@ export default {
     env = withPrivateStorage(env);
     const url = new URL(request.url);
     if (url.pathname === '/' && (request.method === 'GET' || request.method === 'HEAD')) return handlePublicHome(request, env);
+    if (publicStaticRoutes[url.pathname] && (request.method === 'GET' || request.method === 'HEAD')) return handlePublicStaticHtml(request, env, url.pathname);
     if (url.pathname === '/api/health' && request.method === 'GET') return json({ ok: true, environment: env.APP_ENV || 'unknown' });
     if (url.pathname === '/api/auth/native/register' && request.method === 'POST') return handleNativeRegister(request, env);
     if (url.pathname === '/api/auth/native/login' && request.method === 'POST') return handleNativeLogin(request, env);
@@ -1472,6 +1618,9 @@ export default {
     const renderCompletion = url.pathname.match(/^\/api\/internal\/render-jobs\/([0-9a-f-]{36})\/complete$/i);
     if (renderCompletion && request.method === 'POST') return handleRenderCompletion(request, env, renderCompletion[1]);
     if (url.pathname === '/api/sepay/webhook' && request.method === 'POST') return handleSePay(request, env);
+    if ((request.method === 'GET' || request.method === 'HEAD') && !url.pathname.startsWith('/api/')) {
+      return new Response(request.method === 'HEAD' ? null : 'Không tìm thấy trang.', { status: 404, headers: { 'Content-Type': 'text/plain; charset=utf-8', 'X-Robots-Tag': 'noindex' } });
+    }
     return json({ error: 'NOT_FOUND' }, 404);
   },
   async scheduled(_event, env, ctx) { env = withPrivateStorage(env); ctx.waitUntil(Promise.all([processAssetJobs(env), processVoiceCleanupJobs(env), processOperations(env), processRenderJobs(env), expireInactiveGuestDrafts(env), cleanupExpiredAccountTrash(env)])); }
