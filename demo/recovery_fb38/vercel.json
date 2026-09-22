@@ -3,19 +3,12 @@
   "trailingSlash": false,
   "routes": [
     { "src": "^/$", "dest": "https://melsou.nguyenthienbach18042007.workers.dev/" },
-    { "src": "^/(ve-melsou|goi-san-pham|templates|chinh-sach-bao-mat|chinh-sach-bao-hanh)$", "dest": "https://melsou.nguyenthienbach18042007.workers.dev/$1" }
-  ],
-  "rewrites": [
-    { "source": "/blog/:slug", "destination": "https://melsou.nguyenthienbach18042007.workers.dev/blog/:slug" },
-    { "source": "/wordpress-oauth-callback", "destination": "/" },
-    { "source": "/sitemap.xml", "destination": "https://melsou.nguyenthienbach18042007.workers.dev/api/sitemap.xml" },
-    {
-      "source": "/api/:path*",
-      "destination": "https://melsou.nguyenthienbach18042007.workers.dev/api/:path*"
-    },
-    {
-      "source": "/:path*",
-      "destination": "https://melsou.nguyenthienbach18042007.workers.dev/:path*"
-    }
+    { "src": "^/(ve-melsou|goi-san-pham|templates|chinh-sach-bao-mat|chinh-sach-bao-hanh)$", "dest": "https://melsou.nguyenthienbach18042007.workers.dev/$1" },
+    { "src": "^/blog/([^/]+)$", "dest": "https://melsou.nguyenthienbach18042007.workers.dev/blog/$1" },
+    { "src": "^/sitemap\\.xml$", "dest": "https://melsou.nguyenthienbach18042007.workers.dev/api/sitemap.xml" },
+    { "src": "^/api/(.*)$", "dest": "https://melsou.nguyenthienbach18042007.workers.dev/api/$1" },
+    { "src": "^/wordpress-oauth-callback$", "dest": "/index.html" },
+    { "handle": "filesystem" },
+    { "src": "^/(.*)$", "dest": "https://melsou.nguyenthienbach18042007.workers.dev/$1" }
   ]
 }
