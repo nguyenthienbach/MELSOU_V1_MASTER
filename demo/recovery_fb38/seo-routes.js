@@ -2,36 +2,36 @@
   const routes = {
     '/': {
       title: 'Melsou | Gói tâm tình trong dáng hình thanh âm',
-      description: 'Chiếc máy ảnh có thể giữ lại hình dáng khoảnh khắc, nhưng lại vô tình bỏ quên âm thanh. Melsou hòa quyện giai điệu và kỷ vật để mỗi trang ảnh biết cất lời.',
+      description: 'Melsou kết hợp album ảnh cá nhân hóa với giai điệu và kỷ vật, để mỗi trang ảnh không chỉ lưu giữ khoảnh khắc mà còn biết cất lời.',
       view: 'home'
     },
     '/ve-melsou': {
-      title: 'Về Melsou — Gói tâm tình trong dáng hình thanh âm',
+      title: 'Về Melsou | Gói tâm tình trong dáng hình thanh âm',
       description: 'Melsou hòa quyện giai điệu và kỷ vật để mỗi trang ảnh không chỉ đẹp, mà còn biết cất lời.',
       view: 'hero',
       heading: 'heroHeadlineText'
     },
     '/goi-san-pham': {
-      title: 'Gói sản phẩm Melsou — Melody, Voice và Signature',
-      description: 'Gói sản phẩm Melsou gồm Melody, Voice và Signature Combo cho album liền trang mở phẳng 180° kết hợp hình ảnh và thanh âm.',
+      title: 'Gói sản phẩm Melsou | Melody, Voice và Signature',
+      description: 'Khám phá các gói Melody, Voice và Signature cho album ảnh liền trang mở phẳng 180° kết hợp hình ảnh và thanh âm.',
       view: 'pricing',
       heading: 'pricingTitle'
     },
     '/templates': {
-      title: 'Thư viện Template Melsou — 8 bộ mẫu nghệ thuật độc bản',
-      description: 'Khám phá 8 bộ mẫu nghệ thuật độc bản của Melsou với bố cục bìa và ruột album.',
+      title: 'Thư viện Template Melsou | 8 bộ mẫu nghệ thuật',
+      description: 'Khám phá 8 bộ mẫu nghệ thuật độc bản của Melsou với bố cục bìa và ruột album dành cho những câu chuyện riêng.',
       view: 'templates',
       heading: 'tplLibraryHeading'
     },
     '/chinh-sach-bao-mat': {
-      title: 'Chính sách bảo mật Melsou',
-      description: 'Chính sách giải thích Melsou thu thập thông tin nào, sử dụng thông tin đó như thế nào và những lựa chọn của người dùng đối với dữ liệu của mình.',
+      title: 'Chính sách bảo mật | Melsou',
+      description: 'Chính sách bảo mật giải thích cách Melsou thu thập, sử dụng và bảo vệ dữ liệu của người dùng.',
       view: 'privacy',
       modal: 'privacyPolicyModal'
     },
     '/chinh-sach-bao-hanh': {
-      title: 'Chính sách bảo hành, đổi trả và hoàn tiền Melsou',
-      description: 'Chính sách bảo hành, đổi trả và hoàn tiền áp dụng cho sản phẩm Melsou được sản xuất theo yêu cầu và cá nhân hóa.',
+      title: 'Chính sách bảo hành, đổi trả và hoàn tiền | Melsou',
+      description: 'Chính sách bảo hành, đổi trả và hoàn tiền dành cho các sản phẩm Melsou được sản xuất theo yêu cầu và cá nhân hóa.',
       view: 'warranty',
       modal: 'warrantyPolicyModal'
     },
@@ -52,11 +52,23 @@
   } : null);
   if (!route) return;
 
-  document.title = route.title;
-  const description = document.querySelector('meta[name="description"]');
-  if (description) description.content = route.description;
-  const canonical = document.querySelector('link[rel="canonical"]');
-  if (canonical) canonical.href = `https://melsou.com${path === '/' ? '/' : path}`;
+  const applyMetadata = ({ title, description, canonical }) => {
+    document.title = title;
+    const setContent = (selector, value) => {
+      const element = document.querySelector(selector);
+      if (element && value) element.content = value;
+    };
+    setContent('meta[name="description"]', description);
+    setContent('meta[property="og:title"]', title);
+    setContent('meta[property="og:description"]', description);
+    setContent('meta[property="og:url"]', canonical);
+    setContent('meta[name="twitter:title"]', title);
+    setContent('meta[name="twitter:description"]', description);
+    const canonicalElement = document.querySelector('link[rel="canonical"]');
+    if (canonicalElement) canonicalElement.href = canonical;
+  };
+  const routeCanonical = `https://melsou.com${path === '/' ? '/' : path}`;
+  if (!blogMatch) applyMetadata({ title: route.title, description: route.description, canonical: routeCanonical });
 
   const promoteHeading = (id) => {
     const heading = document.getElementById(id);
@@ -122,11 +134,12 @@
         }
         throw err;
       }).then(({ post }) => {
+        const currentPath = window.location.pathname.replace(/\/$/, '') || '/';
+        if (currentPath !== path) return;
         const plainText = (html) => new DOMParser().parseFromString(String(html || ''), 'text/html').body.textContent.trim();
         const title = plainText(post.title);
-        document.title = `${title} — Melsou`;
-        const description = document.querySelector('meta[name="description"]');
-        if (description) description.content = plainText(post.excerpt).slice(0, 160);
+        const description = String(post.description || '').trim();
+        applyMetadata({ title: `${title} | Melsou`, description, canonical: `https://melsou.com/blog/${encodeURIComponent(post.slug || route.slug)}` });
         const titleElement = document.getElementById('readerTitle');
         if (titleElement) {
           titleElement.textContent = title;

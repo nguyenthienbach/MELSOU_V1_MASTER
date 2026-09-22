@@ -7,7 +7,7 @@
   "assets": {
     "directory": "./demo/recovery_fb38",
     "binding": "ASSETS",
-    "run_worker_first": ["/", "/api/*", "/blog/*"],
+    "run_worker_first": ["/", "/ve-melsou", "/goi-san-pham", "/templates", "/chinh-sach-bao-mat", "/chinh-sach-bao-hanh", "/api/*", "/blog/*"],
     "not_found_handling": "single-page-application"
   },
   "images": { "binding": "IMAGES" },

@@ -155,11 +155,14 @@ test('server-rendered blog route returns 404 for an unpublished or unknown slug'
 
 test('production routing sends blog documents through the Worker SSR route', async () => {
   const vercel = JSON.parse(await readFile(new URL('../demo/recovery_fb38/vercel.json', import.meta.url), 'utf8'));
-  assert.deepEqual(vercel.routes, [{ src: '^/$', dest: 'https://melsou.nguyenthienbach18042007.workers.dev/' }]);
+  assert.deepEqual(vercel.routes, [
+    { src: '^/$', dest: 'https://melsou.nguyenthienbach18042007.workers.dev/' },
+    { src: '^/(ve-melsou|goi-san-pham|templates|chinh-sach-bao-mat|chinh-sach-bao-hanh)$', dest: 'https://melsou.nguyenthienbach18042007.workers.dev/$1' }
+  ]);
   const blogRewrite = vercel.rewrites.find((rewrite) => rewrite.source === '/blog/:slug');
   assert.equal(blogRewrite?.destination, 'https://melsou.nguyenthienbach18042007.workers.dev/blog/:slug');
-  const wrangler = await readFile(new URL('../wrangler.jsonc', import.meta.url), 'utf8');
-  assert.match(wrangler, /"run_worker_first":\s*\["\/",\s*"\/api\/\*",\s*"\/blog\/\*"\]/);
+  const wrangler = JSON.parse(await readFile(new URL('../wrangler.jsonc', import.meta.url), 'utf8'));
+  assert.deepEqual(wrangler.assets.run_worker_first, ['/', '/ve-melsou', '/goi-san-pham', '/templates', '/chinh-sach-bao-mat', '/chinh-sach-bao-hanh', '/api/*', '/blog/*']);
 });
 
 test('homepage SSR emits crawlable safe links for every returned published post in one request', async () => {
