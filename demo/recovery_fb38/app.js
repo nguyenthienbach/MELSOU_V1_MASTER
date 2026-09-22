@@ -1097,12 +1097,12 @@ window.codexSetWordPressConnectionStatus = function(state = {}) {
     badge.className = 'wp-status-badge connected';
     badge.innerHTML = '🟢 Đã kết nối';
     if (details) details.textContent = wordPressConnectionState.site ? `Trang web: ${wordPressConnectionState.site}` : 'Đã kết nối với WordPress CMS';
-    if (btn) btn.innerHTML = '🔄 Kết nối lại WordPress';
+    if (btn) btn.innerHTML = 'Kết nối lại WordPress';
   } else {
     badge.className = 'wp-status-badge disconnected';
     badge.innerHTML = '⚪ Chưa kết nối';
     if (details) details.textContent = wordPressConnectionState.message || 'Chưa thiết lập liên kết WordPress OAuth';
-    if (btn) btn.innerHTML = '🔗 Kết nối WordPress';
+    if (btn) btn.innerHTML = 'Kết nối WordPress';
   }
 };
 
@@ -1283,7 +1283,7 @@ window.handleWordPressOAuthCallbackPage = async function() {
     });
     if (actionBtn) {
       actionBtn.style.display = 'inline-flex';
-      actionBtn.textContent = '👑 Tới OWNER Dashboard';
+      actionBtn.textContent = 'Tới OWNER Dashboard';
       actionBtn.onclick = () => {
         closeWpOAuthCallbackModal();
         if (currentUser && currentUser.loggedIn && currentUser.role === 'OWNER') {
@@ -1468,7 +1468,7 @@ function startHeroAutoFlip() {
 // ── STORYTELLING VALUE CARDS ──
 const VALUE_STORIES = [
   {
-    icon: '🎨',
+    icon: '01',
     iconBg: 'var(--red-light)',
     badge: 'GIÁ TRỊ ĐỘC BẢN · 01/04',
     title: 'Không gian sáng tạo tinh tế',
@@ -1476,7 +1476,7 @@ const VALUE_STORIES = [
     craft: 'Melsou ứng dụng công nghệ bình trang liền mạch 180° cùng lưới căn chỉnh thông minh. Người dùng chỉ cần thả ảnh vào khung, hệ thống sẽ tự động tối ưu hóa vùng an toàn in ấn (print-safe area) để không làm mất góc ảnh khi hoàn thiện.'
   },
   {
-    icon: '⚡',
+    icon: '02',
     iconBg: 'rgba(109,158,81,0.15)',
     badge: 'GIÁ TRỊ ĐỘC BẢN · 02/04',
     title: 'Cá nhân hóa trong vài thao tác',
@@ -1484,7 +1484,7 @@ const VALUE_STORIES = [
     craft: 'Mỗi thao tác biên tập được xử lý mượt mà và lưu trữ tọa độ chuẩn hóa. Toàn bộ thiết kế được giữ riêng tư trên thiết bị của bạn cho đến khi bạn quyết định gửi in.'
   },
   {
-    icon: '🎵',
+    icon: '03',
     iconBg: 'var(--red-light)',
     badge: 'GIÁ TRỊ ĐỘC BẢN · 03/04',
     title: 'Đánh thức ký ức đa giác quan',
@@ -1492,7 +1492,7 @@ const VALUE_STORIES = [
     craft: 'Sự kết hợp giữa công nghệ in mã QR / Soundwave Spotify sắc nét và module vi mạch ghi âm vật lý ISD1820 tích hợp tinh tế bên trong bìa sau, cho phép người nhận cất lên tiếng nói mộc mạc bất cứ khi nào mở sách.'
   },
   {
-    icon: '🔒',
+    icon: '04',
     iconBg: 'rgba(109,158,81,0.15)',
     badge: 'GIÁ TRỊ ĐỘC BẢN · 04/04',
     title: 'Không gian riêng tư cho kỷ niệm',
@@ -5822,7 +5822,6 @@ function renderOrdersManagerList() {
   if (orders.length === 0) {
     list.innerHTML = `
       <div style="text-align:center;padding:44px 16px;color:var(--gray)">
-        <div style="font-size:42px;margin-bottom:12px">📦</div>
         <div style="font-size:16px;font-weight:700;color:var(--dark);margin-bottom:6px">
           ${isEn ? 'No orders yet' : 'Bạn chưa có đơn hàng nào'}
         </div>
@@ -5830,7 +5829,7 @@ function renderOrdersManagerList() {
           ${isEn ? 'When you complete an order and payment is verified, your order will appear here.' : 'Sau khi bạn hoàn tất đặt hàng và thanh toán thành công, chi tiết đơn hàng sẽ xuất hiện tại đây.'}
         </p>
         <button class="btn-outline" style="font-size:12.5px;padding:8px 18px" onclick="closeOrdersManagerModal();showPage('studio')">
-          ${isEn ? '🪄 Create photobook now' : '🪄 Bắt đầu tạo album'}
+          ${isEn ? 'Create photobook now' : 'Bắt đầu tạo album'}
         </button>
       </div>
     `;
@@ -6093,10 +6092,10 @@ function exportCurrentDesignFile() {
 function handlePreflightOrAddToCart() {
   const missing = [];
   if (!ALBUM_DATA.spotifyUrl && (ALBUM_DATA.package === 'melody' || ALBUM_DATA.package === 'signature')) {
-    missing.push('🎵 Chưa dán link bài hát Spotify.');
+    missing.push('Chưa dán link bài hát Spotify.');
   }
   if (!ALBUM_DATA.recordedAudioBlob && !ALBUM_DATA.isHomeRecording && (ALBUM_DATA.package === 'voice' || ALBUM_DATA.package === 'signature')) {
-    missing.push('🎙️ Chưa thu âm giọng nói (hoặc chưa chọn tự thu tại nhà).');
+    missing.push('Chưa thu âm giọng nói (hoặc chưa chọn tự thu tại nhà).');
   }
 
   if (missing.length > 0) {
@@ -6208,7 +6207,6 @@ function updateCartBadge() {
     if (footerBar) footerBar.style.display = 'none';
     list.innerHTML = `
       <div style="text-align:center;padding:48px 16px;color:var(--gray)">
-        <div style="font-size:44px;margin-bottom:12px">🛒</div>
         <div style="font-size:15px;font-weight:700;color:var(--dark);margin-bottom:6px">
           ${currentAppLanguage === 'en' ? 'Your cart is empty' : 'Giỏ hàng của bạn đang trống'}
         </div>
@@ -6216,7 +6214,7 @@ function updateCartBadge() {
           ${currentAppLanguage === 'en' ? 'Start creating your bespoke keepsake photobook now.' : 'Hãy bắt đầu tạo cuốn photobook mở phẳng 180° của riêng bạn.'}
         </p>
         <button class="btn-outline" style="font-size:12.5px;padding:8px 18px" onclick="toggleCart();showPage('studio')">
-          ${currentAppLanguage === 'en' ? '🪄 Start Creating Album' : '🪄 Bắt đầu tạo album'}
+          ${currentAppLanguage === 'en' ? 'Start Creating Album' : 'Bắt đầu tạo album'}
         </button>
       </div>
     `;
@@ -6262,7 +6260,7 @@ function updateCartBadge() {
             <div style="font-size:11px;color:var(--gray);margin-top:1px">${item.specs || 'Mở phẳng 180° · In Couche 250gsm'}</div>
 
             <div style="margin:6px 0">
-              <button class="cart-edit-btn" onclick="editCartItemDesign(${item.id})">✏️ ${currentAppLanguage === 'en' ? 'Edit album design' : 'Chỉnh sửa album'}</button>
+              <button class="cart-edit-btn" onclick="editCartItemDesign(${item.id})">${currentAppLanguage === 'en' ? 'Edit album design' : 'Chỉnh sửa album'}</button>
             </div>
 
             <div style="display:flex;justify-content:space-between;align-items:center;margin-top:6px">
@@ -6576,10 +6574,10 @@ async function simulateSuccessfulPayment() {
   }
 }
 
-// ── 🌟 STUDIO ONBOARDING COACH MARK ENGINE (FB18) ──
+// ── STUDIO ONBOARDING COACH MARK ENGINE (FB18) ──
 const STUDIO_COACH_STEPS = [
   {
-    icon: '🪄',
+    icon: '01',
     badge: 'HƯỚNG DẪN STUDIO · 01/03',
     badgeEn: 'STUDIO GUIDE · 01/03',
     title: 'Thanh công cụ sáng tạo bên trái',
@@ -6588,7 +6586,7 @@ const STUDIO_COACH_STEPS = [
     descEn: 'Here you can add spreads, upload photos, place stickers, write personal notes, and select a Spotify song.'
   },
   {
-    icon: '📐',
+    icon: '02',
     badge: 'HƯỚNG DẪN STUDIO · 02/03',
     badgeEn: 'STUDIO GUIDE · 02/03',
     title: 'Không gian mở phẳng 180° liền trang',
@@ -6597,7 +6595,7 @@ const STUDIO_COACH_STEPS = [
     descEn: 'Click photos or text frames to rotate 360°, align position, or click to adjust and crop photos interactively.'
   },
   {
-    icon: '📖',
+    icon: '03',
     badge: 'HƯỚNG DẪN STUDIO · 03/03',
     badgeEn: 'STUDIO GUIDE · 03/03',
     title: 'Xem trước 3D và hoàn tất đặt in',
@@ -6646,7 +6644,7 @@ function renderStudioCoachStep() {
   if (skipBtn) skipBtn.textContent = isEn ? 'Skip guide' : 'Bỏ qua hướng dẫn';
   if (nextBtn) {
     if (currentCoachStepIndex === STUDIO_COACH_STEPS.length - 1) {
-      nextBtn.textContent = isEn ? 'Start Designing Now ✨' : 'Bắt đầu thiết kế ngay ✨';
+      nextBtn.textContent = isEn ? 'Start Designing Now' : 'Bắt đầu thiết kế ngay';
     } else {
       nextBtn.textContent = isEn ? `Next (${currentCoachStepIndex + 1}/3) →` : `Tiếp tục (${currentCoachStepIndex + 1}/3) →`;
     }
@@ -6670,7 +6668,7 @@ function skipStudioOnboarding() {
   if (modal) modal.classList.remove('open');
 }
 
-// ── ⚙️ SETTINGS MODAL & THEME SWITCHER (FB10) ──
+// ── SETTINGS MODAL & THEME SWITCHER (FB10) ──
 function openSettingsModal() {
   const modal = document.getElementById('settingsModal');
   if (modal) modal.classList.add('open');
@@ -6688,7 +6686,7 @@ function showToast(message, duration = 3000) {
     toast.style.cssText = 'position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:#1e293b;color:#f8fafc;padding:10px 20px;border-radius:30px;font-size:12.5px;font-weight:600;box-shadow:0 10px 25px rgba(0,0,0,0.25);z-index:99999;pointer-events:none;opacity:0;transition:opacity 0.25s ease, transform 0.25s ease;display:flex;align-items:center;gap:8px;max-width:min(calc(100vw - 32px), 440px);box-sizing:border-box;';
     document.body.appendChild(toast);
   }
-  toast.innerHTML = `<span>✨</span><span>${message}</span>`;
+  toast.innerHTML = `<span>${message}</span>`;
   toast.style.opacity = '1';
   toast.style.transform = 'translateX(-50%) translateY(0)';
   clearTimeout(toast._timeout);
@@ -6939,9 +6937,9 @@ function updateAdaptiveCtaText() {
   if (!ctaBtn) return;
   const isWide = window.innerWidth >= 1400;
   if (currentAppLanguage === 'en') {
-    ctaBtn.textContent = isWide ? '🪄 Start Creating Album' : '🪄 Create Album';
+    ctaBtn.textContent = isWide ? 'Start Creating Album' : 'Create Album';
   } else {
-    ctaBtn.textContent = isWide ? '🪄 Bắt đầu tạo album' : '🪄 Tạo album';
+    ctaBtn.textContent = isWide ? 'Bắt đầu tạo album' : 'Tạo album';
   }
 }
 window.addEventListener('resize', () => {
@@ -6954,8 +6952,8 @@ window.addEventListener('resize', () => {
 const MELSOU_I18N = {
   vi: {
     // Topbar & Header
-    topbarBadge: '🎓 DỰ ÁN DOANH NGHIỆP GIẢ ĐỊNH',
-    topbarPromoFull: '✨ Tặng kèm mã QR nhạc Spotify & Hộp quà Kraft cao cấp khi thiết kế album tại Melsou!',
+    topbarBadge: 'DỰ ÁN DOANH NGHIỆP GIẢ ĐỊNH',
+    topbarPromoFull: 'Tặng kèm mã QR nhạc Spotify & Hộp quà Kraft cao cấp khi thiết kế album tại Melsou!',
     topbarAction: 'Tạo ngay →',
     navAbout: 'Về Melsou',
     navValues: 'Giá trị độc bản',
@@ -6968,15 +6966,15 @@ const MELSOU_I18N = {
     cartBtnLabel: 'Giỏ hàng',
 
     // Hero Section
-    heroBadge: '📖 Album ảnh liền trang 180° kết hợp thanh âm',
+    heroBadge: 'Album ảnh liền trang 180° kết hợp thanh âm',
     heroTitle: 'Gói tâm tình',
     heroTitleAccent: 'trong dáng hình thanh âm',
     heroDesc: 'Chiếc máy ảnh có thể giữ lại hình dáng khoảnh khắc, nhưng lại vô tình bỏ quên âm thanh. Melsou hòa quyện giai điệu (melody) và kỷ vật (souvenir) để mỗi trang ảnh không chỉ đẹp, mà còn biết cất lời.',
-    btnStartStudio: '🪄 Bắt đầu tạo album',
-    btn3DFlip: '📖 Xem 3D',
-    heroTrustOffgrid: '🔒 Bảo mật vật lý off-grid',
-    heroTrustLayflat: '📖 Mở phẳng 180° liền trang',
-    heroTrustSpotify: '🎵 Mã QR nhạc Spotify',
+    btnStartStudio: 'Bắt đầu tạo album',
+    btn3DFlip: 'Xem 3D',
+    heroTrustOffgrid: 'Bảo mật vật lý off-grid',
+    heroTrustLayflat: 'Mở phẳng 180° liền trang',
+    heroTrustSpotify: 'Mã QR nhạc Spotify',
 
     // Values Section
     valSectionTitle: 'Bốn giá trị tạo nên trải nghiệm độc bản',
@@ -7014,7 +7012,7 @@ const MELSOU_I18N = {
     btnSelectVoice: 'Chọn gói này',
 
     pkgSignatureLabel: 'SIGNATURE COMBO',
-    pkgSignatureNote: '✨ Trọn bộ trải nghiệm hình ảnh + âm thanh',
+    pkgSignatureNote: 'Trọn bộ trải nghiệm hình ảnh + âm thanh',
     pkgSignatureFeat1: 'Trọn vẹn tính năng gói Melody (Mở phẳng 180° + Spotify)',
     pkgSignatureFeat2: 'Trọn vẹn tính năng gói Voice (Module ghi âm ISD1820)',
     pkgSignatureFeat3: 'Khổ sách lớn: A5 Đứng hoặc Khổ Vuông 20×20cm',
@@ -7031,12 +7029,12 @@ const MELSOU_I18N = {
     stStep2: 'Thiết kế album',
     stStep3: 'Xem trước 3D',
     stStep4: 'Đặt in',
-    btnModeEdit: '✏️ Chế Độ Thiết Kế',
-    btnModeFlip: '📖 Xem 3D',
-    studioBtnOrder: '🛒 Thêm vào giỏ hàng',
+    btnModeEdit: 'Chế Độ Thiết Kế',
+    btnModeFlip: 'Xem 3D',
+    studioBtnOrder: 'Thêm vào giỏ hàng',
     btnExportDesign: '⬇ Tải PDF album',
     studioCloudSync: 'Đã lưu',
-    btnTopSafeGuides: '📏 Vùng an toàn',
+    btnTopSafeGuides: 'Vùng an toàn',
 
     // Studio Tabs
     cNavTab0: '<span>📐</span>Khổ & Gói',
@@ -7047,7 +7045,7 @@ const MELSOU_I18N = {
     cNavTab5: '<span>🎵</span>Âm thanh',
 
     // Mobile more menu
-    msmSafeGuides: '📏 Vùng an toàn in',
+    msmSafeGuides: 'Vùng an toàn in',
     msmDownloadPdf: '⬇ Tải PDF album',
     msmUndo: '↶ Hoàn tác',
     msmRedo: '↷ Làm lại',
@@ -7057,7 +7055,7 @@ const MELSOU_I18N = {
     reviewsSubheading: 'Cảm nhận chân thực từ những người dùng đã trực tiếp thiết kế và trải nghiệm album Melsou',
     reviewsBadge: 'CẢM NHẬN KHÁCH HÀNG',
     reviewsDisclaimer: '* Đánh giá được thu thập từ những khách hàng đã trực tiếp thiết kế và cầm trên tay album hoàn thiện.',
-    btnWriteReview: '✍️ Viết đánh giá',
+    btnWriteReview: 'Viết đánh giá',
     blogBadge: 'GÓC KỶ NIỆM & CHUYỆN KỂ',
     blogHeading: 'Chuyện của Melsou',
     blogSubheading: 'Cảm hứng chế tác, bí quyết sắp xếp ảnh và những câu chuyện lưu giữ ký ức qua năm tháng',
@@ -7107,8 +7105,8 @@ const MELSOU_I18N = {
   },
   en: {
     // Topbar & Header
-    topbarBadge: '🎓 MOCK BUSINESS PROJECT',
-    topbarPromoFull: '✨ Free Spotify Scannable Code & luxury Kraft gift box included with every album at Melsou!',
+    topbarBadge: 'MOCK BUSINESS PROJECT',
+    topbarPromoFull: 'Free Spotify Scannable Code & luxury Kraft gift box included with every album at Melsou!',
     topbarAction: 'Create now →',
     navAbout: 'About us',
     navValues: 'Unique Values',
@@ -7121,15 +7119,15 @@ const MELSOU_I18N = {
     cartBtnLabel: 'Cart',
 
     // Hero Section
-    heroBadge: '📖 180° Seamless Layflat Photobook with Sound Keepsake',
+    heroBadge: '180° Seamless Layflat Photobook with Sound Keepsake',
     heroTitle: 'Cherish feelings',
     heroTitleAccent: 'in the shape of sound',
     heroDesc: 'Cameras capture visual silhouettes, but often leave voices behind. melsou fuses melody and souvenir so every printed page sings its own heartfelt tune.',
-    btnStartStudio: '🪄 Start Creating Album',
-    btn3DFlip: '📖 View 3D',
-    heroTrustOffgrid: '🔒 Off-Grid Physical Privacy',
-    heroTrustLayflat: '📖 180° Seamless Layflat',
-    heroTrustSpotify: '🎵 Spotify Scannable Code',
+    btnStartStudio: 'Start Creating Album',
+    btn3DFlip: 'View 3D',
+    heroTrustOffgrid: 'Off-Grid Physical Privacy',
+    heroTrustLayflat: '180° Seamless Layflat',
+    heroTrustSpotify: 'Spotify Scannable Code',
 
     // Values Section
     valSectionTitle: 'Four Core Values Defining a Bespoke Experience',
@@ -7167,7 +7165,7 @@ const MELSOU_I18N = {
     btnSelectVoice: 'Select package',
 
     pkgSignatureLabel: 'SIGNATURE COMBO',
-    pkgSignatureNote: '✨ Complete visual + audio experience',
+    pkgSignatureNote: 'Complete visual + audio experience',
     pkgSignatureFeat1: 'All Melody features (180° layflat + Spotify code)',
     pkgSignatureFeat2: 'All Voice features (ISD1820 recording module)',
     pkgSignatureFeat3: 'Large sizes: A5 Portrait or Square 20×20cm',
@@ -7184,12 +7182,12 @@ const MELSOU_I18N = {
     stStep2: 'Design album',
     stStep3: '3D Preview',
     stStep4: 'Order print',
-    btnModeEdit: '✏️ Design Mode',
-    btnModeFlip: '📖 View 3D',
-    studioBtnOrder: '🛒 Add to Cart',
+    btnModeEdit: 'Design Mode',
+    btnModeFlip: 'View 3D',
+    studioBtnOrder: 'Add to Cart',
     btnExportDesign: '⬇ Download PDF Album',
     studioCloudSync: 'Saved',
-    btnTopSafeGuides: '📏 Safe Margins',
+    btnTopSafeGuides: 'Safe Margins',
 
     // Studio Tabs
     cNavTab0: '<span>📐</span>Size & Pkg',
@@ -7200,7 +7198,7 @@ const MELSOU_I18N = {
     cNavTab5: '<span>🎵</span>Audio',
 
     // Mobile more menu
-    msmSafeGuides: '📏 Print Safe Margins',
+    msmSafeGuides: 'Print Safe Margins',
     msmDownloadPdf: '⬇ Download PDF Album',
     msmUndo: '↶ Undo',
     msmRedo: '↷ Redo',
@@ -7210,7 +7208,7 @@ const MELSOU_I18N = {
     reviewsSubheading: 'Authentic thoughts from customers who designed and held their own Melsou keepsakes',
     reviewsBadge: 'CUSTOMER REVIEWS',
     reviewsDisclaimer: '* Reviews gathered from customers who designed and received their handcrafted albums.',
-    btnWriteReview: '✍️ Write Review',
+    btnWriteReview: 'Write Review',
     blogBadge: 'STORIES & MEMORIES',
     blogHeading: 'The Melsou Journal',
     blogSubheading: 'Artisan craftsmanship, layout ideas, and heartwarming memories preserved through time',
@@ -7269,11 +7267,11 @@ function applyStudioTranslations(lang) {
   const s2 = document.getElementById('stStep2Text'); if (s2) s2.textContent = isEn ? '2. Design' : '2. Thiết kế album';
   const s3 = document.getElementById('stStep3Text'); if (s3) s3.textContent = isEn ? '3. 3D Preview' : '3. Xem trước 3D';
   const s4 = document.getElementById('stStep4Text'); if (s4) s4.textContent = isEn ? '4. Checkout' : '4. Đặt in';
-  const bEdit = document.getElementById('btnModeEdit'); if (bEdit) bEdit.textContent = isEn ? '✏️ Design Mode' : '✏️ Chế Độ Thiết Kế';
-  const bFlip = document.getElementById('btnModeFlip'); if (bFlip) bFlip.textContent = isEn ? '📖 View 3D' : '📖 Xem 3D';
-  const bSafe = document.getElementById('btnTopSafeGuides'); if (bSafe) bSafe.textContent = isEn ? '📏 Safe Margins' : '📏 Vùng an toàn';
+  const bEdit = document.getElementById('btnModeEdit'); if (bEdit) bEdit.textContent = isEn ? 'Design Mode' : 'Chế Độ Thiết Kế';
+  const bFlip = document.getElementById('btnModeFlip'); if (bFlip) bFlip.textContent = isEn ? 'View 3D' : 'Xem 3D';
+  const bSafe = document.getElementById('btnTopSafeGuides'); if (bSafe) bSafe.textContent = isEn ? 'Safe Margins' : 'Vùng an toàn';
   const bCloud = document.getElementById('studioCloudSyncText'); if (bCloud) bCloud.textContent = isEn ? 'Saved' : 'Đã lưu';
-  const bAddCart = document.getElementById('btnStudioAddToCart'); if (bAddCart) bAddCart.textContent = isEn ? '🛒 Add to Cart' : '🛒 Thêm vào giỏ hàng';
+  const bAddCart = document.getElementById('btnStudioAddToCart'); if (bAddCart) bAddCart.textContent = isEn ? 'Add to Cart' : 'Thêm vào giỏ hàng';
   const bExp = document.getElementById('btnExportDesign'); if (bExp) bExp.textContent = isEn ? '⬇ Download PDF' : '⬇ Tải PDF album';
 
   // Rail labels (left sidebar buttons)
@@ -7289,16 +7287,16 @@ function applyStudioTranslations(lang) {
   // Flyout Drawer Title
   const drawerTitle = document.getElementById('flyoutDrawerTitle');
   const activeTabIdx = ALBUM_DATA.activeCanvaTab || 0;
-  const enDrawerTitles = ['📐 Size & Package', '🎨 Preset Layouts', '📸 Photos & Media', '✨ Stickers & Deco', '✒️ Handwritten Letter', '🎵 Audio & Music'];
-  const viDrawerTitles = ['📐 Khổ & Gói', '🎨 Bố cục & Khung ảnh', '📸 Ảnh của bạn', '✨ Sticker trang trí', '✒️ Lời nhắn thủ bút', '🎵 Giai điệu & Lời thoại'];
+  const enDrawerTitles = ['Size & Package', 'Preset Layouts', 'Photos & Media', 'Stickers & Deco', 'Handwritten Letter', 'Audio & Music'];
+  const viDrawerTitles = ['Khổ & Gói', 'Bố cục & Khung ảnh', 'Ảnh của bạn', 'Sticker trang trí', 'Lời nhắn thủ bút', 'Giai điệu & Lời thoại'];
   if (drawerTitle) {
     drawerTitle.textContent = isEn ? enDrawerTitles[activeTabIdx] : viDrawerTitles[activeTabIdx];
   }
 
   const textReplacements = isEn ? [
     ['1. Chọn Gói Sản Phẩm', '1. Choose Photobook Package'],
-    ['🎵 Gói Melody', '🎵 Melody Keepsake'],
-    ['🎙️ Gói Voice', '🎙️ Voice Keepsake'],
+    ['Gói Melody', 'Melody Keepsake'],
+    ['Gói Voice', 'Voice Keepsake'],
     ['Full: Spotify + Voice Chip + Quà', 'Full: Spotify + Voice Chip + Gifts'],
     ['A5 Đứng', 'A5 Portrait'],
     ['Khổ Vuông', 'Square Format'],
@@ -7357,7 +7355,7 @@ function applyStudioTranslations(lang) {
     ['🔄 Thu Lại', '🔄 Re-record'],
     ['▶️ Nghe Thử', '▶️ Preview'],
     ['Nâng cấp Signature Combo →', 'Upgrade to Signature Combo →'],
-    ['📏 Vùng an toàn in', '📏 Print Safe Margins'],
+    ['Vùng an toàn in', 'Print Safe Margins'],
     ['⬇ Tải PDF album', '⬇ Download PDF Album'],
     ['↶ Hoàn tác', '↶ Undo'],
     ['↷ Làm lại', '↷ Redo'],
@@ -7366,8 +7364,8 @@ function applyStudioTranslations(lang) {
     ['Tất cả các trang', 'All pages']
   ] : [
     ['1. Choose Photobook Package', '1. Chọn Gói Sản Phẩm'],
-    ['🎵 Melody Keepsake', '🎵 Gói Melody'],
-    ['🎙️ Voice Keepsake', '🎙️ Gói Voice'],
+    ['Melody Keepsake', 'Gói Melody'],
+    ['Voice Keepsake', 'Gói Voice'],
     ['Full: Spotify + Voice Chip + Gifts', 'Full: Spotify + Voice Chip + Quà'],
     ['2. Album Dimensions & Sizes', '2. Khổ Album & Kích Thước Thật'],
     ['A5 Portrait', 'A5 Đứng'],
@@ -7427,7 +7425,7 @@ function applyStudioTranslations(lang) {
     ['🔄 Re-record', '🔄 Thu Lại'],
     ['▶️ Preview', '▶️ Nghe Thử'],
     ['Upgrade to Signature Combo →', 'Nâng cấp Signature Combo →'],
-    ['📏 Print Safe Margins', '📏 Vùng an toàn in'],
+    ['Print Safe Margins', 'Vùng an toàn in'],
     ['⬇ Download PDF Album', '⬇ Tải PDF album'],
     ['↶ Undo', '↶ Hoàn tác'],
     ['↷ Redo', '↷ Làm lại'],
@@ -7497,13 +7495,13 @@ function applyHomepageModalTranslations(lang) {
   const accLinks = document.querySelectorAll('.nav-dropdown a');
   if (accLinks && accLinks.length >= 3) {
     if (isEn) {
-      accLinks[0].innerHTML = '📁 Your Designs';
-      accLinks[1].innerHTML = '📦 Your Orders';
-      accLinks[2].innerHTML = '🚪 Log out';
+      accLinks[0].innerHTML = 'Your Designs';
+      accLinks[1].innerHTML = 'Your Orders';
+      accLinks[2].innerHTML = 'Log out';
     } else {
-      accLinks[0].innerHTML = '📁 Bản thiết kế của bạn';
-      accLinks[1].innerHTML = '📦 Đơn hàng của bạn';
-      accLinks[2].innerHTML = '🚪 Đăng xuất';
+      accLinks[0].innerHTML = 'Bản thiết kế của bạn';
+      accLinks[1].innerHTML = 'Đơn hàng của bạn';
+      accLinks[2].innerHTML = 'Đăng xuất';
     }
   }
 }
@@ -7535,15 +7533,15 @@ function applyMobileDrawerTranslations(lang) {
   if (mndLangLabel) mndLangLabel.textContent = isEn ? 'Language:' : 'Ngôn ngữ:';
 
   const mndMap = {
-    mndLinkHome: isEn ? '🏠 Home' : '🏠 Trang chủ',
-    mndLinkAbout: isEn ? '📖 About Melsou' : '📖 Về Melsou',
-    mndLinkValues: isEn ? '✨ Four Unique Values' : '✨ Bốn giá trị độc bản',
-    mndLinkPricing: isEn ? '🏷️ Packages' : '🏷️ Gói sản phẩm',
-    mndLinkTemplates: isEn ? '🎨 Template Library' : '🎨 Thư viện Template',
-    mndLinkReviews: isEn ? '💬 User Reviews' : '💬 Trải nghiệm người dùng',
-    mndLinkBlog: isEn ? '📖 Blog' : '📖 Câu chuyện',
-    mndLinkTracking: isEn ? '🔍 Track Order' : '🔍 Tra cứu đơn hàng',
-    mndCtaBtn: isEn ? '🪄 Start Creating Album' : '🪄 Bắt đầu tạo album'
+    mndLinkHome: isEn ? 'Home' : 'Trang chủ',
+    mndLinkAbout: isEn ? 'About Melsou' : 'Về Melsou',
+    mndLinkValues: isEn ? 'Four Unique Values' : 'Bốn giá trị độc bản',
+    mndLinkPricing: isEn ? 'Packages' : 'Gói sản phẩm',
+    mndLinkTemplates: isEn ? 'Template Library' : 'Thư viện Template',
+    mndLinkReviews: isEn ? 'User Reviews' : 'Trải nghiệm người dùng',
+    mndLinkBlog: isEn ? 'Blog' : 'Câu chuyện',
+    mndLinkTracking: isEn ? 'Track Order' : 'Tra cứu đơn hàng',
+    mndCtaBtn: isEn ? 'Start Creating Album' : 'Bắt đầu tạo album'
   };
   Object.keys(mndMap).forEach(id => {
     const el = document.getElementById(id);
@@ -7558,11 +7556,11 @@ function applyMobileDrawerTranslations(lang) {
   if (settingsGrpA) settingsGrpA.textContent = isEn ? 'A. INTERFACE & EFFECTS' : 'A. GIAO DIỆN & HIỆU ỨNG';
 
   const udDrafts = document.getElementById('udLinkDrafts');
-  if (udDrafts) udDrafts.textContent = isEn ? '📁 Your Saved Drafts' : '📁 Bản thiết kế của bạn';
+  if (udDrafts) udDrafts.textContent = isEn ? 'Your Saved Drafts' : 'Bản thiết kế của bạn';
   const udOrders = document.getElementById('udLinkOrders');
-  if (udOrders) udOrders.textContent = isEn ? '📦 Your Orders' : '📦 Đơn hàng của bạn';
+  if (udOrders) udOrders.textContent = isEn ? 'Your Orders' : 'Đơn hàng của bạn';
   const udLogout = document.getElementById('udLinkLogout');
-  if (udLogout) udLogout.textContent = isEn ? '🚪 Sign Out' : '🚪 Đăng xuất';
+  if (udLogout) udLogout.textContent = isEn ? 'Sign Out' : 'Đăng xuất';
 
   const cartBtn = document.getElementById('headerCartBtn');
   if (cartBtn) {
@@ -7581,7 +7579,7 @@ function switchLanguage(lang) {
 
   const shortPromo = document.querySelector('.topbar-short-text');
   if (shortPromo) {
-    shortPromo.textContent = isEn ? '✨ Free Spotify Code & Kraft Box' : '✨ Tặng mã Spotify & Hộp Kraft';
+    shortPromo.textContent = isEn ? 'Free Spotify Code & Kraft Box' : 'Tặng mã Spotify & Hộp Kraft';
   }
 
   const bio = document.getElementById('footerBrandBio');
@@ -7718,7 +7716,7 @@ function switchLanguage(lang) {
   // FB76: Synchronize Template Cards and Onboarding Modal in realtime
   initTemplateCards();
   const onbT = document.getElementById('onboardingModalTitle');
-  if (onbT) onbT.textContent = isEn ? 'Choose a Starting Design Template 🎨' : 'Chọn mẫu thiết kế mở đầu 🎨';
+  if (onbT) onbT.textContent = isEn ? 'Choose a Starting Design Template' : 'Chọn mẫu thiết kế mở đầu';
   const onbD = document.getElementById('onboardingModalDesc');
   if (onbD) onbD.textContent = isEn ? 'Select 1 of 8 artistic styles to load layouts and start customizing:' : 'Chọn 1 trong 8 phong cách nghệ thuật để nạp ngay bố cục và bắt đầu tùy biến:';
 
@@ -7855,16 +7853,16 @@ function switchLanguage(lang) {
 
   // Settings Modal Detailed Translations (FB67)
   const settingsDetailMap = {
-    settingsModalTitle: isEn ? '⚙️ System Settings' : '⚙️ Cài đặt hệ thống',
+    settingsModalTitle: isEn ? 'System Settings' : 'Cài đặt hệ thống',
     settingsModalSub: isEn ? 'Customize interface, account security and privacy' : 'Tùy chỉnh giao diện, bảo mật tài khoản và quyền riêng tư',
     lblSettingsGroupA: isEn ? 'A. INTERFACE & EFFECTS' : 'A. GIAO DIỆN & HIỆU ỨNG',
     lblSettingsLanguageHeading: isEn ? 'Display Language' : 'Ngôn ngữ hiển thị',
     lblSettingsLanguageDesc: isEn ? 'Choose Vietnamese or English' : 'Chọn Tiếng Việt hoặc Tiếng Anh',
     lblSettingsThemeHeading: isEn ? 'Display Theme' : 'Chế độ hiển thị',
     lblSettingsThemeDesc: isEn ? 'Choose standard white paper or dark background' : 'Lựa chọn tone màu chuẩn giấy trắng hoặc nền tối',
-    optThemeLight: isEn ? '☀️ Light Mode' : '☀️ Giao diện Sáng',
-    optThemeDark: isEn ? '🌙 Dark Mode' : '🌙 Giao diện Tối',
-    optThemeWarm: isEn ? '🕯️ Warm Paper Tone' : '🕯️ Tone Giấy Ấm',
+    optThemeLight: isEn ? 'Light Mode' : 'Giao diện Sáng',
+    optThemeDark: isEn ? 'Dark Mode' : 'Giao diện Tối',
+    optThemeWarm: isEn ? 'Warm Paper Tone' : 'Tone Giấy Ấm',
     lblSettingsSoundHeading: isEn ? '3D Page Flip Sound' : 'Âm thanh lật sách 3D',
     lblSettingsSoundDesc: isEn ? 'Play paper rustle sound when flipping pages' : 'Phát tiếng sột soạt giấy khi lật trang',
     lblSettingsGroupB: isEn ? 'B. ACCOUNT & SECURITY' : 'B. TÀI KHOẢN & BẢO MẬT',
@@ -7893,7 +7891,7 @@ function switchLanguage(lang) {
     lblSettingsGeoStatus: isEn ? 'Not collected' : 'Không thu thập',
     lblSettingsCacheHeading: isEn ? 'Local Draft Storage' : 'Bộ nhớ nháp trên thiết bị này',
     lblSettingsCacheDesc: isEn ? 'Clear local cache to reset draft back to default' : 'Xóa dữ liệu lưu tạm nếu muốn đặt lại trang sách về mặc định',
-    btnClearStudioCache: isEn ? '🗑️ Clear Local Draft Cache' : '🗑️ Xóa bản thảo cục bộ',
+    btnClearStudioCache: isEn ? 'Clear Local Draft Cache' : 'Xóa bản thảo cục bộ',
     btnCloseSettingsModal: isEn ? 'Close Settings' : 'Đóng cài đặt'
   };
   Object.keys(settingsDetailMap).forEach(id => {
@@ -8112,7 +8110,6 @@ function renderCustomerReviews() {
   if (!reviews || reviews.length === 0) {
     grid.innerHTML = `
       <div class="review-empty-state">
-        <div style="font-size:38px;margin-bottom:12px">✨</div>
         <h3 style="font-size:18px;font-weight:700;color:var(--dark);margin-bottom:6px">${isEn ? 'First authentic reviews are being gathered' : 'Những đánh giá chân thực đầu tiên đang được chuẩn bị'}</h3>
         <p style="font-size:13.5px;color:var(--gray);max-width:540px;margin:0 auto">
           ${isEn ? 'Melsou treasures every customer moment and emotion. Experience Melsou and be among the first to share your thoughts!' : 'Melsou trân trọng từng khoảnh khắc và cảm xúc của khách hàng. Hãy trải nghiệm và trở thành một trong những người đầu tiên chia sẻ cảm nhận!'}
@@ -8345,7 +8342,7 @@ async function renderPublicBlog(category = 'all', page = 1) {
     if (requestId !== blogListRequestId) return;
     console.warn('codexGetPublishedPosts error:', error);
     if (currentLoadedBlogPosts.length > 0) return;
-    list.innerHTML = `<div class="blog-empty-state"><div style="font-size:32px;margin-bottom:10px">📖</div><p>${isEn ? 'Stories are temporarily unavailable. Please try again later.' : 'Câu chuyện đang tạm thời chưa tải được. Vui lòng thử lại sau.'}</p></div>`;
+    list.innerHTML = `<div class="blog-empty-state"><p>${isEn ? 'Stories are temporarily unavailable. Please try again later.' : 'Câu chuyện đang tạm thời chưa tải được. Vui lòng thử lại sau.'}</p></div>`;
     return;
   }
   if (requestId !== blogListRequestId) return;
@@ -8380,7 +8377,6 @@ function renderFilteredBlogPosts() {
       : (isEn ? 'We will soon share cherished keepsake memories.' : 'Chúng tôi sẽ sớm chia sẻ những câu chuyện từ xưởng in Melsou đến bạn.');
     list.innerHTML = `
       <div class="blog-empty-state" style="width:100%;grid-column:1/-1">
-        <div style="font-size:36px;margin-bottom:12px">🔍</div>
         <h3 style="font-size:17.5px;font-weight:700;color:var(--dark);margin-bottom:6px">${emptyMsg}</h3>
         <p style="font-size:13px;color:var(--gray);max-width:500px;margin:0 auto;line-height:1.6">${emptySub}</p>
       </div>`;
@@ -11001,12 +10997,12 @@ var mobileActivePageHalf = 'left'; // 'left' | 'right'
 var currentStudioSelection = { type: 'none', id: null, el: null };
 
 const CANVA_TAB_TITLES = [
-  '📐 Khổ & Gói Sản Phẩm',
-  '🎨 Bố Cục Nghệ Thuật',
-  '📸 Kho Ảnh Kỷ Niệm',
-  '✨ Sticker & Họa Tiết',
-  '✒️ Lời Nhắn & Khắc Chữ',
-  '🎵 Giai Điệu & Âm Thanh'
+  'Khổ & Gói Sản Phẩm',
+  'Bố Cục Nghệ Thuật',
+  'Kho Ảnh Kỷ Niệm',
+  'Sticker & Họa Tiết',
+  'Lời Nhắn & Khắc Chữ',
+  'Giai Điệu & Âm Thanh'
 ];
 
 function handleRailTabClick(tabIndex) {
@@ -11048,19 +11044,19 @@ function openFlyoutDrawer(tabIndex) {
 
   const isEn = (currentAppLanguage === 'en');
   const titles = isEn ? [
-    '📐 Size & Pack',
-    '🎨 Composition & Layout',
-    '📸 Photo Memories',
-    '✨ Decorative Stickers',
-    '✒️ Handwritten Message',
-    '🎵 Audio & Melody'
+    'Size & Package',
+    'Composition & Layout',
+    'Photo Memories',
+    'Decorative Stickers',
+    'Handwritten Message',
+    'Audio & Melody'
   ] : [
-    '📐 Khổ & Gói Album',
-    '🎨 Bố Cục & Trình Bày',
-    '📸 Kho Ảnh Kỷ Niệm',
-    '✨ Sticker Trang Trí',
-    '✒️ Lời Nhắn Yêu Thương',
-    '🎵 Âm Thanh & Giai Điệu'
+    'Khổ & Gói Album',
+    'Bố Cục & Trình Bày',
+    'Kho Ảnh Kỷ Niệm',
+    'Sticker Trang Trí',
+    'Lời Nhắn Yêu Thương',
+    'Âm Thanh & Giai Điệu'
   ];
 
   const titleEl = document.getElementById('flyoutDrawerTitle');
@@ -11317,7 +11313,7 @@ function cyclePhotoFilter(slotKey) {
     img.style.filter = filters[next];
   }
   autoSaveToLocalStorage();
-  showToast('🎨 Bộ lọc: ' + filterNames[next]);
+  showToast('Bộ lọc: ' + filterNames[next]);
 }
 
 function clearPhotoSlot(slotKey) {
