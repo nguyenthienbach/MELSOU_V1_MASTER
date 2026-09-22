@@ -160,6 +160,7 @@ test('production routing sends blog documents through the Worker SSR route', asy
   assert.ok(vercel.routes.findIndex((route) => route.src === '^/blog/([^/]+)$') < vercel.routes.findIndex((route) => route.handle === 'filesystem'));
   const wrangler = JSON.parse(await readFile(new URL('../wrangler.jsonc', import.meta.url), 'utf8'));
   assert.deepEqual(wrangler.assets.run_worker_first, ['/', '/ve-melsou', '/goi-san-pham', '/templates', '/chinh-sach-bao-mat', '/chinh-sach-bao-hanh', '/api/*', '/blog/*']);
+  assert.equal(wrangler.assets.not_found_handling, 'none');
 });
 
 test('homepage SSR emits crawlable safe links for every returned published post in one request', async () => {

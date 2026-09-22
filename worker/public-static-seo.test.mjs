@@ -181,6 +181,8 @@ test('unknown public Blog URL remains a 404/noindex response', async () => {
 });
 
 test('unknown public static URL is not a soft-404', async () => {
+  const wrangler = JSON.parse(await readFile(new URL('../wrangler.jsonc', import.meta.url), 'utf8'));
+  assert.equal(wrangler.assets.not_found_handling, 'none');
   const response = await worker.fetch(new Request('https://melsou.test/duong-dan-khong-ton-tai'), env, {});
   assert.equal(response.status, 404);
   assert.equal(response.headers.get('X-Robots-Tag'), 'noindex');
