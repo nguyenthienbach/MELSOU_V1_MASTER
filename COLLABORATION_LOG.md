@@ -605,3 +605,18 @@ This log prevents accidental overlap. Add the newest entry at the top.
 - **Protected contracts:** WordPress remains the post-content authority; preserve Blog search/categories/images/carousel, Auth, Cart, Studio, Checkout, and `demo/checkpoint_fb91_golden/`.
 - **Checks:** migration-contract/Blog/routes/UI tests PASS (55/55); full backend suite PASS (114/114); demo JavaScript syntax PASS; local browser Blog load/empty state/post-like PASS; `git diff --check` PASS. Review added explicit atomic `begin`/`commit`, reasserted RLS, and removed `user_id` from the rollback-only WordPress adapter. Read-only production inspection confirmed both existing comments are already Supabase UUID records, so no backfill is needed.
 - **Status:** DONE — production migration `202609160002_blog_interactions_hardening.sql` applied successfully and post-migration verification returned `BLOG_MIGRATION_APPLIED = YES`; implementation is ready for commit review. Production still requires `BLOG_COMMENT_SOURCE=supabase` before deploying the Worker. No commit, push, merge, or deploy performed.
+## IN PROGRESS — Codex — public static SSR content isolation
+
+- **When / agent:** 2026-09-24 — Codex
+- **Files reserved:** `worker/index.mjs`, targeted SEO/routing tests, and SSR-only helpers if required.
+- **Purpose:** emit only shared header/navigation, the current route's main content, and shared footer for each public static SSR response so search engines do not receive hidden content from unrelated SPA views.
+- **Protected contracts:** preserve the Antigravity presentation files, Blog SSR/interactions, OWNER Dashboard, auth/session, Studio, cart/checkout/payment, sitemap, and 404/noindex behavior.
+- **Status:** IN PROGRESS — local implementation/review only; no commit, push, merge, or deployment.
+
+## COMPLETED — Codex — public static SSR content isolation
+
+- **When / agent:** 2026-09-24 — Codex
+- **Files changed:** `worker/index.mjs`, `worker/public-static-seo.test.mjs`, `COLLABORATION_LOG.md`.
+- **Outcome:** all six public routes, including `/`, now contain shared navigation, exactly one route-specific `<main>`, and the shared footer; unrelated hidden SPA pages, modals, and application scripts are not emitted. Application actions resume only after user interaction on a noindex full homepage shell via bounded URL state, each non-home static route has route-specific JSON-LD, policy H1 decorations are removed, and the template route receives its eight current summaries in initial HTML. `/ve-melsou` now has an independent 526-word AboutPage covering the OWNER-confirmed name, product, direction, and entity distinction instead of reusing the homepage hero.
+- **Checks:** targeted Blog/SEO/Auth/routes PASS (102/102); public-static suite PASS (17/17); full backend/Worker suite PASS (162/162); demo and Worker syntax PASS; `git diff --check` PASS. Homepage/AboutPage main-content token similarity is 27.96%, down from the earlier 44.59% and the reported 95.15–100% full-shell similarity before isolation.
+- **Status:** COMPLETED locally; no commit, push, merge, deployment, migration, or environment change.
