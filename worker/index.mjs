@@ -612,6 +612,9 @@ const renderPublicBlogCard = (post) => {
 };
 
 async function handlePublicHome(request, env) {
+  const requestUrl = new URL(request.url);
+  const appShellRequested = ['melsou_app', 'melsou_action', 'package', 'template', 'language', 'resume']
+    .some((name) => requestUrl.searchParams.has(name));
   let shellResponse;
   try { shellResponse = await env.ASSETS.fetch(new Request(new URL('/', request.url), request)); }
   catch { return new Response('Melsou đang tạm thời chưa tải được.', { status: 503 }); }
@@ -656,9 +659,33 @@ async function handlePublicHome(request, env) {
   } catch {
     // WordPress availability must never make the rest of the homepage unavailable.
   }
+  if (appShellRequested) {
+    html = html.replace('</head>', '<meta name="robots" content="noindex,follow">\n</head>');
+    html = html.replace('</body>', '<script id="melsou-static-action-resume">addEventListener("DOMContentLoaded",()=>{'
+    + 'const p=new URLSearchParams(location.search),a=p.get("melsou_action"),pkg=p.get("package"),tid=p.get("template"),lang=p.get("language"),resume=p.get("resume");'
+    + 'history.replaceState(null,"",location.pathname+location.hash);'
+    + 'if(a==="settings")openSettingsModal();else if(a==="account")openAuthModal("login",{type:"account"});'
+    + 'else if(a==="cart")toggleCart();else if(a==="start")openTemplateOnboardingModal();else if(a==="flipbook")openFlipbookModal();'
+    + 'else if(a==="tracking")showPage("tracking");else if(a==="owner")openOwnerDashboardModal();else if(a==="review")handleOpenWriteReview();'
+    + 'else if(pkg){const prices={melody:119000,voice:159000,signature:199000};if(prices[pkg])selectPackage(pkg,prices[pkg]);}'
+    + 'else if(tid&&typeof TEMPLATES_DATA!=="undefined"){const t=TEMPLATES_DATA.find(x=>x.id===tid);if(t)loadTemplateToStudio(t.nameVi||t.title,t.quoteVi||t.quote,t.coverImg);}'
+    + 'else if(lang==="vi"||lang==="en")switchLanguage(lang);'
+    + 'else if(resume){const value=resume.match(/^value-(\\d)$/);if(value)openValueStoryModal(Number(value[1]));else{const el=document.getElementById(resume);el?.scrollIntoView({block:"center"});if(el?.matches("input,textarea,select,button"))el.focus();}}'
+    + '},{once:true});</script></body>');
+  } else {
+    const homepage = extractElement(html, 'id="page-home"');
+    if (!homepage) return new Response('Melsou đang tạm thời chưa tải được.', { status: 503 });
+    html = projectPublicDocument(html, 'home', homepage.html)
+      .replace('</head>', '<meta name="robots" content="index,follow">\n</head>');
+  }
   return new Response(request.method === 'HEAD' ? null : html, {
     status: 200,
-    headers: { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'public, max-age=30, stale-while-revalidate=30', 'X-Content-Type-Options': 'nosniff' }
+    headers: {
+      'Content-Type': 'text/html; charset=utf-8',
+      'Cache-Control': appShellRequested ? 'private, no-store' : 'public, max-age=30, stale-while-revalidate=30',
+      'X-Content-Type-Options': 'nosniff',
+      ...(appShellRequested ? { 'X-Robots-Tag': 'noindex' } : {})
+    }
   });
 }
 
@@ -666,53 +693,236 @@ const publicStaticRoutes = Object.freeze({
   '/ve-melsou': {
     title: 'Về Melsou | Gói tâm tình trong dáng hình thanh âm',
     description: 'Melsou hòa quyện giai điệu và kỷ vật để mỗi trang ảnh không chỉ đẹp, mà còn biết cất lời.',
-    kind: 'hero'
+    kind: 'hero',
+    schemaType: 'AboutPage'
   },
   '/goi-san-pham': {
     title: 'Gói sản phẩm Melsou | Melody, Voice và Signature',
     description: 'Khám phá các gói Melody, Voice và Signature cho album ảnh liền trang mở phẳng 180° kết hợp hình ảnh và thanh âm.',
-    kind: 'pricing'
+    kind: 'pricing',
+    schemaType: 'CollectionPage'
   },
   '/templates': {
     title: 'Thư viện Template Melsou | 8 bộ mẫu nghệ thuật',
     description: 'Khám phá 8 bộ mẫu nghệ thuật độc bản của Melsou với bố cục bìa và ruột album dành cho những câu chuyện riêng.',
-    kind: 'templates'
+    kind: 'templates',
+    schemaType: 'CollectionPage'
   },
   '/chinh-sach-bao-mat': {
     title: 'Chính sách bảo mật | Melsou',
     description: 'Chính sách bảo mật giải thích cách Melsou thu thập, sử dụng và bảo vệ dữ liệu của người dùng.',
-    kind: 'privacy'
+    kind: 'privacy',
+    schemaType: 'WebPage'
   },
   '/chinh-sach-bao-hanh': {
     title: 'Chính sách bảo hành, đổi trả và hoàn tiền | Melsou',
     description: 'Chính sách bảo hành, đổi trả và hoàn tiền dành cho các sản phẩm Melsou được sản xuất theo yêu cầu và cá nhân hóa.',
-    kind: 'warranty'
+    kind: 'warranty',
+    schemaType: 'WebPage'
   }
 });
 
-const staticRouteStyle = (kind) => {
-  if (kind === 'hero') return '#page-home>section{display:none!important}';
-  if (kind === 'pricing') return '#page-home>.hero,#page-home>section:not(#pricing){display:none!important}';
-  if (kind === 'templates') return '#page-home{display:none!important}#page-templates{display:block!important}';
-  const modalId = kind === 'privacy' ? 'privacyPolicyModal' : 'warrantyPolicyModal';
-  return '#page-home{display:block!important}#page-home>.hero,#page-home>section{display:none!important}'
-    + '#' + modalId + '{display:flex!important}'
-    + '#' + modalId + '>.modal-box{display:block!important}';
+const publicTemplateSummaries = Object.freeze([
+  ['first-love', 'Tình đầu trong veo', 'Tình yêu đầu, góc quán quen và những lời tỏ tình giấu kín', 'https://images.unsplash.com/photo-1518895949257-7621c3c786d7?w=800&auto=format&fit=crop&q=80'],
+  ['graduation', 'Mùa tốt nghiệp', 'Kỷ yếu thanh xuân, tà áo cử nhân và hoa tươi trao tay', 'https://images.unsplash.com/photo-1523240795612-9a054b0db644?w=800&auto=format&fit=crop&q=80'],
+  ['besties', 'Hội bạn thân', 'Tụ họp nhóm bạn thân, máy ảnh film và tiếng cười rộn rã', 'https://images.unsplash.com/photo-1511632765486-a01980e01a18?w=800&auto=format&fit=crop&q=80'],
+  ['somewhere', 'Hành trình bên nhau', 'Khung cảnh hoàng hôn biển và những cung đường xa xôi', 'https://images.unsplash.com/photo-1506744038136-46273834b3fb?w=800&auto=format&fit=crop&q=80'],
+  ['memory-box', 'Hộp kỷ vật hoài niệm', 'Giấy Kraft mộc mạc lưu giữ những điều trân quý', 'https://images.unsplash.com/photo-1513519245088-0e12902e5a38?w=800&auto=format&fit=crop&q=80'],
+  ['sweet-romance', 'Tình nồng say', 'Tone đỏ rượu vang Burgundy và hoa hồng nhung ấm áp', 'https://images.unsplash.com/photo-1518895949257-7621c3c786d7?w=800&auto=format&fit=crop&q=80'],
+  ['fandom', 'Đêm hòa nhạc', 'Ánh đèn sân khấu rực rỡ và giai điệu thần tượng hòa ca', 'https://images.unsplash.com/photo-1470225620780-dba8ba36b745?w=800&auto=format&fit=crop&q=80'],
+  ['healing', 'Năm tháng thanh xuân', 'Tone xanh lá chữa lành, tìm về an yên trong tâm hồn', 'https://images.unsplash.com/photo-1448375240586-882707db888b?w=800&auto=format&fit=crop&q=80']
+]);
+
+const renderPublicTemplateCards = () => publicTemplateSummaries.map(([id, title, tagline, image]) =>
+  '<article class="art-tmpl-card" data-template-id="' + htmlEscape(id) + '">'
+    + '<a href="/?melsou_app=1&amp;template=' + htmlEscape(id) + '" class="art-tmpl-preview-box">'
+    + '<img src="' + htmlEscape(image) + '" class="bg-cover" alt="' + htmlEscape(title) + '" loading="lazy"></a>'
+    + '<div class="art-tmpl-info"><div class="art-tmpl-title">' + htmlEscape(title) + '</div>'
+    + '<div class="art-tmpl-tagline">' + htmlEscape(tagline) + '</div>'
+    + '<a href="/?melsou_app=1&amp;template=' + htmlEscape(id) + '" class="art-tmpl-tag">Chọn mẫu này →</a></div></article>'
+).join('');
+
+const findBalancedElement = (html, startIndex) => {
+  const opening = html.slice(startIndex).match(/^<([a-z][a-z0-9-]*)\b[^>]*>/i);
+  if (!opening) return null;
+  const tag = opening[1];
+  const matcher = new RegExp('<\\/?' + tag + '\\b[^>]*>', 'gi');
+  matcher.lastIndex = startIndex;
+  let depth = 0;
+  let match;
+  while ((match = matcher.exec(html))) {
+    if (/^<\//.test(match[0])) depth -= 1;
+    else if (!/\/>$/.test(match[0])) depth += 1;
+    if (depth === 0) return { start: startIndex, end: matcher.lastIndex, html: html.slice(startIndex, matcher.lastIndex) };
+  }
+  return null;
+};
+
+const extractElement = (html, marker) => {
+  const markerIndex = html.indexOf(marker);
+  if (markerIndex < 0) return null;
+  const start = html.lastIndexOf('<', markerIndex);
+  return start >= 0 ? findBalancedElement(html, start) : null;
+};
+
+const renderAboutMelsouContent = () => '<article class="about-melsou-page" aria-labelledby="aboutPageHeading">'
+  + '<header class="about-melsou-intro"><p class="about-melsou-eyebrow">Câu chuyện thương hiệu</p>'
+  + '<h1 id="aboutPageHeading">Về Melsou</h1>'
+  + '<p class="about-melsou-lead">Melsou là dự án thương hiệu album ảnh cá nhân hóa kết hợp hình ảnh và thanh âm, được phát triển tại Việt Nam.</p>'
+  + '<p>Melsou bắt đầu từ mong muốn đặt những tư liệu mà mỗi người trân trọng vào cùng một kỷ vật. Thay vì tách ảnh, lời nhắn và âm thanh thành những phần rời nhau, dự án hướng tới một cách lưu giữ có tính cá nhân, nơi từng lựa chọn đều xuất phát từ câu chuyện của người làm album.</p></header>'
+  + '<section class="about-melsou-section" aria-labelledby="aboutNameHeading"><h2 id="aboutNameHeading">Tên gọi Melsou</h2>'
+  + '<p>“Mel” gợi từ <em>melody</em> — giai điệu. “Sou” gợi từ <em>souvenir</em> — kỷ vật. Hai phần tên gọi diễn đạt định hướng cốt lõi: giúp hình ảnh và âm thanh cùng tồn tại trong một kỷ vật có thể lưu giữ lâu dài.</p>'
+  + '<p>Tên gọi này không thay thế câu chuyện của người dùng bằng một khuôn mẫu có sẵn. Mỗi album vẫn được hình thành từ ảnh, lời nhắn, thanh âm và cách sắp xếp mà chính người dùng lựa chọn. Melsou đóng vai trò kết nối những tư liệu ấy trong một hình thức thống nhất và dễ lưu giữ.</p></section>'
+  + '<section class="about-melsou-section" aria-labelledby="aboutCreatesHeading"><h2 id="aboutCreatesHeading">Melsou tạo ra điều gì?</h2>'
+  + '<p>Sản phẩm trung tâm là album ảnh cá nhân hóa với thiết kế mở phẳng 180°. Cấu trúc này tạo không gian liền mạch cho hình ảnh trên hai trang đối diện và phù hợp với cách kể chuyện bằng chuỗi khoảnh khắc.</p>'
+  + '<p>Khi phù hợp với thiết kế, hình ảnh có thể được kết hợp với thanh âm qua mã QR Spotify. Thanh âm không được thêm vào như một chi tiết tách biệt, mà được lựa chọn cùng với ảnh và bố cục để hỗ trợ câu chuyện mà người dùng muốn lưu lại.</p>'
+  + '<ul class="about-melsou-list"><li>Album ảnh được cá nhân hóa từ tư liệu do người dùng lựa chọn.</li>'
+  + '<li>Thiết kế mở phẳng 180° giúp nội dung trải rộng trên một cặp trang.</li>'
+  + '<li>Hình ảnh có thể đi cùng thanh âm qua mã QR Spotify khi phù hợp với thiết kế.</li>'
+  + '<li>Mỗi album được xây dựng từ câu chuyện, hình ảnh và lựa chọn riêng của người dùng.</li></ul></section>'
+  + '<section class="about-melsou-section" aria-labelledby="aboutDirectionHeading"><h2 id="aboutDirectionHeading">Định hướng lưu giữ mang tính cá nhân</h2>'
+  + '<p>Melsou hướng tới việc biến ảnh, lời nhắn và thanh âm thành một kỷ vật có tính cá nhân. Giá trị của album không nằm ở việc kể một câu chuyện thay cho người dùng, mà ở khả năng giúp họ tập hợp, sắp xếp và giữ lại những tư liệu có ý nghĩa theo cách của riêng mình.</p>'
+  + '<p>Vì mỗi câu chuyện có bối cảnh khác nhau, quá trình tạo album được đặt quanh lựa chọn của người dùng: chọn tư liệu, chọn cách trình bày và quyết định thanh âm nào thực sự thuộc về kỷ niệm đó. Kết quả hướng tới một vật lưu giữ có thể được mở lại, xem lại và nghe lại theo thời gian.</p></section>'
+  + '<section class="about-melsou-section about-melsou-identity" aria-labelledby="aboutIdentityHeading"><h2 id="aboutIdentityHeading">Phân biệt thực thể</h2>'
+  + '<p>Melsou là thương hiệu hoạt động tại Việt Nam và không liên quan đến MEL South Africa hoặc các tổ chức có tên tương tự.</p></section>'
+  + '<nav class="about-melsou-actions" aria-label="Khám phá Melsou"><a class="btn btn-primary" href="/?melsou_app=1&amp;melsou_action=start" data-melsou-action="start">Bắt đầu tạo album</a>'
+  + '<a class="btn btn-secondary" href="/templates">Khám phá thư viện template</a></nav></article>';
+
+const staticRouteFragment = (html, kind) => {
+  if (kind === 'hero') return renderAboutMelsouContent();
+  const marker = kind === 'hero' ? 'class="hero"'
+    : kind === 'pricing' ? 'id="pricing"'
+      : kind === 'templates' ? 'id="page-templates"'
+        : kind === 'privacy' ? 'id="privacyPolicyModal"'
+          : 'id="warrantyPolicyModal"';
+  const element = extractElement(html, marker);
+  if (!element) throw new Error('STATIC_ROUTE_FRAGMENT_MISSING:' + kind);
+  let fragment = element.html;
+  if (kind === 'templates') fragment = fragment
+    .replace(/\sclass="page(?:\s+active)?"/i, ' class="page active"')
+    .replace('<div class="templates-grid-art" id="templatesGridContainer"></div>', '<div class="templates-grid-art" id="templatesGridContainer">' + renderPublicTemplateCards() + '</div>');
+  if (kind === 'privacy' || kind === 'warranty') {
+    fragment = fragment
+      .replace(/\sclass="modal-backdrop policy-modal-backdrop"/i, ' class="policy-page"')
+      .replace(/\s+onclick="[^"]*"/i, '')
+      .replace(/<button\b[^>]*class="[^"]*modal-close[^\"]*"[^>]*>[\s\S]*?<\/button>/gi, '');
+  }
+  return fragment;
+};
+
+const removeElement = (html, marker) => {
+  const element = extractElement(html, marker);
+  return element ? html.slice(0, element.start) + html.slice(element.end) : html;
+};
+
+const rewriteLeanActions = (html) => html
+  .replace(/onclick="openSettingsModal\(\)"/g, 'data-melsou-action="settings"')
+  .replace(/onclick="toggleUserDropdown\(event\)"/g, 'data-melsou-action="account"')
+  .replace(/onclick="toggleCart\(\)"/g, 'data-melsou-action="cart"')
+  .replace(/onclick="(?:toggleMobileNavMenu\(\);)?openTemplateOnboardingModal\(\)"/g, 'data-melsou-action="start"')
+  .replace(/onclick="openFlipbookModal\(\)"/g, 'data-melsou-action="flipbook"')
+  .replace(/onclick="selectPackage\('([^']+)',\s*\d+\)"/g, 'data-melsou-package="$1"')
+  .replace(/onclick="(?:mobileNavGo|showPage)\('tracking'\)"/g, 'data-melsou-action="tracking"')
+  .replace(/onclick="(?:toggleMobileNavMenu\(\);)?openOwnerDashboardModal\(\)"/g, 'data-melsou-action="owner"')
+  .replace(/onclick="switchLanguage\('([^']+)'\);\s*updateSettingsLangUI\('[^']+'\)"/g, 'data-melsou-language="$1"')
+  .replace(/onclick="openValueStoryModal\((\d+)\)"/g, 'data-melsou-resume="value-$1"')
+  .replace(/onkeydown="[^"]*openValueStoryModal\((\d+)\)"/g, 'data-melsou-resume-keyboard="value-$1"')
+  .replace(/onclick="handleOpenWriteReview\(\)"/g, 'data-melsou-action="review"')
+  .replace(/\s+oninput="handleBlogSearch\(this\.value\)"/g, ' data-melsou-resume="blog-search-query"')
+  .replace(/onclick="(?:clearBlogSearch|filterBlogCategory|scrollBlogCarousel)\([^\"]*\)"/g, 'data-melsou-resume="blog-section"')
+  .replace(/onclick="open(?:Privacy|Warranty)PolicyModal\(event\)"/g, '')
+  .replace(/onclick="close(?:Privacy|Warranty)PolicyModal\(\)"/g, 'onclick="location.href=\'/\'"')
+  .replace(/onclick="toggleMobileNavMenu\(\)"/g, 'onclick="document.getElementById(\'mobileNavDrawer\')?.classList.toggle(\'open\')"')
+  .replace(/onclick="closeMobileNavMenu\(\)"/g, '')
+  .replace(/onclick="scrollToTop\(\)"/g, 'onclick="scrollTo({top:0,behavior:\'smooth\'})"')
+  .replace(/href="javascript:void\(0\)"([^>]*data-melsou-action="([^"]+)"[^>]*)/g, 'href="/?melsou_app=1&amp;melsou_action=$2"$1')
+  .replace(/href="javascript:void\(0\)"([^>]*data-melsou-package="([^"]+)"[^>]*)/g, 'href="/?melsou_app=1&amp;package=$2"$1')
+  .replace(/href="javascript:void\(0\)"([^>]*id="footerLinkWorkshop"[^>]*)/g, 'href="/ve-melsou"$1');
+
+const leanNavigationScript = '<script id="melsou-static-navigation">(()=>{'
+  + 'const go=p=>location.href="/?melsou_app=1&"+p;'
+  + 'document.addEventListener("click",event=>{const node=event.target.closest("[data-melsou-action],[data-melsou-package],[data-melsou-language],[data-melsou-resume]");if(!node)return;'
+  + 'if(node.dataset.melsouAction){event.preventDefault();go("melsou_action="+encodeURIComponent(node.dataset.melsouAction));}'
+  + 'else if(node.dataset.melsouPackage){event.preventDefault();go("package="+encodeURIComponent(node.dataset.melsouPackage));}'
+  + 'else if(node.dataset.melsouLanguage){event.preventDefault();go("language="+encodeURIComponent(node.dataset.melsouLanguage));}'
+  + 'else if(node.dataset.melsouResume){event.preventDefault();go("resume="+encodeURIComponent(node.dataset.melsouResume)+"#"+encodeURIComponent(node.dataset.melsouResume));}});'
+  + 'document.addEventListener("keydown",event=>{if(event.key!=="Enter"&&event.key!==" ")return;const id=event.target?.dataset?.melsouResumeKeyboard;if(!id)return;event.preventDefault();go("resume="+encodeURIComponent(id)+"#"+encodeURIComponent(id));});'
+  + 'document.addEventListener("focusin",event=>{const id=event.target?.dataset?.melsouResume;if(id)go("resume="+encodeURIComponent(id)+"#"+encodeURIComponent(id));});'
+  + '})();</script>';
+
+const projectPublicDocument = (html, kind, fragment) => {
+  const bodyMatch = html.match(/<body\b[^>]*>/i);
+  const topbar = extractElement(html, 'class="topbar"');
+  const header = extractElement(html, '<header');
+  const mobileNav = extractElement(html, 'id="mobileNavDrawer"');
+  const footer = extractElement(html, '<footer');
+  if (!bodyMatch || !header || !footer) throw new Error('STATIC_ROUTE_SHELL_MISSING');
+  const headEnd = html.indexOf('</head>');
+  if (headEnd < 0) throw new Error('STATIC_ROUTE_HEAD_MISSING');
+  const head = html.slice(0, headEnd + 7).replace(/<script\s+src="\/seo-routes\.js"><\/script>\s*/i, '');
+  let cleanHeader = removeElement(header.html, 'id="userDropdownMenu"');
+  let cleanMobileNav = mobileNav?.html || '';
+  cleanMobileNav = removeElement(cleanMobileNav, 'id="mndItemOwnerDashboard"');
+  const shellStyle = '<style id="melsou-static-route-isolation">'
+    + 'body{min-height:100vh;display:flex;flex-direction:column}'
+    + '#melsou-public-route-main{display:block;flex:1;width:100%}'
+    + '#melsou-public-route-main>.hero{min-height:calc(100vh - 132px)}'
+    + '#melsou-public-route-main>#pricing{display:block}'
+    + '#melsou-public-route-main>.page{display:block}'
+    + '#melsou-public-route-main>.about-melsou-page{max-width:960px;margin:0 auto;padding:72px 24px 88px;color:var(--dark)}'
+    + '.about-melsou-intro{padding-bottom:34px;border-bottom:1px solid rgba(121,45,35,.18)}'
+    + '.about-melsou-eyebrow{margin:0 0 12px;color:var(--red);font-size:.82rem;font-weight:700;letter-spacing:.14em;text-transform:uppercase}'
+    + '.about-melsou-page h1{margin:0 0 22px;font-family:var(--font-display);font-size:clamp(2.6rem,7vw,5.2rem);line-height:1;color:var(--red)}'
+    + '.about-melsou-lead{font-size:clamp(1.15rem,2.4vw,1.45rem);line-height:1.7;font-weight:600}'
+    + '.about-melsou-page p,.about-melsou-page li{font-size:1rem;line-height:1.8}'
+    + '.about-melsou-section{padding:34px 0 4px}.about-melsou-section h2{margin:0 0 14px;font-family:var(--font-display);font-size:clamp(1.65rem,3.5vw,2.35rem);color:var(--red)}'
+    + '.about-melsou-list{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px 30px;margin:24px 0 0;padding-left:22px}'
+    + '.about-melsou-identity{margin-top:30px;padding:28px 30px;background:rgba(121,45,35,.06);border-radius:18px}'
+    + '.about-melsou-actions{display:flex;flex-wrap:wrap;gap:14px;margin-top:42px}'
+    + '@media(max-width:640px){#melsou-public-route-main>.about-melsou-page{padding:48px 20px 64px}.about-melsou-list{grid-template-columns:1fr}.about-melsou-actions .btn{width:100%;text-align:center}}'
+    + '#melsou-public-route-main>.policy-page{position:static;display:flex;min-height:calc(100vh - 132px);padding:48px 20px;background:var(--cream)}'
+    + '#melsou-public-route-main>.policy-page>.modal-box{display:block;position:static;margin:auto;max-height:none}'
+    + '</style>';
+  return rewriteLeanActions(head.replace('</head>', shellStyle + '</head>')
+    + bodyMatch[0].replace(/\s+on(?:click|keydown)="[^"]*"/gi, '')
+    + (topbar?.html || '')
+    + cleanHeader
+    + cleanMobileNav
+    + '<main id="melsou-public-route-main" data-static-route="' + htmlEscape(kind) + '">' + fragment + '</main>'
+    + footer.html
+    + leanNavigationScript
+    + '</body></html>');
+};
+
+const projectStaticRouteDocument = (html, kind) => {
+  const fragment = staticRouteFragment(html, kind);
+  return projectPublicDocument(html, kind, fragment);
 };
 
 const renderStaticRouteShell = (html, pathname, route) => {
   const canonical = 'https://melsou.com' + pathname;
+  const routeSchema = JSON.stringify({
+    '@context': 'https://schema.org',
+    '@type': route.schemaType,
+    '@id': canonical + '#webpage',
+    url: canonical,
+    name: route.title,
+    description: route.description,
+    inLanguage: 'vi-VN',
+    isPartOf: { '@id': 'https://melsou.com/#website' },
+    about: { '@id': melsouOrganizationId }
+  }).replace(/</g, '\\u003c');
   const socialMetadata = '<meta property="og:title" content="' + htmlEscape(route.title) + '">\n'
     + '<meta property="og:description" content="' + htmlEscape(route.description) + '">\n'
     + '<meta property="og:url" content="' + canonical + '">\n<meta property="og:type" content="website">\n'
     + '<meta name="twitter:card" content="summary_large_image">\n<meta name="twitter:title" content="' + htmlEscape(route.title) + '">\n'
-    + '<meta name="twitter:description" content="' + htmlEscape(route.description) + '">\n';
-  let rendered = html
+    + '<meta name="twitter:description" content="' + htmlEscape(route.description) + '">\n'
+    + '<script type="application/ld+json" id="melsou-static-route-schema">' + routeSchema + '</script>\n';
+  let rendered = projectStaticRouteDocument(html, route.kind)
     .replace(/<title>[\s\S]*?<\/title>/i, '<title>' + htmlEscape(route.title) + '</title>')
     .replace(/<meta\s+name="description"\s+content="[^"]*"\s*\/?>/i, '<meta name="description" content="' + htmlEscape(route.description) + '">')
     .replace(/<link\s+rel="canonical"\s+href="[^"]*"\s*\/?>/i, '<link rel="canonical" href="' + canonical + '">')
-    .replace('</head>', socialMetadata + '<meta name="robots" content="index,follow">\n<style id="melsou-static-route-ssr">' + staticRouteStyle(route.kind) + '</style>\n'
-      + '<script>addEventListener("DOMContentLoaded",()=>document.getElementById("melsou-static-route-ssr")?.remove(),{once:true})</script>\n</head>');
+    .replace('</head>', socialMetadata + '<meta name="robots" content="index,follow">\n</head>');
 
   if (route.kind !== 'hero') {
     rendered = rendered
@@ -721,9 +931,8 @@ const renderStaticRouteShell = (html, pathname, route) => {
   }
   if (route.kind === 'pricing') rendered = rendered.replace(/<h2([^>]*\bid="pricingTitle"[^>]*)>([\s\S]*?)<\/h2>/i, '<h1$1>$2</h1>');
   if (route.kind === 'templates') rendered = rendered.replace(/<h2([^>]*\bid="tplLibraryHeading"[^>]*)>([\s\S]*?)<\/h2>/i, '<h1$1>$2</h1>');
-  if (route.kind === 'privacy') rendered = rendered.replace('<h3 style="font-size:20px;color:var(--dark)">Chính Sách Bảo Mật Melsou 📜</h3>', '<h1 id="privacyPageHeading" style="font-size:20px;color:var(--dark)">Chính Sách Bảo Mật Melsou 📜</h1>');
-  if (route.kind === 'warranty') rendered = rendered.replace('<h3 style="font-size:20px;color:var(--dark)">Chính Sách Bảo Hành, Đổi Trả &amp; Hoàn Tiền 🛡️</h3>', '<h1 id="warrantyPageHeading" style="font-size:20px;color:var(--dark)">Chính Sách Bảo Hành, Đổi Trả &amp; Hoàn Tiền 🛡️</h1>');
-  if (route.kind === 'hero') rendered = rendered.replace(/(<p class="hero-desc" id="heroSubheadlineText">[\s\S]*?)(<\/p>)/i, '$1 Melsou là dự án thương hiệu album ảnh cá nhân hóa kết hợp hình ảnh và thanh âm, được phát triển tại Việt Nam.$2');
+  if (route.kind === 'privacy') rendered = rendered.replace('<h3 style="font-size:20px;color:var(--dark)">Chính Sách Bảo Mật Melsou 📜</h3>', '<h1 id="privacyPageHeading" style="font-size:20px;color:var(--dark)">Chính Sách Bảo Mật Melsou</h1>');
+  if (route.kind === 'warranty') rendered = rendered.replace('<h3 style="font-size:20px;color:var(--dark)">Chính Sách Bảo Hành, Đổi Trả &amp; Hoàn Tiền 🛡️</h3>', '<h1 id="warrantyPageHeading" style="font-size:20px;color:var(--dark)">Chính Sách Bảo Hành, Đổi Trả &amp; Hoàn Tiền</h1>');
   return rendered;
 };
 
