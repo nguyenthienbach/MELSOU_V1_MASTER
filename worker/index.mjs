@@ -16,6 +16,31 @@ import {
 
 const json = (body, status = 200) => new Response(JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store', 'X-Content-Type-Options': 'nosniff' } });
 const publicJson = (body, status = 200) => new Response(JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'public, max-age=30, stale-while-revalidate=30', 'X-Content-Type-Options': 'nosniff' } });
+const withEdgeCacheStatus = (response, status) => {
+  const headers = new Headers(response.headers);
+  headers.set('X-Melsou-Edge-Cache', status);
+  return new Response(response.body, { status: response.status, statusText: response.statusText, headers });
+};
+const publicEdgeCached = async (request, ctx, producer) => {
+  const url = new URL(request.url);
+  if (request.method !== 'GET' || url.search || typeof caches === 'undefined' || !caches.default) return producer();
+  const cacheKey = new Request(`${url.origin}${url.pathname}`, { method: 'GET' });
+  try {
+    const cached = await caches.default.match(cacheKey);
+    if (cached) return withEdgeCacheStatus(cached, 'HIT');
+  } catch {
+    return producer();
+  }
+  const response = await producer();
+  const cacheControl = response.headers.get('Cache-Control') || '';
+  const cacheable = response.ok && /^public(?:,|$)/i.test(cacheControl) && !response.headers.has('Set-Cookie');
+  if (cacheable) {
+    const write = caches.default.put(cacheKey, response.clone());
+    if (ctx?.waitUntil) ctx.waitUntil(write);
+    else await write;
+  }
+  return withEdgeCacheStatus(response, cacheable ? 'MISS' : 'BYPASS');
+};
 const textEncoder = new TextEncoder();
 const timeSafeEqual = (a, b) => {
   if (a.length !== b.length) return false;
@@ -1716,8 +1741,8 @@ export default {
   async fetch(request, env, ctx) {
     env = withPrivateStorage(env);
     const url = new URL(request.url);
-    if (url.pathname === '/' && (request.method === 'GET' || request.method === 'HEAD')) return handlePublicHome(request, env);
-    if (publicStaticRoutes[url.pathname] && (request.method === 'GET' || request.method === 'HEAD')) return handlePublicStaticHtml(request, env, url.pathname);
+    if (url.pathname === '/' && (request.method === 'GET' || request.method === 'HEAD')) return publicEdgeCached(request, ctx, () => handlePublicHome(request, env));
+    if (publicStaticRoutes[url.pathname] && (request.method === 'GET' || request.method === 'HEAD')) return publicEdgeCached(request, ctx, () => handlePublicStaticHtml(request, env, url.pathname));
     if (url.pathname === '/api/health' && request.method === 'GET') return json({ ok: true, environment: env.APP_ENV || 'unknown' });
     if (url.pathname === '/api/auth/native/register' && request.method === 'POST') return handleNativeRegister(request, env);
     if (url.pathname === '/api/auth/native/login' && request.method === 'POST') return handleNativeLogin(request, env);
@@ -1736,7 +1761,7 @@ export default {
     }
     if (url.pathname === '/api/blog' && request.method === 'GET') return handlePublicBlog(url);
     if (url.pathname === '/api/blog/categories' && request.method === 'GET') return handlePublicBlogCategories();
-    if (url.pathname === '/api/sitemap.xml' && request.method === 'GET') return handlePublicSitemap();
+    if (url.pathname === '/api/sitemap.xml' && request.method === 'GET') return publicEdgeCached(request, ctx, () => handlePublicSitemap());
     const wordpressComment = env.BLOG_COMMENT_SOURCE === 'wordpress' ? matchWordpressComment(url.pathname, request.method) : null;
     if (wordpressComment) return routeWordpressComment(request, env, wordpressComment);
     const blogInteraction = matchBlogInteraction(url.pathname, request.method);
@@ -1749,7 +1774,7 @@ export default {
     const publicBlogPost = url.pathname.match(/^\/api\/blog\/([a-z0-9-]+)$/);
     if (publicBlogPost && request.method === 'GET') return handlePublicBlog(url, publicBlogPost[1]);
     const publicBlogHtml = url.pathname.match(/^\/blog\/([a-z0-9-]+)$/);
-    if (publicBlogHtml && (request.method === 'GET' || request.method === 'HEAD')) return handlePublicBlogHtml(request, env, publicBlogHtml[1]);
+    if (publicBlogHtml && (request.method === 'GET' || request.method === 'HEAD')) return publicEdgeCached(request, ctx, () => handlePublicBlogHtml(request, env, publicBlogHtml[1]));
     if (url.pathname === '/api/guest/projects' && (request.method === 'GET' || request.method === 'POST')) return handleGuestProjects(request, env);
     const guestProjectSave = url.pathname.match(/^\/api\/guest\/projects\/([0-9a-f-]{36})$/i);
     if (guestProjectSave && request.method === 'PUT') return handleGuestProjectSave(request, env, guestProjectSave[1]);

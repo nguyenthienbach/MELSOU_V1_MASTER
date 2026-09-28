@@ -1,6 +1,26 @@
 {
   "cleanUrls": true,
   "trailingSlash": false,
+  "headers": [
+    {
+      "source": "/(app|studio|auth-client|seo-routes)\\.js",
+      "headers": [
+        { "key": "Cache-Control", "value": "public, max-age=3600, s-maxage=86400, stale-while-revalidate=86400" }
+      ]
+    },
+    {
+      "source": "/styles\\.css",
+      "headers": [
+        { "key": "Cache-Control", "value": "public, max-age=3600, s-maxage=86400, stale-while-revalidate=86400" }
+      ]
+    },
+    {
+      "source": "/favicon(?:-48)?\\.png",
+      "headers": [
+        { "key": "Cache-Control", "value": "public, max-age=86400, s-maxage=604800, stale-while-revalidate=86400" }
+      ]
+    }
+  ],
   "routes": [
     { "src": "^/$", "dest": "https://melsou.nguyenthienbach18042007.workers.dev/" },
     { "src": "^/(ve-melsou|goi-san-pham|templates|chinh-sach-bao-mat|chinh-sach-bao-hanh)$", "dest": "https://melsou.nguyenthienbach18042007.workers.dev/$1" },
