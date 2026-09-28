@@ -180,8 +180,24 @@
     return String(window.melsouGetActiveDraft?.()?.title || 'Album chưa đặt tên').trim().slice(0, 120) || 'Album chưa đặt tên';
   }
 
+  let supabaseScriptPromise = null;
+  function ensureSupabaseScript() {
+    if (typeof window !== 'undefined' && window.supabase?.createClient) return Promise.resolve();
+    if (supabaseScriptPromise) return supabaseScriptPromise;
+    supabaseScriptPromise = new Promise((resolve, reject) => {
+      if (typeof document === 'undefined') return resolve();
+      const s = document.createElement('script');
+      s.src = 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2';
+      s.onload = () => resolve();
+      s.onerror = () => reject(new Error('Không thể tải thư viện đăng nhập.'));
+      document.head.appendChild(s);
+    });
+    return supabaseScriptPromise;
+  }
+
   async function loadClient() {
     if (client) return client;
+    await ensureSupabaseScript();
     if (!configPromise) {
       configPromise = api('/public-config').then((config) => {
         if (!config.supabaseUrl || !config.supabaseAnonKey) {
@@ -497,7 +513,7 @@
     return result.order;
   };
 
-  (async () => {
+  const initAuthSession = async () => {
     try {
       const account = await api('/account');
       if (account?.auth?.provider === 'NATIVE') {
@@ -514,6 +530,12 @@
     }
     try { await restoreCanonicalProject(false); }
     catch (error) { console.info('[Melsou] guest draft restore deferred:', error.code || error.message); }
+    const hasSupabaseTokens = typeof window !== 'undefined' && (
+      (window.location.hash && window.location.hash.includes('access_token')) ||
+      (window.location.search && window.location.search.includes('code=')) ||
+      (typeof localStorage !== 'undefined' && Object.keys(localStorage || {}).some(k => k.startsWith('sb-')))
+    );
+    if (!hasSupabaseTokens) return;
     try {
       const supabase = await loadClient();
       const { data, error } = await supabase.auth.getSession();
@@ -529,9 +551,17 @@
         }
       });
     } catch (error) {
-      // No configuration is expected on an unconfigured local demo. Keep the
-      // editor usable as a guest and surface a precise error only on sign-in.
       console.info('[Melsou] OAuth bridge inactive:', error.message);
     }
-  })();
+  };
+
+  if (typeof document !== 'undefined' && document.readyState === 'loading') {
+    if ('requestIdleCallback' in window) {
+      window.addEventListener('load', () => requestIdleCallback(initAuthSession, { timeout: 4000 }));
+    } else {
+      window.addEventListener('load', () => setTimeout(initAuthSession, 2500));
+    }
+  } else {
+    initAuthSession();
+  }
 })();
