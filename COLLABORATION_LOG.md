@@ -2,6 +2,14 @@
 
 This log prevents accidental overlap. Add the newest entry at the top.
 
+## READY FOR DEPLOY TEST — Codex — PageSpeed infrastructure batch 3
+
+- **When / agent:** 2026-09-29 — Codex
+- **Files reserved:** `worker/index.mjs`, Worker performance-delivery tests, `demo/recovery_fb38/vercel.json`.
+- **Purpose:** add bounded public-only edge caching and safe browser/edge cache headers after measuring production compression and cache behavior; never cache authenticated, customer, project, checkout, order, payment, or OWNER responses.
+- **Protected contracts:** preserve Anti's uncommitted Frontend Performance Batch 2, public SSR/SEO, WordPress freshness, Studio lazy loading, Auth/session, Cart/Checkout, and all production variables/migrations.
+- **Status:** Local implementation and regression checks PASS (165/165 Worker tests plus 3/3 delivery tests); production baseline measured, but `studio.js` is still 404 on the current deployment. Awaiting Owner-approved integration/deploy before post-change production Lighthouse. No commit, push, merge, deploy, secret, migration, or environment change.
+
 ## DONE — Codex — public SSR, brand entity and WordPress Blog SEO
 
 - **When / agent:** 2026-09-18 — Codex
