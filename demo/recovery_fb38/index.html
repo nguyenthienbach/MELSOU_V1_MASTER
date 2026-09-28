@@ -6,19 +6,46 @@
 <title>Melsou | Gói tâm tình trong dáng hình thanh âm</title>
 <meta name="description" content="Melsou kết hợp album ảnh cá nhân hóa với giai điệu và kỷ vật, để mỗi trang ảnh không chỉ lưu giữ khoảnh khắc mà còn biết cất lời.">
 <link rel="canonical" href="https://melsou.com/">
-<link rel="icon" type="image/png" href="/favicon.png">
+<link rel="icon" type="image/png" sizes="48x48" href="/favicon-48.png">
 <link rel="apple-touch-icon" href="/favicon.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Dancing+Script:wght@600;700&family=Caveat:wght@600;700&family=Pacifico&family=Lora:ital,wght@0,400;0,500;0,600;1,400;1,500;1,600&family=Montserrat:ital,wght@0,300;0,400;0,500;0,600;0,700;0,800;1,400&family=Playfair+Display:ital,wght@0,600;0,700;1,400;1,600&display=swap" rel="stylesheet">
+<link rel="preload" href="https://fonts.gstatic.com/s/montserrat/v31/JTUSjIg1_i6t8kCHKm459WlhyyTh89Y.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="preload" href="https://fonts.gstatic.com/s/playfairdisplay/v40/nuFiD-vYSZviVYUb_rj3ij__anPXDTzYgEM86xQ.woff2" as="font" type="font/woff2" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Pacifico&family=Lora:wght@400;700&family=Montserrat:wght@400;500;600;700;800&family=Playfair+Display:wght@600;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="/styles.css">
-<script src="/seo-routes.js"></script>
-<script async src="https://www.googletagmanager.com/gtag/js?id=G-BLKYGSHG2N"></script>
+<script src="/seo-routes.js" defer></script>
 <script>
   window.dataLayer = window.dataLayer || [];
   function gtag(){dataLayer.push(arguments);}
   gtag('js', new Date());
   gtag('config', 'G-BLKYGSHG2N');
+  (function() {
+    function loadGtag() {
+      if (window.__gtagLoaded) return;
+      window.__gtagLoaded = true;
+      const s = document.createElement('script');
+      s.async = true;
+      s.src = 'https://www.googletagmanager.com/gtag/js?id=G-BLKYGSHG2N';
+      document.head.appendChild(s);
+      cleanup();
+    }
+    const events = ['pointerdown', 'keydown', 'scroll', 'touchstart'];
+    function onInteract() { loadGtag(); }
+    function cleanup() {
+      events.forEach(e => window.removeEventListener(e, onInteract, { passive: true }));
+    }
+    events.forEach(e => window.addEventListener(e, onInteract, { passive: true, once: true }));
+    window.addEventListener('load', () => {
+      setTimeout(() => {
+        if ('requestIdleCallback' in window) {
+          requestIdleCallback(loadGtag);
+        } else {
+          loadGtag();
+        }
+      }, 9000);
+    });
+  })();
 </script>
 </head>
 <body onclick="handleGlobalClick(event)" onkeydown="handleGlobalKey(event)">
@@ -30,7 +57,7 @@
     <span class="topbar-full-text" id="i18nTopbarPromoFull">Tặng kèm mã QR nhạc Spotify &amp; Hộp quà Kraft cao cấp khi thiết kế album tại Melsou!</span>
     <span class="topbar-short-text">Tặng mã Spotify &amp; Hộp Kraft</span>
   </span>
-  <a href="javascript:void(0)" onclick="openTemplateOnboardingModal()" id="i18nTopbarAction">Tạo ngay →</a>
+  <button type="button" onclick="openTemplateOnboardingModal()" id="i18nTopbarAction">Tạo ngay →</button>
 </div>
 
 <!-- HEADER -->
@@ -60,10 +87,10 @@
             <strong id="dropdownUserName" style="color:var(--dark);display:block">Tài khoản của bạn</strong>
             <span id="dropdownUserEmail" style="font-size:11px">user@example.com</span>
           </div>
-          <a href="javascript:void(0)" class="ud-item" onclick="openOwnerDashboardModal()" id="udLinkOwnerDashboard" style="display:none;color:var(--brand);font-weight:600">OWNER Dashboard</a>
-          <a href="javascript:void(0)" class="ud-item" onclick="openDraftsManagerModal()" id="udLinkDrafts">Bản thiết kế của bạn</a>
-          <a href="javascript:void(0)" class="ud-item" onclick="openOrdersManagerModal()" id="udLinkOrders">Đơn hàng của bạn</a>
-          <a href="javascript:void(0)" class="ud-item ud-logout" onclick="performLogout(event)" id="udLinkLogout">Đăng xuất</a>
+          <button type="button" class="ud-item" onclick="openOwnerDashboardModal()" id="udLinkOwnerDashboard" style="display:none;color:var(--brand);font-weight:600">OWNER Dashboard</button>
+          <button type="button" class="ud-item" onclick="openDraftsManagerModal()" id="udLinkDrafts">Bản thiết kế của bạn</button>
+          <button type="button" class="ud-item" onclick="openOrdersManagerModal()" id="udLinkOrders">Đơn hàng của bạn</button>
+          <button type="button" class="ud-item ud-logout" onclick="performLogout(event)" id="udLinkLogout">Đăng xuất</button>
         </div>
       </div>
 
@@ -103,18 +130,19 @@
     <li><a href="/templates" id="mndLinkTemplates">Thư viện Template</a></li>
     <li><a href="/#reviews-section" id="mndLinkReviews">Trải nghiệm người dùng</a></li>
     <li><a href="/#blog-section" id="mndLinkBlog" onclick="closeMobileNavMenu()">Câu chuyện</a></li>
-    <li><a href="javascript:void(0)" onclick="mobileNavGo('tracking')" id="mndLinkTracking">Tra cứu đơn hàng</a></li>
-    <li id="mndItemOwnerDashboard" style="display:none"><a href="javascript:void(0)" onclick="toggleMobileNavMenu();openOwnerDashboardModal()" id="mndLinkOwnerDashboard" style="color:var(--brand);font-weight:600">OWNER Dashboard</a></li>
+    <li><button type="button" onclick="mobileNavGo('tracking')" id="mndLinkTracking">Tra cứu đơn hàng</button></li>
+    <li id="mndItemOwnerDashboard" style="display:none"><button type="button" onclick="toggleMobileNavMenu();openOwnerDashboardModal()" id="mndLinkOwnerDashboard" style="color:var(--brand);font-weight:600">OWNER Dashboard</button></li>
   </ul>
   <div class="mnd-cta">
     <button class="btn-primary" id="mndCtaBtn" style="width:100%;justify-content:center;padding:12px;font-size:14px" onclick="toggleMobileNavMenu();openTemplateOnboardingModal()">Bắt đầu tạo album</button>
   </div>
 </div>
 
+<main id="mainContent">
 <!-- ════════ PAGE: HOME ════════ -->
 <div id="page-home" class="page active">
   <div class="hero">
-    <div>
+    <div class="hero-copy">
       <div class="hero-badge" id="heroEducationalBadge">Album ảnh liền trang 180° kết hợp thanh âm</div>
       <h1 class="hero-title" id="heroHeadlineText"><span id="heroTitleBase">Gói tâm tình</span> <span class="hero-title-accent" id="heroTitleAccent">trong dáng hình thanh âm</span></h1>
       <p class="hero-desc" id="heroSubheadlineText">Chiếc máy ảnh có thể giữ lại hình dáng khoảnh khắc, nhưng lại vô tình bỏ quên âm thanh. <strong>Melsou</strong> hòa quyện <em>giai điệu (melody)</em> và <em>kỷ vật (souvenir)</em> để mỗi trang ảnh không chỉ đẹp, mà còn biết cất lời.</p>
@@ -132,9 +160,9 @@
     <!-- 3D HERO AUTO-FLIPPING BOOK (SILENT) -->
     <div class="hero-3d-wrapper">
       <div class="hero-book-3d" id="heroAutoFlipBook" onclick="openFlipbookModal()" title="Bấm để mở lật sách 3D toàn màn hình">
-        <div class="pb-page left-page" id="heroLeftPage" style="padding:24px;background:linear-gradient(135deg,#1a1a2e,#0f3460);color:white;justify-content:space-between"></div>
+        <div class="pb-page left-page" id="heroLeftPage" style="padding:24px;background:linear-gradient(135deg,#1a1a2e,#0f3460);color:white;justify-content:space-between"><div class="hero-book-content" id="heroLeftContent"><div style="font-family:'Pacifico',cursive;font-size:22px;color:var(--yellow)">melsou</div><div><div style="font-family:'Lora',serif;font-size:20px;font-weight:700">Bản thiết kế mới</div><div style="font-size:11.5px;font-style:italic;opacity:0.8;margin-top:4px">&quot;Mở phẳng 180° liền trang · Kỷ vật tình yêu&quot;</div></div><div style="font-size:10px;opacity:0.7">Bìa cứng mở phẳng 180° · Bấm để lật 3D →</div></div></div>
         <div class="layflat-spine"></div>
-        <div class="pb-page right-page" id="heroRightPage" style="padding:18px;background:var(--yellow-warm);display:flex;flex-direction:column;justify-content:space-between"></div>
+        <div class="pb-page right-page" id="heroRightPage" style="padding:18px;background:var(--yellow-warm);display:flex;flex-direction:column;justify-content:space-between"><div class="hero-book-content" id="heroRightContent"><div class="pb-polaroid" style="transform:rotate(2deg)"><div class="pb-washi-corner" style="top:-6px;left:50%;transform:translateX(-50%)"></div><div class="hero-book-photo hero-book-photo-placeholder"></div></div><div class="spotify-soundwave-bar" style="margin:0"><div class="spotify-logo-icon">🎵</div><div class="spotify-wave-lines"><span class="sw-line" style="height:8px"></span><span class="sw-line" style="height:16px"></span><span class="sw-line" style="height:10px"></span><span class="sw-line" style="height:20px"></span></div><span style="font-size:10px;font-weight:700">Spotify</span></div></div></div>
       </div>
     </div>
   </div>
@@ -344,7 +372,7 @@
     <!-- ZONE 1: TOP EDITOR BAR (CANVA-INSPIRED 48PX) -->
     <div class="studio-topbar">
       <div class="st-left">
-        <a href="javascript:void(0)" class="st-mobile-back-btn" onclick="showPage('home')" title="Quay lại trang chủ" aria-label="Quay lại">←</a>
+        <button type="button" class="st-mobile-back-btn" onclick="showPage('home')" title="Quay lại trang chủ" aria-label="Quay lại">←</button>
         <div class="st-title-wrapper">
           <input type="text" class="st-album-title" id="studioAlbumTitleInput" value="FRIEND SHIP" oninput="updateLiveAlbumTitle(this.value)" title="Bấm để đổi tên album">
           <span class="st-badge" id="studioPackageBadge">Gói Signature Combo · 199k</span>
@@ -633,7 +661,7 @@
             </div>
           </div>
           <div id="audioTabSpotifyLocked" style="display:none;background:#f5f5f5;border-radius:12px;padding:12px;margin-bottom:14px;font-size:12px;color:var(--gray)">
-            🔒 Gói Voice không bao gồm Spotify. <a href="javascript:void(0)" onclick="selectPackage('signature', 199000)" style="color:var(--red);font-weight:700">Nâng cấp Signature Combo →</a>
+            🔒 Gói Voice không bao gồm Spotify. <button type="button" class="btn-text-link" onclick="selectPackage('signature', 199000)" style="color:var(--red);font-weight:700">Nâng cấp Signature Combo →</button>
           </div>
 
           <div id="audioTabVoiceSection">
@@ -664,7 +692,7 @@
             </div>
           </div>
           <div id="audioTabVoiceLocked" style="display:none;background:#f5f5f5;border-radius:12px;padding:12px;font-size:12px;color:var(--gray)">
-            🔒 Gói Melody không bao gồm Chip Voice. <a href="javascript:void(0)" onclick="selectPackage('signature', 199000)" style="color:var(--red);font-weight:700">Nâng cấp Signature Combo →</a>
+            🔒 Gói Melody không bao gồm Chip Voice. <button type="button" class="btn-text-link" onclick="selectPackage('signature', 199000)" style="color:var(--red);font-weight:700">Nâng cấp Signature Combo →</button>
           </div>
         </div>
 
@@ -1024,7 +1052,7 @@
       <div style="text-align:left;margin-bottom:12px">
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">
           <label style="font-size:12px;font-weight:700;color:var(--gray)" id="lblLoginPassword">Mật khẩu</label>
-          <a href="javascript:void(0)" onclick="switchAuthTab('forgot')" style="font-size:11.5px;color:var(--red);text-decoration:none;font-weight:600" id="authForgotPwLink">Quên mật khẩu?</a>
+          <button type="button" class="btn-text-link" onclick="switchAuthTab('forgot')" style="font-size:11.5px;color:var(--red);text-decoration:none;font-weight:600" id="authForgotPwLink">Quên mật khẩu?</button>
         </div>
         <div style="position:relative">
           <input type="password" class="form-input" id="loginPasswordInput" placeholder="Nhập mật khẩu..." autocomplete="current-password" style="padding-right:38px" disabled>
@@ -1070,12 +1098,12 @@
         </p>
       </div>
       <div style="margin-top:16px;text-align:center">
-        <a href="javascript:void(0)" onclick="switchAuthTab('login')" style="font-size:12.5px;color:var(--red);text-decoration:none;font-weight:700" id="forgotPwBackLink">← Quay lại đăng nhập</a>
+        <button type="button" class="btn-text-link" onclick="switchAuthTab('login')" style="font-size:12.5px;color:var(--red);text-decoration:none;font-weight:700" id="forgotPwBackLink">← Quay lại đăng nhập</button>
       </div>
     </div>
 
     <div style="font-size:11px;color:var(--gray);line-height:1.5;margin-top:16px">
-      Bằng việc tiếp tục, bạn đồng ý với <a href="javascript:void(0)" role="button" onclick="openPrivacyPolicyModal(event)" style="color:var(--red);font-weight:700">Chính sách bảo mật</a> và <a href="javascript:void(0)" role="button" onclick="openWarrantyPolicyModal(event)" style="color:var(--red);font-weight:700">Chính sách bảo hành</a> của Melsou.
+      Bằng việc tiếp tục, bạn đồng ý với <a href="/chinh-sach-bao-mat" target="_blank" onclick="openPrivacyPolicyModal(event)" style="color:var(--red);font-weight:700">Chính sách bảo mật</a> và <a href="/chinh-sach-bao-hanh" target="_blank" onclick="openWarrantyPolicyModal(event)" style="color:var(--red);font-weight:700">Chính sách bảo hành</a> của Melsou.
     </div>
   </div>
 </div>
@@ -1411,7 +1439,7 @@
       <div style="display:flex;align-items:flex-start;gap:8px;margin-bottom:16px">
         <input type="checkbox" id="chkTermsAccept" checked class="cart-checkbox" style="margin-top:2px">
         <label for="chkTermsAccept" style="font-size:12px;color:var(--gray);line-height:1.4">
-          Tôi đã đọc và hiểu rõ đây là quy trình mô phỏng học tập theo <a href="javascript:void(0)" onclick="openPrivacyPolicyModal(event)" style="color:var(--red);font-weight:700">Chính sách</a> của Melsou.
+          Tôi đã đọc và hiểu rõ đây là quy trình mô phỏng học tập theo <a href="/chinh-sach-bao-mat" target="_blank" onclick="openPrivacyPolicyModal(event)" style="color:var(--red);font-weight:700">Chính sách</a> của Melsou.
         </label>
       </div>
 
@@ -1726,7 +1754,7 @@
               </div>
             </div>
             <div class="blog-comment-guest-hint" id="blogCommentGuestHint" style="display:none">
-              <span>Bạn đang xem với tư cách khách. Khi gửi bình luận, vui lòng <a href="javascript:void(0)" onclick="openAuthModal()">đăng nhập</a> để tên của bạn hiển thị đúng.</span>
+              <span>Bạn đang xem với tư cách khách. Khi gửi bình luận, vui lòng <button type="button" class="btn-text-link" onclick="openAuthModal()" style="font-size:inherit;color:var(--red);font-weight:600">đăng nhập</button> để tên của bạn hiển thị đúng.</span>
             </div>
           </div>
         </div>
@@ -1754,18 +1782,19 @@
     </div>
   </div>
 </div>
+</main>
 
 <!-- ════════ 🦶 FOOTER ════════ -->
 <footer>
   <div class="footer-grid">
     <div class="footer-col">
-      <div style="font-family:'Pacifico',cursive;font-size:24px;color:var(--red);margin-bottom:4px">melsou</div>
+      <div style="font-family:'Pacifico',cursive;font-size:24px;color:#ff6b6b;margin-bottom:4px">melsou</div>
       <div style="font-size:10px;letter-spacing:2px;color:#888;margin-bottom:14px">MELODY &amp; SOUVENIR</div>
       <p style="font-size:13.5px;line-height:1.7;color:#888;max-width:320px" id="footerBrandBio">Gói tâm tình trong dáng hình thanh âm. Nơi giai điệu gặp gỡ kỷ niệm, và mỗi trang ảnh biết cất lời.</p>
 
       <!-- SOCIAL CHANNELS (FB44 / FOOTER ENHANCEMENT) -->
       <div class="footer-social-block" style="margin-top:20px">
-        <div style="font-size:11px;font-weight:800;letter-spacing:1.5px;color:var(--dark);text-transform:uppercase;margin-bottom:10px" id="footerSocialHeading">KẾT NỐI VỚI MELSOU</div>
+        <div style="font-size:11px;font-weight:800;letter-spacing:1.5px;color:white;text-transform:uppercase;margin-bottom:10px" id="footerSocialHeading">KẾT NỐI VỚI MELSOU</div>
         <div class="footer-social-links" style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
           <!-- Email -->
           <a href="mailto:contact@melsou.vn" class="social-icon-btn" title="Email: contact@melsou.vn" aria-label="Email Melsou">
@@ -1793,16 +1822,16 @@
     <div class="footer-col">
       <h4 id="footerHeadingProducts">Sản Phẩm</h4>
       <ul>
-        <li><a href="javascript:void(0)" id="footerLinkMelody" onclick="selectPackage('melody', 119000)">Gói Melody</a></li>
-        <li><a href="javascript:void(0)" id="footerLinkVoice" onclick="selectPackage('voice', 159000)">Gói Voice</a></li>
-        <li><a href="javascript:void(0)" id="footerLinkSignature" onclick="selectPackage('signature', 199000)">Gói Signature</a></li>
+        <li><button type="button" class="footer-btn-link" id="footerLinkMelody" onclick="selectPackage('melody', 119000)">Gói Melody</button></li>
+        <li><button type="button" class="footer-btn-link" id="footerLinkVoice" onclick="selectPackage('voice', 159000)">Gói Voice</button></li>
+        <li><button type="button" class="footer-btn-link" id="footerLinkSignature" onclick="selectPackage('signature', 199000)">Gói Signature</button></li>
         <li><a href="/templates" id="footerLinkTemplates">Thư viện Template</a></li>
       </ul>
     </div>
     <div class="footer-col">
       <h4 id="footerHeadingSupport">Hỗ Trợ</h4>
       <ul>
-        <li><a href="javascript:void(0)" id="footerLinkTracking" onclick="showPage('tracking')">Tra cứu đơn hàng</a></li>
+        <li><button type="button" class="footer-btn-link" id="footerLinkTracking" onclick="showPage('tracking')">Tra cứu đơn hàng</button></li>
         <li><a href="/chinh-sach-bao-hanh" id="footerLinkWarranty" onclick="openWarrantyPolicyModal(event)">Chính sách bảo hành</a></li>
         <li><a href="/chinh-sach-bao-mat" id="footerLinkPrivacy" onclick="openPrivacyPolicyModal(event)">Chính sách bảo mật</a></li>
         <li><a href="tel:0931940512" id="footerLinkContactPhone">Liên hệ xưởng (0931.940.512)</a></li>
@@ -1813,7 +1842,7 @@
       <ul>
         <li><a href="/ve-melsou" id="footerLinkAbout">Về Melsou</a></li>
         <li><a href="/#values" id="footerLinkValues">Giá trị cốt lõi</a></li>
-        <li><a href="javascript:void(0)" id="footerLinkWorkshop">Xưởng in TP.HCM</a></li>
+        <li><span class="footer-static-text" id="footerLinkWorkshop">Xưởng in TP.HCM</span></li>
       </ul>
     </div>
   </div>
@@ -2184,7 +2213,7 @@
 <!-- SPEED DIAL WIDGET -->
 <div class="speed-dial-widget" id="speedDialWidget">
   <div class="speed-dial-menu" id="speedDialMenu">
-    <a href="javascript:void(0)" class="sdm-item" id="sdmChat" onclick="openCustomerChat()"><span id="sdmChatText">Chat trực tiếp</span></a>
+    <button type="button" class="sdm-item" id="sdmChat" onclick="openCustomerChat()"><span id="sdmChatText">Chat trực tiếp</span></button>
     <a href="https://zalo.me" target="_blank" class="sdm-item" id="sdmZalo"><span id="sdmZaloText">Nhắn Zalo</span></a>
     <a href="tel:0931940512" class="sdm-item" id="sdmHotline"><span id="sdmHotlineText">Hotline: 0931.940.512</span></a>
   </div>
@@ -2194,8 +2223,7 @@
 <!-- 🌟 MELSOU CONTEXT MENU (CANVA-STYLE RIGHT-CLICK & MORE) 🌟 -->
 <div id="melsouContextMenu" class="melsou-context-menu"></div>
 
-<script src="/app.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script src="/auth-client.js"></script>
+<script src="/app.js" defer></script>
+<script src="/auth-client.js" defer></script>
 </body>
 </html>
