@@ -102,3 +102,11 @@ test('Vercel cache policy is bounded for unhashed assets and never targets API r
   assert.doesNotMatch(serialized, /immutable|max-age=31536000/);
   assert.doesNotMatch(serialized, /api|account|project|checkout|order|owner/i);
 });
+
+test('Studio preload intent is scoped to Studio actions instead of every page interaction', async () => {
+  const app = await readFile(new URL('../demo/recovery_fb38/app.js', import.meta.url), 'utf8');
+  assert.match(app, /studioIntentSelector/);
+  assert.match(app, /openTemplateOnboardingModal/);
+  assert.match(app, /selectPackage/);
+  assert.doesNotMatch(app, /window\.addEventListener\((['"])(?:pointerdown|touchstart|keydown)\1,\s*onIntent/);
+});

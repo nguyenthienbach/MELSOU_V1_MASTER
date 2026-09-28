@@ -884,7 +884,7 @@ const projectPublicDocument = (html, kind, fragment) => {
   if (!bodyMatch || !header || !footer) throw new Error('STATIC_ROUTE_SHELL_MISSING');
   const headEnd = html.indexOf('</head>');
   if (headEnd < 0) throw new Error('STATIC_ROUTE_HEAD_MISSING');
-  const head = html.slice(0, headEnd + 7).replace(/<script\s+src="\/seo-routes\.js"><\/script>\s*/i, '');
+  const head = html.slice(0, headEnd + 7).replace(/<script\b[^>]*\bsrc="\/seo-routes\.js"[^>]*><\/script>\s*/i, '');
   let cleanHeader = removeElement(header.html, 'id="userDropdownMenu"');
   let cleanMobileNav = mobileNav?.html || '';
   cleanMobileNav = removeElement(cleanMobileNav, 'id="mndItemOwnerDashboard"');
