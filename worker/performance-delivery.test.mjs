@@ -97,7 +97,7 @@ test('Vercel cache policy is bounded for unhashed assets and never targets API r
   const serialized = JSON.stringify(config.headers);
   assert.match(serialized, /app\|studio\|auth-client\|seo-routes/);
   assert.match(serialized, /styles/);
-  assert.match(serialized, /favicon\(\?:-48\)\?/);
+  assert.match(serialized, /favicon\|favicon-48/);
   assert.match(serialized, /max-age=3600/);
   assert.doesNotMatch(serialized, /immutable|max-age=31536000/);
   assert.doesNotMatch(serialized, /api|account|project|checkout|order|owner/i);
