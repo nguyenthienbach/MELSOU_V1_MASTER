@@ -605,6 +605,15 @@ This log prevents accidental overlap. Add the newest entry at the top.
   contract are explicitly protected.
 - **Checks:** required shared files verified after copying the master package.
 - **Status:** DONE
+
+## DONE — Codex — Batch 3.6 split-module regression repair
+
+- **When / agent:** 2026-09-29 — Codex
+- **Files reserved:** `demo/recovery_fb38/app.js`, `demo/recovery_fb38/studio.js`, `worker/storefront-studio-boundary.test.mjs`
+- **Purpose:** restore the explicit storefront/Studio dependency boundary after the Batch 2 lazy split, remove pre-load Studio global calls, and restore VI/EN switching without loading `studio.js`.
+- **Protected contracts:** preserve UI/UX, Studio lazy loading, Auth, Blog, Cart/Checkout, OWNER flows, and keep the cold storefront free of Studio requests.
+- **Checks:** targeted split-boundary tests PASS (5/5); full Worker/backend suite PASS (162/162 on the Batch 2 branch); Demo and Worker syntax PASS; local browser cold boot, VI→EN→VI, pre-load global click, Studio lazy-load, template selection, first-visit coach and post-load language switch PASS with zero console errors; `git diff --check` PASS. `app.js` remains 262,303 bytes raw.
+- **Status:** DONE — dependency boundary fixed locally; cache-control diagnosis is unchanged and intentionally deferred to a separate batch.
 ## DONE — Codex — Blog Interactions V1 hardening
 
 - **When / agent:** 2026-09-16 — Codex

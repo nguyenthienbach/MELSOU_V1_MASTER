@@ -1848,17 +1848,13 @@ function closePhotoToolbar() {
   if (toolbar) toolbar.classList.remove('active');
 }
 
-function handleGlobalClick(e) {
+function handleStudioGlobalClick(e) {
   if (!e.target.closest('.interactive-photo-slot') && !e.target.closest('#photoCropToolbar') && !e.target.closest('#studioContextualToolbar') && !e.target.closest('#mobileContextualBottomBar') && !e.target.closest('.freeform-canvas-item') && !e.target.closest('.pb-editable-text') && !e.target.closest('#melsouContextMenu')) {
     closePhotoToolbar();
     if (ALBUM_DATA.cropEditingId) {
       exitImageAdjustmentMode();
     }
     deselectCanvasItem();
-  }
-  if (!e.target.closest('.user-menu-wrapper')) {
-    const uMenu = document.getElementById('userDropdownMenu');
-    if (uMenu) uMenu.classList.remove('open');
   }
   // Canva Desktop ergonomics: clicking on stage canvas closes flyout drawer
   if (e.target.closest('#interactiveLayflatBook') && !e.target.closest('.studio-rail') && !e.target.closest('#canvaSidebarEl')) {
@@ -1868,70 +1864,30 @@ function handleGlobalClick(e) {
   }
 }
 
-function handleGlobalKey(e) {
+function handleStudioGlobalKey(e) {
   if (!e) return;
   if (e.key === 'Escape' || e.keyCode === 27) {
-    // 1. Policy modals (highest z-index 2400)
-    const privacyModal = document.getElementById('privacyPolicyModal');
-    if (privacyModal && (privacyModal.classList.contains('open') || privacyModal.style.display === 'flex')) {
-      closePrivacyPolicyModal();
-      return;
-    }
-    const warrantyModal = document.getElementById('warrantyPolicyModal');
-    if (warrantyModal && (warrantyModal.classList.contains('open') || warrantyModal.style.display === 'flex')) {
-      closeWarrantyPolicyModal();
-      return;
-    }
-
-    // 2. Auth modal (z-index 2100)
-    const authModal = document.getElementById('authModal');
-    if (authModal && (authModal.classList.contains('open') || authModal.style.display === 'flex')) {
-      closeAuthModal();
-      return;
-    }
-
-    // 3. Blog reader modal
-    const blogReaderModal = document.getElementById('blogArticleReaderModal');
-    if (blogReaderModal && (blogReaderModal.classList.contains('open') || blogReaderModal.style.display === 'flex')) {
-      if (typeof closeBlogArticleReader === 'function') closeBlogArticleReader();
-      return;
-    }
-
-    // 4. Other system modals
-    const modalCheckers = [
-      { id: 'settingsModal', fn: () => typeof closeSettingsModal === 'function' && closeSettingsModal() },
-      { id: 'customStickerModal', fn: () => typeof closeCustomStickerModal === 'function' && closeCustomStickerModal() },
-      { id: 'valueStoryModal', fn: () => typeof closeValueStoryModal === 'function' && closeValueStoryModal() },
-      { id: 'templateOnboardingModal', fn: () => typeof closeTemplateOnboardingModal === 'function' && closeTemplateOnboardingModal() },
-      { id: 'checkoutModal', fn: () => typeof closeCheckoutModal === 'function' && closeCheckoutModal() },
-      { id: 'preflightModal', fn: () => typeof closePreflightModal === 'function' && closePreflightModal() },
-      { id: 'draftsManagerModal', fn: () => typeof closeDraftsManagerModal === 'function' && closeDraftsManagerModal() },
-      { id: 'ordersManagerModal', fn: () => typeof closeOrdersManagerModal === 'function' && closeOrdersManagerModal() },
-      { id: 'ownerDashboardModal', fn: () => typeof closeOwnerDashboardModal === 'function' && closeOwnerDashboardModal() },
-      { id: 'wpOAuthCallbackModal', fn: () => typeof closeWpOAuthCallbackModal === 'function' && closeWpOAuthCallbackModal() },
-      { id: 'blogAdminModal', fn: () => typeof closeBlogAdminModal === 'function' && closeBlogAdminModal() },
-      { id: 'blogPostModal', fn: () => typeof closeBlogPostModal === 'function' && closeBlogPostModal() },
-      { id: 'customerReviewModal', fn: () => typeof closeReviewModal === 'function' && closeReviewModal() },
-      { id: 'customerReviewIneligibleModal', fn: () => typeof closeReviewIneligibleModal === 'function' && closeReviewIneligibleModal() }
+    const studioModals = [
+      ['customStickerModal', closeCustomStickerModal],
+      ['checkoutModal', closeCheckoutModal],
+      ['preflightModal', closePreflightModal],
+      ['draftsManagerModal', closeDraftsManagerModal],
+      ['ordersManagerModal', closeOrdersManagerModal],
+      ['blogAdminModal', closeBlogAdminModal],
+      ['blogPostModal', closeBlogPostModal]
     ];
-
-    for (const item of modalCheckers) {
-      const el = document.getElementById(item.id);
-      if (el && (el.classList.contains('open') || el.style.display === 'flex')) {
-        item.fn();
+    for (const [id, close] of studioModals) {
+      const modal = document.getElementById(id);
+      if (modal && (modal.classList.contains('open') || modal.style.display === 'flex')) {
+        close();
         return;
       }
     }
-
-    // 5. Toolbars / menus
-    if (typeof closeContextMenu === 'function') closeContextMenu();
-    if (typeof closePhotoToolbar === 'function') closePhotoToolbar();
-    if (typeof closeFlyoutDrawer === 'function') closeFlyoutDrawer();
+    closeContextMenu();
+    closePhotoToolbar();
+    closeFlyoutDrawer();
   }
 }
-
-window.handleGlobalKey = handleGlobalKey;
-window.addEventListener('keydown', handleGlobalKey);
 
 function applyActivePhotoZoom(val) {
   const key = ALBUM_DATA.activePhotoSlot;
@@ -3261,6 +3217,28 @@ function applyAudioGating() {
 
 // ════════ 📐 FB77: ALBUM FORMAT REMAPPING & CONFIRMATION UX ════════
 let pendingAlbumSizeChange = null;
+
+function refreshSizeChangeModalTranslations(lang) {
+  if (!pendingAlbumSizeChange) return;
+  const isEn = lang === 'en';
+  const { targetFmt } = pendingAlbumSizeChange;
+  const titleEl = document.getElementById('sizeChangeModalTitle');
+  const descEl = document.getElementById('sizeChangeModalDesc');
+  const cancelBtn = document.getElementById('sizeChangeCancelBtn');
+  const confirmBtn = document.getElementById('sizeChangeConfirmBtn');
+  if (titleEl) titleEl.textContent = isEn ? 'Change album size?' : 'Đổi khổ album?';
+  if (descEl) {
+    const dims = isEn ? targetFmt.dimsEn : targetFmt.dimsVi;
+    descEl.textContent = isEn
+      ? `Your current design will be adjusted to fit ${dims}. Some photos or text may need minor repositioning.`
+      : `Thiết kế hiện tại sẽ được tự động điều chỉnh để phù hợp với khổ ${dims}. Một số ảnh hoặc chữ có thể cần căn lại.`;
+  }
+  if (cancelBtn) cancelBtn.textContent = isEn ? 'Cancel' : 'Hủy';
+  if (confirmBtn) {
+    const fmtName = isEn ? targetFmt.nameEn : targetFmt.nameVi;
+    confirmBtn.textContent = isEn ? `Change to ${fmtName}` : `Đổi sang ${fmtName}`;
+  }
+}
 
 function remapElementsForFormatChange(oldFmt, newFmt) {
   if (!ALBUM_DATA || !Array.isArray(ALBUM_DATA.spreads)) return;
@@ -5636,6 +5614,25 @@ function initMobileFilmstripGestures() {
 initMobileFilmstripGestures();
 
 if (typeof window !== "undefined") {
+  window.MelsouStudio = Object.freeze({
+    checkFirstVisit: checkStudioFirstVisit,
+    updateContextualToolbar,
+    updateUndoRedoButtons: updateStudioUndoRedoButtons,
+    handleGlobalClick: handleStudioGlobalClick,
+    handleGlobalKey: handleStudioGlobalKey,
+    refreshLanguage(lang) {
+      applyStudioTranslations(lang);
+      updateCartBadge();
+      updateNavSpreadButtons();
+      refreshSizeChangeModalTranslations(lang);
+      if (!document.body.classList.contains('in-studio')) return;
+      renumberSpreads();
+      renderActiveSpread();
+      renderFilmstripTray();
+      updateContextualToolbar();
+      adjustMobileStageScale();
+    }
+  });
   window.selectPackageReal = selectPackage;
   window.toggleCartReal = toggleCart;
   window.openFlipbookModalReal = openFlipbookModal;
