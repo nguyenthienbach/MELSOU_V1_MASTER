@@ -1669,6 +1669,11 @@ function ensureStudioModule() {
     script.src = "/studio.js";
     script.async = true;
     script.onload = () => {
+      if (!window.MelsouStudio) {
+        studioModulePromise = null;
+        reject(new Error("studio.js loaded without registering the MelsouStudio contract"));
+        return;
+      }
       window.__studioModuleLoaded = true;
       resolve();
     };
@@ -1709,6 +1714,8 @@ showPage = function(pageId, ...args) {
   if (pageId === "studio") {
     ensureStudioModule().then(() => {
       _origShowPage(pageId, ...args);
+      window.MelsouStudio.checkFirstVisit();
+      window.MelsouStudio.updateUndoRedoButtons();
     });
     return;
   }
@@ -1749,6 +1756,58 @@ function selectPackage(...args) {
   });
 }
 window.selectPackage = selectPackage;
+
+function handleStorefrontGlobalClick(e) {
+  if (!e.target.closest('.user-menu-wrapper')) {
+    const userMenu = document.getElementById('userDropdownMenu');
+    if (userMenu) userMenu.classList.remove('open');
+  }
+}
+
+function handleGlobalClick(e) {
+  handleStorefrontGlobalClick(e);
+  window.MelsouStudio?.handleGlobalClick(e);
+}
+
+function handleGlobalKey(e) {
+  if (!e || (e.key !== 'Escape' && e.keyCode !== 27)) return;
+
+  const storefrontModals = [
+    ['privacyPolicyModal', closePrivacyPolicyModal],
+    ['warrantyPolicyModal', closeWarrantyPolicyModal],
+    ['authModal', closeAuthModal],
+    ['blogArticleReaderModal', closeBlogArticleReader],
+    ['settingsModal', closeSettingsModal],
+    ['valueStoryModal', closeValueStoryModal],
+    ['templateOnboardingModal', closeTemplateOnboardingModal],
+    ['customerReviewModal', closeReviewModal],
+    ['customerReviewIneligibleModal', closeReviewIneligibleModal]
+  ];
+
+  for (const [id, close] of storefrontModals) {
+    const modal = document.getElementById(id);
+    if (modal && (modal.classList.contains('open') || modal.style.display === 'flex')) {
+      close();
+      return;
+    }
+  }
+
+  const ownerDashboard = document.getElementById('ownerDashboardModal');
+  if (ownerDashboard && (ownerDashboard.classList.contains('open') || ownerDashboard.style.display === 'flex')) {
+    window.closeOwnerDashboardModal();
+    return;
+  }
+  const oauthCallback = document.getElementById('wpOAuthCallbackModal');
+  if (oauthCallback && (oauthCallback.classList.contains('open') || oauthCallback.style.display === 'flex')) {
+    window.closeWpOAuthCallbackModal();
+    return;
+  }
+
+  window.MelsouStudio?.handleGlobalKey(e);
+}
+
+window.handleGlobalClick = handleGlobalClick;
+window.handleGlobalKey = handleGlobalKey;
 
 // Preload studio.js only when intent is aimed at a Studio-capable action.
 if (typeof window !== "undefined") {
@@ -2550,8 +2609,6 @@ function switchLanguage(lang) {
   currentAppLanguage = lang;
   applyMobileDrawerTranslations(lang);
   updateSettingsLangUI(lang);
-  updateContextualToolbar();
-  adjustMobileStageScale();
   const isEn = (lang === 'en');
 
   const shortPromo = document.querySelector('.topbar-short-text');
@@ -2908,8 +2965,6 @@ function switchLanguage(lang) {
   if (btnCheckoutEl) btnCheckoutEl.textContent = isEn ? 'Proceed to Checkout →' : 'Tiến hành đặt hàng →';
 
   updateAdaptiveCtaText();
-  updateCartBadge();
-  updateNavSpreadButtons();
 
   applyStudioTranslations(lang);
   applyHomepageModalTranslations(lang);
@@ -2918,33 +2973,7 @@ function switchLanguage(lang) {
   if (typeof renderReviewsList === 'function') renderReviewsList();
   if (typeof renderPublicBlog === 'function') renderPublicBlog();
 
-  // Size Change Modal Translations (FB77)
-  if (pendingAlbumSizeChange) {
-    const { targetFmt } = pendingAlbumSizeChange;
-    const titleEl = document.getElementById('sizeChangeModalTitle');
-    const descEl = document.getElementById('sizeChangeModalDesc');
-    const cancelBtn = document.getElementById('sizeChangeCancelBtn');
-    const confirmBtn = document.getElementById('sizeChangeConfirmBtn');
-    if (titleEl) titleEl.textContent = isEn ? 'Change album size?' : 'Đổi khổ album?';
-    if (descEl) {
-      const dims = isEn ? targetFmt.dimsEn : targetFmt.dimsVi;
-      descEl.textContent = isEn
-        ? `Your current design will be adjusted to fit ${dims}. Some photos or text may need minor repositioning.`
-        : `Thiết kế hiện tại sẽ được tự động điều chỉnh để phù hợp với khổ ${dims}. Một số ảnh hoặc chữ có thể cần căn lại.`;
-    }
-    if (cancelBtn) cancelBtn.textContent = isEn ? 'Cancel' : 'Hủy';
-    if (confirmBtn) {
-      const fmtName = isEn ? targetFmt.nameEn : targetFmt.nameVi;
-      confirmBtn.textContent = isEn ? `Change to ${fmtName}` : `Đổi sang ${fmtName}`;
-    }
-  }
-
-  // If studio is open, re-render active spread and filmstrip tray with translated strings
-  if (typeof renderActiveSpread === 'function' && document.getElementById('interactiveLayflatBook')) {
-    renumberSpreads();
-    renderActiveSpread();
-    renderFilmstripTray();
-  }
+  window.MelsouStudio?.refreshLanguage(lang);
 }
 
 // ── INIT ON LOAD ──
@@ -2954,8 +2983,6 @@ loadFromLocalStorage();
 startHeroAutoFlip();
 if (currentAppLanguage !== 'vi') switchLanguage(currentAppLanguage);
 initBackToTop();
-checkStudioFirstVisit();
-updateStudioUndoRedoButtons();
 
 // ============================================================
 // 🌟 FB46: REAL CUSTOMER REVIEW SYSTEM & CONTRACT HOOKS
