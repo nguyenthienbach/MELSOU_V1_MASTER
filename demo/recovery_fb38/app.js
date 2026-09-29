@@ -1659,8 +1659,20 @@ function switchCanvaTab(tabIndex) {
 // ════════════════════════════════════════════════════════════
 // 🚀 DYNAMIC STUDIO MODULE LOADER (BATCH 2 PERFORMANCE)
 // ════════════════════════════════════════════════════════════
+function ensureStudioCss() {
+  if (typeof document === 'undefined') return;
+  if (document.getElementById('melsouStudioCss')) return;
+  const link = document.createElement('link');
+  link.id = 'melsouStudioCss';
+  link.rel = 'stylesheet';
+  link.href = '/studio.css';
+  document.head.appendChild(link);
+}
+window.ensureStudioCss = ensureStudioCss;
+
 let studioModulePromise = null;
 function ensureStudioModule() {
+  ensureStudioCss();
   if (window.__studioModuleLoaded) return Promise.resolve();
   if (studioModulePromise) return studioModulePromise;
   studioModulePromise = new Promise((resolve, reject) => {
