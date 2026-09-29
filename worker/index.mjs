@@ -636,6 +636,8 @@ const renderPublicBlogCard = (post) => {
     + '</div></a></article>';
 };
 
+export const HOMEPAGE_SSR_BLOG_LIMIT = 4;
+
 async function handlePublicHome(request, env) {
   const requestUrl = new URL(request.url);
   const appShellRequested = ['melsou_app', 'melsou_action', 'package', 'template', 'language', 'resume']
@@ -657,7 +659,7 @@ async function handlePublicHome(request, env) {
     .replace(/<meta\s+name="description"\s+content="[^"]*"\s*\/?>/i, '<meta name="description" content="' + htmlEscape(melsouHomepageDescription) + '">')
     .replace('</head>', homepageSocialMetadata + '</head>');
   try {
-    const query = new URLSearchParams({ status: 'publish', per_page: '100', page: '1', orderby: 'date', order: 'desc', _embed: '1' });
+    const query = new URLSearchParams({ status: 'publish', per_page: String(HOMEPAGE_SSR_BLOG_LIMIT), page: '1', orderby: 'date', order: 'desc', _embed: '1' });
     const response = await wordpressFetch('/posts?' + query);
     if (response.ok) {
       const posts = (await response.json())
@@ -865,6 +867,7 @@ const rewriteLeanActions = (html) => html
   .replace(/href="javascript:void\(0\)"([^>]*id="footerLinkWorkshop"[^>]*)/g, 'href="/ve-melsou"$1');
 
 const leanNavigationScript = '<script id="melsou-static-navigation">(()=>{'
+  + 'window.addEventListener("load",()=>{requestAnimationFrame(()=>{document.querySelector(".hero-book-3d")?.classList.add("hero-animation-ready");});});'
   + 'const go=p=>location.href="/?melsou_app=1&"+p;'
   + 'document.addEventListener("click",event=>{const node=event.target.closest("[data-melsou-action],[data-melsou-package],[data-melsou-language],[data-melsou-resume]");if(!node)return;'
   + 'if(node.dataset.melsouAction){event.preventDefault();go("melsou_action="+encodeURIComponent(node.dataset.melsouAction));}'

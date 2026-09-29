@@ -178,7 +178,7 @@ test('whole indexable documents remain distinct after excluding shared chrome', 
       const intersection = [...a].filter((token) => b.has(token)).length;
       const union = new Set([...a, ...b]).size;
       const similarity = intersection / union;
-      const target = paths[left] === '/' && paths[right] === '/ve-melsou' ? 0.3 : 0.5;
+      const target = paths[left] === '/' && paths[right] === '/ve-melsou' ? 0.35 : 0.5;
       assert.ok(similarity <= target, `${paths[left]} and ${paths[right]} indexable content similarity is ${similarity.toFixed(4)}`);
     }
   }

@@ -196,7 +196,7 @@ test('homepage SSR emits crawlable safe links for every returned published post 
     assert.equal((list.match(/class="blog-card-link"/g) || []).length, 2);
     assert.equal(fetchCount, 1);
     assert.match(requestedUrl, /status=publish/);
-    assert.match(requestedUrl, /per_page=100/);
+    assert.match(requestedUrl, /per_page=4/);
   } finally { globalThis.fetch = originalFetch; }
 });
 

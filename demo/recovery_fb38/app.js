@@ -1670,6 +1670,19 @@ function ensureStudioCss() {
 }
 window.ensureStudioCss = ensureStudioCss;
 
+function ensureHeroAnimationReady() {
+  if (typeof document === 'undefined') return;
+  const book = document.querySelector('.hero-book-3d');
+  if (book) book.classList.add('hero-animation-ready');
+}
+if (typeof window !== 'undefined') {
+  if (document.readyState === 'complete') {
+    requestAnimationFrame(ensureHeroAnimationReady);
+  } else {
+    window.addEventListener('load', () => requestAnimationFrame(ensureHeroAnimationReady));
+  }
+}
+
 let studioModulePromise = null;
 function ensureStudioModule() {
   ensureStudioCss();
