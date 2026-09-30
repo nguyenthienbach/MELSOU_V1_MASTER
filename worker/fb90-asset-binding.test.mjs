@@ -26,9 +26,13 @@ function browserHarness({ storage = new Map(), projectOnGet = null } = {}) {
   ] };
   const localStorage = { getItem: (key) => storage.get(key) || null, setItem: (key, value) => storage.set(key, value), removeItem: (key) => storage.delete(key) };
   const fetch = async (url, options = {}) => {
-    calls.push({ url: String(url), method: options.method || 'GET', body: options.body });
+    calls.push({ url: String(url), method: options.method || 'GET', body: options.body, headers: options.headers || {} });
     if (url === '/api/guest/projects' && options.method === 'POST') return Response.json({ project: { id: projectId, revision } }, { status: 201 });
-    if (url === `/api/guest/projects/${projectId}/assets`) return Response.json({ asset: { id: assetId } }, { status: 201 });
+    if (url === `/api/guest/projects/${projectId}/assets`) {
+      assert.equal(String(options.headers['X-Melsou-Expected-Revision']), String(revision));
+      revision += 1;
+      return Response.json({ asset: { id: assetId, mime_type: 'image/png', width_px: 1, height_px: 1 }, projectRevision: revision }, { status: 201 });
+    }
     if (url === `/api/guest/projects/${projectId}` && options.method === 'PUT') {
       revision += 1;
       return Response.json({ project: { id: projectId, revision } });
@@ -58,6 +62,8 @@ test('FB90 slot assignment persists one private asset and canonical image_01 bin
   const document = JSON.parse(firstSave.body).document;
   assert.equal(document.content_bindings.image_01.asset_id, harness.assetId);
   assert.equal(document.editor_asset_slots.coverImg, 'image_01');
+  assert.deepEqual(Array.from(document.gallery_assets, (item) => item.asset_id), [harness.assetId]);
+  assert.deepEqual(document.editor_payload.userGallery, []);
   assert.equal(document.editor_payload.spreads[0].coverImg, undefined);
   assert.equal(harness.calls.filter((call) => call.url.endsWith('/assets')).length, 1);
 

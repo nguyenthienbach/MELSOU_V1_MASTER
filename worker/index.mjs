@@ -288,7 +288,7 @@ async function handlePasswordChange(request, env) {
 }
 
 async function ownedProject(projectId, userId, env) {
-  const query = new URLSearchParams({ id: `eq.${projectId}`, owner_user_id: `eq.${userId}`, trashed_at: 'is.null', select: 'id,revision,document,template_id,template_version' });
+  const query = new URLSearchParams({ id: `eq.${projectId}`, owner_user_id: `eq.${userId}`, trashed_at: 'is.null', select: 'id,title,status,revision,document,template_id,template_version,last_activity_at,updated_at' });
   const response = await fetch(`${env.SUPABASE_URL}/rest/v1/projects?${query}`, { headers: supabaseHeaders(env) });
   if (!response.ok) return null;
   const rows = await response.json();
@@ -364,7 +364,7 @@ async function editableProject(projectId, userId, env) {
   if (owned) return owned;
   const member = await fetch(`${env.SUPABASE_URL}/rest/v1/project_duo_members?project_id=eq.${projectId}&user_id=eq.${userId}&active=eq.true&select=project_id`, { headers: supabaseHeaders(env) });
   if (!member.ok || !(await member.json()).length) return null;
-  const response = await fetch(`${env.SUPABASE_URL}/rest/v1/projects?id=eq.${projectId}&select=id,revision,document,template_id,template_version`, { headers: supabaseHeaders(env) });
+  const response = await fetch(`${env.SUPABASE_URL}/rest/v1/projects?id=eq.${projectId}&select=id,title,status,revision,document,template_id,template_version,last_activity_at,updated_at`, { headers: supabaseHeaders(env) });
   if (!response.ok) return null;
   const [project] = await response.json(); return project || null;
 }
@@ -404,9 +404,21 @@ async function handleProjectSave(request, env, projectId) {
 async function handleProjectList(request, env) {
   const user = await authenticatedUser(request, env);
   if (!user) return json({ error: 'UNAUTHENTICATED' }, 401);
-  const response = await serviceFetch(env, `projects?owner_user_id=eq.${user.id}&trashed_at=is.null&select=id,title,template_id,template_version,document,revision,last_activity_at,updated_at&order=last_activity_at.desc`);
+  const response = await serviceFetch(env, `projects?owner_user_id=eq.${user.id}&trashed_at=is.null&status=in.(DRAFT,LOCKED)&select=id,title,template_id,template_version,document,revision,status,last_activity_at,updated_at&order=updated_at.desc,id.desc`);
   if (!response.ok) return json({ error: 'PROJECTS_UNAVAILABLE' }, 503);
-  return json({ projects: await response.json() });
+  const rows = await response.json();
+  return json({ projects: rows.map((project, index) => ({
+    project_id: project.id,
+    title: project.title,
+    template: { template_id: project.template_id, version: project.template_version },
+    package: project.document?.editor_payload?.package || project.document?.configuration?.packageCode || null,
+    revision: project.revision,
+    status: project.status,
+    updated_at: project.updated_at,
+    last_activity_at: project.last_activity_at,
+    thumbnail_asset_id: project.document?.gallery_assets?.[0]?.asset_id || null,
+    active: index === 0
+  })) });
 }
 
 async function handleProjectGet(request, env, projectId) {
@@ -414,7 +426,9 @@ async function handleProjectGet(request, env, projectId) {
   if (!user) return json({ error: 'UNAUTHENTICATED' }, 401);
   const project = await editableProject(projectId, user.id, env);
   if (!project) return json({ error: 'PROJECT_NOT_FOUND' }, 404);
-  return json({ project });
+  const assetsResponse = await serviceFetch(env, `project_assets?project_id=eq.${projectId}&select=id,mime_type,file_size,width_px,height_px,checksum,status,processing_state,preview_mime_type,created_at&order=created_at.asc,id.asc`);
+  if (!assetsResponse.ok) return json({ error: 'PROJECT_ASSETS_UNAVAILABLE' }, 503);
+  return json({ project, assets: await assetsResponse.json() });
 }
 
 async function handleProjectTrash(request, env, projectId, restore = false) {
@@ -898,7 +912,7 @@ const projectPublicDocument = (html, kind, fragment) => {
     + '#melsou-public-route-main>#pricing{display:block}'
     + '#melsou-public-route-main>.page{display:block}'
     + '#melsou-public-route-main>.about-melsou-page{max-width:960px;margin:0 auto;padding:72px 24px 88px;color:var(--dark)}'
-    + '.about-melsou-intro{padding-bottom:34px;border-bottom:1px solid rgba(121,45,35,.18)}'
+    + '.about-melsou-intro{position:static !important;height:auto !important;max-width:none !important;padding-bottom:34px;border-bottom:1px solid rgba(121,45,35,.18)}'
     + '.about-melsou-eyebrow{margin:0 0 12px;color:var(--red);font-size:.82rem;font-weight:700;letter-spacing:.14em;text-transform:uppercase}'
     + '.about-melsou-page h1{margin:0 0 22px;font-family:var(--font-display);font-size:clamp(2.6rem,7vw,5.2rem);line-height:1;color:var(--red)}'
     + '.about-melsou-lead{font-size:clamp(1.15rem,2.4vw,1.45rem);line-height:1.7;font-weight:600}'
@@ -1249,12 +1263,18 @@ async function handleBlogCover(env, slug) {
 async function handleAssetUpload(request, env, projectId, ctx, guest = false) {
   if (!env.MELSOU_ASSETS) return json({ error: 'ASSET_STORAGE_NOT_CONFIGURED' }, 503);
   if (!env.IMAGES) return json({ error: 'IMAGE_PROCESSOR_NOT_CONFIGURED' }, 503);
+  const expectedRevision = Number(request.headers.get('X-Melsou-Expected-Revision'));
+  if (!Number.isSafeInteger(expectedRevision) || expectedRevision < 1) return json({ error: 'EXPECTED_REVISION_REQUIRED' }, 400);
+  let ownerUserId = null; let guestSessionHash = null;
   if (guest) {
-    if (!await guestOwnedProject(request, projectId, env)) return json({ error: 'PROJECT_NOT_FOUND' }, 404);
+    const access = await guestOwnedProject(request, projectId, env);
+    if (!access) return json({ error: 'PROJECT_NOT_FOUND' }, 404);
+    guestSessionHash = access.sessionHash;
   } else {
     const user = await authenticatedUser(request, env);
     if (!user) return json({ error: 'UNAUTHENTICATED' }, 401);
     if (!await editableProject(projectId, user.id, env)) return json({ error: 'PROJECT_NOT_FOUND' }, 404);
+    ownerUserId = user.id;
   }
   const limit = await allowRateLimitedAction(env, `asset-upload:${requestNetworkKey(request)}:${projectId}`);
   if (limit.configurationMissing) return json({ error: 'RATE_LIMIT_NOT_CONFIGURED' }, 503);
@@ -1276,22 +1296,34 @@ async function handleAssetUpload(request, env, projectId, ctx, guest = false) {
   const existing = await quotaResponse.json();
   const duplicate = existing.find((asset) => asset.checksum === checksum && asset.status !== 'PROCESSING_FAILED');
   if (duplicate) {
+    const attached = await serviceFetch(env, 'rpc/melsou_attach_gallery_asset', { method: 'POST', body: JSON.stringify({
+      p_project_id: projectId, p_owner_user_id: ownerUserId, p_guest_session_hash: guestSessionHash,
+      p_expected_revision: expectedRevision, p_asset_id: duplicate.id
+    }) });
+    if (!attached.ok) return json({ error: 'ASSET_GALLERY_ATTACH_FAILED' }, 503);
+    const result = await attached.json();
+    if (result?.conflict) return json({ error: 'REVISION_CONFLICT', currentRevision: result.revision }, 409);
     if (duplicate.processing_state !== 'READY') ctx?.waitUntil?.(processAssetJobs(env, 1, duplicate.id));
-    return json({ asset: duplicate, duplicate: true });
+    return json({ asset: result.asset || duplicate, duplicate: true, projectRevision: result.project_revision });
   }
   try { assertDraftAssetQuota(existing, bytes.byteLength); }
   catch (error) { return json({ error: error.code || 'DRAFT_STORAGE_LIMIT_REACHED' }, 413); }
   const assetId = crypto.randomUUID();
   const storageKey = `projects/${projectId}/assets/${assetId}/original`;
   await env.MELSOU_ASSETS.put(storageKey, bytes, { httpMetadata: { contentType: decoded.mimeType, cacheControl: 'private, no-store' } });
-  const insert = await fetch(`${env.SUPABASE_URL}/rest/v1/project_assets`, {
-    method: 'POST', headers: { ...supabaseHeaders(env), Prefer: 'return=representation' },
-    body: JSON.stringify({ id: assetId, project_id: projectId, storage_key: storageKey, mime_type: decoded.mimeType, file_size: bytes.byteLength, width_px: decoded.width, height_px: decoded.height, checksum, status: 'ORIGINAL_ONLY', processing_state: 'PENDING', processing_retry_count: 0 })
-  });
-  if (!insert.ok) { await env.MELSOU_ASSETS.delete(storageKey); return json({ error: 'ASSET_METADATA_SAVE_FAILED' }, 503); }
-  const asset = (await insert.json())[0];
-  ctx?.waitUntil?.(processAssetJobs(env, 1, assetId));
-  return json({ asset }, 201);
+  const registered = await serviceFetch(env, 'rpc/melsou_register_gallery_asset', { method: 'POST', body: JSON.stringify({
+    p_project_id: projectId, p_owner_user_id: ownerUserId, p_guest_session_hash: guestSessionHash,
+    p_expected_revision: expectedRevision, p_asset_id: assetId, p_storage_key: storageKey,
+    p_mime_type: decoded.mimeType, p_file_size: bytes.byteLength, p_width_px: decoded.width,
+    p_height_px: decoded.height, p_checksum: checksum
+  }) });
+  if (!registered.ok) { await env.MELSOU_ASSETS.delete(storageKey); return json({ error: 'ASSET_METADATA_SAVE_FAILED' }, 503); }
+  const result = await registered.json();
+  if (result?.conflict) { await env.MELSOU_ASSETS.delete(storageKey); return json({ error: 'REVISION_CONFLICT', currentRevision: result.revision }, 409); }
+  const asset = result.asset;
+  if (result?.duplicate && asset?.id !== assetId) await env.MELSOU_ASSETS.delete(storageKey);
+  if (asset?.processing_state !== 'READY') ctx?.waitUntil?.(processAssetJobs(env, 1, asset?.id || assetId));
+  return json({ asset, duplicate: Boolean(result?.duplicate), projectRevision: result.project_revision }, result?.duplicate ? 200 : 201);
 }
 
 async function handleAssetDownload(request, env, assetId) {

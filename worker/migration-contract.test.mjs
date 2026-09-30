@@ -88,3 +88,25 @@ test('WordPress OAuth state is private, session-bound, expiring and replay-safe'
   assert.match(sql, /p\.role='owner'/);
   assert.match(sql, /revoke all on function public\.melsou_consume_wordpress_oauth_state\(uuid,text,text,text\)/);
 });
+
+test('canonical gallery asset RPCs are revision-safe, race-safe and service-only', async () => {
+  const migration = (await readFile(new URL('../supabase/migrations/20260929180443_canonical_gallery_assets.sql', import.meta.url), 'utf8')).toLowerCase();
+  const allSql = await migrationSql();
+  for (const fn of ['melsou_register_gallery_asset', 'melsou_attach_gallery_asset']) {
+    assert.match(migration, new RegExp(`create or replace function public\\.${fn}\\(`));
+    assert.match(migration, new RegExp(`revoke all on function public\\.${fn}\\([^;]+from public, anon, authenticated`));
+    assert.match(migration, new RegExp(`grant execute on function public\\.${fn}\\([^;]+to service_role`));
+  }
+  assert.equal((migration.match(/security definer/g) || []).length, 2);
+  assert.equal((migration.match(/set search_path = pg_catalog, public/g) || []).length, 2);
+  assert.equal((migration.match(/for update/g) || []).length, 2);
+  assert.match(migration, /create index if not exists project_assets_project_checksum_idx\s+on public\.project_assets\(project_id, checksum, created_at, id\)/);
+  assert.match(migration, /v_project\.revision <> p_expected_revision/);
+  assert.match(migration, /checksum = p_checksum/);
+  assert.match(migration, /status <> 'processing_failed'/);
+  assert.match(migration, /jsonb_set\(document, '\{gallery_assets\}'/);
+  assert.doesNotMatch(migration, /delete from public\.project_assets|truncate|drop table/);
+  assert.match(allSql, /project_id uuid not null references public\.projects\(id\) on delete cascade/);
+  assert.match(allSql, /update public\.projects set owner_user_id=p_owner_id,guest_session_hash=null/);
+  assert.match(allSql, /on conflict\(project_id\) do nothing/);
+});

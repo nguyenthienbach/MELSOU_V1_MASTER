@@ -86,6 +86,7 @@ function requestRemoveSpread(idx, e) {
     confirmBtn.textContent = isEn ? 'Remove 2 pages' : 'Xóa 2 trang';
   }
   if (modal) {
+    modal.classList.add('open');
     modal.classList.remove('hidden');
     modal.style.display = 'flex';
   }
@@ -96,6 +97,7 @@ function closeRemoveSpreadModal() {
   spreadIndexPendingRemoval = null;
   const modal = document.getElementById('removeSpreadConfirmModal');
   if (modal) {
+    modal.classList.remove('open');
     modal.classList.add('hidden');
     modal.style.display = 'none';
   }
@@ -135,6 +137,25 @@ window.executeRemoveSpread = executeRemoveSpread;
 function removeCustomSpread(index, e) {
   requestRemoveSpread(index, e);
 }
+
+function updateTextElementContent(id, newText, snap) {
+  const spread = ALBUM_DATA.spreads && ALBUM_DATA.spreads[ALBUM_DATA.activeSpreadIndex];
+  if (!spread || !spread.elements) return;
+  const target = spread.elements.find(e => String(e.id) === String(id));
+  if (target) {
+    if (snap && newText !== target.content && typeof pushStudioSnapshotState === 'function') {
+      pushStudioSnapshotState(snap, currentAppLanguage === 'en' ? 'Edit text' : 'Sửa văn bản');
+    }
+    target.content = newText;
+    autoSaveToLocalStorage();
+  }
+}
+window.updateTextElementContent = updateTextElementContent;
+
+function escapeHtml(str) {
+  return String(str || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+window.escapeHtml = escapeHtml;
 
 // ── CANVA FREESTYLE: ADD TEXT BOX & CANVA IMAGE FRAME ──
 function addRealFreeformTextBox() {
@@ -352,43 +373,43 @@ function togglePrintSafeGuides() {
 function checkElementSafeArea(domItem, el) {
   if (!domItem || !el) return false;
   const curSpread = ALBUM_DATA.spreads ? ALBUM_DATA.spreads[ALBUM_DATA.activeSpreadIndex] : null;
-  const isMobileSingle = (isMobileViewport() && curSpread && !curSpread.isClosedCover && !curSpread.isClosedBack);
+  const isCoverOrBack = curSpread && (curSpread.isClosedCover || curSpread.isClosedBack);
 
-  // Print safe boundary matches the red dashed safe-guides layer (inset: 16px)
+  // Document canvas dimensions (Canonical document coordinates, independent of screen/zoom/devicePixelRatio)
+  const docWidth = isCoverOrBack ? 440 : 860;
+  const docHeight = 460;
   const safeMargin = 16;
+
   const elW = el.width || (el.type === 'sticker' ? 50 : 200);
-  const elH = el.frameStyle === 'oval' ? elW : (el.type === 'sticker' ? 50 : Math.round(elW * 0.65) + (el.frameStyle === 'clean' ? 0 : 30));
+  let elH;
+  if (el.type === 'text') {
+    elH = domItem.offsetHeight || Math.max(32, (el.fontSize || 16) * 1.5 * (String(el.content || '').split('\n').length) + 16);
+  } else if (el.type === 'sticker') {
+    elH = 50;
+  } else if (el.frameStyle === 'oval') {
+    elH = elW;
+  } else if (el.frameStyle === 'clean') {
+    elH = Math.round(elW * 0.65);
+  } else {
+    // Polaroid frame with caption margin
+    elH = Math.round(elW * 0.65) + 30;
+  }
+
   const rad = Math.abs((el.rotate || 0) * Math.PI / 180);
   const boundW = elW * Math.cos(rad) + elH * Math.sin(rad);
   const boundH = elW * Math.sin(rad) + elH * Math.cos(rad);
 
-  let isViolating = false;
-  if (isMobileSingle) {
-    const isRight = (mobileActivePageHalf === 'right');
-    const localX = isRight ? (el.x - 430) : el.x;
-    const minX = localX - (boundW - elW) / 2;
-    const maxX = minX + boundW;
-    const minY = el.y - (boundH - elH) / 2;
-    const maxY = minY + boundH;
-    isViolating = (minX < safeMargin || maxX > (430 - safeMargin) || minY < safeMargin || maxY > (460 - safeMargin));
-  } else {
-    const isCoverOrBack = curSpread && (curSpread.isClosedCover || curSpread.isClosedBack);
-    if (isCoverOrBack) {
-      const minX = el.x - (boundW - elW) / 2;
-      const maxX = minX + boundW;
-      const minY = el.y - (boundH - elH) / 2;
-      const maxY = minY + boundH;
-      isViolating = (minX < safeMargin || maxX > (440 - safeMargin) || minY < safeMargin || maxY > (460 - safeMargin));
-    } else {
-      // 180° seamless layflat interior spread (width 860px, height 460px)
-      // Visual safe-area guideline is marked by the red dashed boundary [16px .. 844px] horizontally and [16px .. 444px] vertically
-      const minX = el.x - (boundW - elW) / 2;
-      const maxX = minX + boundW;
-      const minY = el.y - (boundH - elH) / 2;
-      const maxY = minY + boundH;
-      isViolating = (minX < safeMargin || maxX > (860 - safeMargin) || minY < safeMargin || maxY > (460 - safeMargin));
-    }
-  }
+  const centerX = el.x + elW / 2;
+  const centerY = el.y + elH / 2;
+  const minX = centerX - boundW / 2;
+  const maxX = centerX + boundW / 2;
+  const minY = centerY - boundH / 2;
+  const maxY = centerY + boundH / 2;
+
+  // Print safe boundary in canonical document coordinates:
+  // - Interior spread safe area: [16 .. 844] horizontally, [16 .. 444] vertically
+  // - Cover safe area: [16 .. 424] horizontally, [16 .. 444] vertically
+  const isViolating = (minX < safeMargin || maxX > (docWidth - safeMargin) || minY < safeMargin || maxY > (docHeight - safeMargin));
 
   domItem.classList.toggle('safe-area-warning', isViolating);
   return isViolating;
@@ -600,6 +621,7 @@ function openMoreMenu(elId, event) {
 function openContextMenuAt(x, y, el) {
   const menu = document.getElementById('melsouContextMenu');
   if (!menu || !el) return;
+  const isEn = (currentAppLanguage === 'en');
 
   const isPhoto = el.type === 'photo';
   const hasImg = isPhoto && !!el.img;
@@ -607,61 +629,61 @@ function openContextMenuAt(x, y, el) {
 
   let html = `
     <div class="mcm-item" onclick="copyElement(${el.id})">
-      <div class="mcm-left"><span>📋</span> Sao chép</div>
+      <div class="mcm-left"><span>📋</span> ${isEn ? 'Copy' : 'Sao chép'}</div>
       <div class="mcm-shortcut">Ctrl+C</div>
     </div>
     <div class="mcm-item" onclick="duplicateElement(${el.id})">
-      <div class="mcm-left"><span>📑</span> Nhân bản</div>
+      <div class="mcm-left"><span>📑</span> ${isEn ? 'Duplicate' : 'Nhân bản'}</div>
       <div class="mcm-shortcut">Ctrl+D</div>
     </div>
     <div class="mcm-item danger" onclick="removeSpreadElement(${el.id}); closeContextMenu()">
-      <div class="mcm-left"><span>🗑️</span> Xóa</div>
+      <div class="mcm-left"><span>🗑️</span> ${isEn ? 'Delete' : 'Xóa'}</div>
       <div class="mcm-shortcut">Del</div>
     </div>
 
     <div class="mcm-divider"></div>
 
     <div class="mcm-item mcm-has-submenu">
-      <div class="mcm-left"><span>🗂️</span> Lớp (Layer)</div>
+      <div class="mcm-left"><span>🗂️</span> ${isEn ? 'Layers' : 'Lớp (Layer)'}</div>
       <div style="font-size:12px;opacity:0.6">›</div>
       <div class="mcm-submenu" id="mcmLayerSubmenu">
         <div class="mcm-item" onclick="bringElementToFront(${el.id}); closeContextMenu()">
-          <div class="mcm-left"><span>🔝</span> Lên trên cùng</div>
+          <div class="mcm-left"><span>🔝</span> ${isEn ? 'Bring to Front' : 'Lên trên cùng'}</div>
         </div>
         <div class="mcm-item" onclick="bringElementForward(${el.id}); closeContextMenu()">
-          <div class="mcm-left"><span>🔼</span> Lên 1 lớp</div>
+          <div class="mcm-left"><span>🔼</span> ${isEn ? 'Bring Forward' : 'Lên 1 lớp'}</div>
         </div>
         <div class="mcm-item" onclick="sendElementBackward(${el.id}); closeContextMenu()">
-          <div class="mcm-left"><span>🔽</span> Xuống 1 lớp</div>
+          <div class="mcm-left"><span>🔽</span> ${isEn ? 'Send Backward' : 'Xuống 1 lớp'}</div>
         </div>
         <div class="mcm-item" onclick="sendElementToBack(${el.id}); closeContextMenu()">
-          <div class="mcm-left"><span>🔚</span> Xuống dưới cùng</div>
+          <div class="mcm-left"><span>🔚</span> ${isEn ? 'Send to Back' : 'Xuống dưới cùng'}</div>
         </div>
       </div>
     </div>
 
     <div class="mcm-item mcm-has-submenu">
-      <div class="mcm-left"><span>📐</span> Căn gióng (Align)</div>
+      <div class="mcm-left"><span>📐</span> ${isEn ? 'Alignment' : 'Căn gióng (Align)'}</div>
       <div style="font-size:12px;opacity:0.6">›</div>
       <div class="mcm-submenu" id="mcmAlignSubmenu">
         <div class="mcm-item" onclick="alignElement(${el.id}, 'left'); closeContextMenu()">
-          <div class="mcm-left"><span>⇤</span> Căn trái trang</div>
+          <div class="mcm-left"><span>⇤</span> ${isEn ? 'Align Left' : 'Căn trái trang'}</div>
         </div>
         <div class="mcm-item" onclick="alignElement(${el.id}, 'center'); closeContextMenu()">
-          <div class="mcm-left"><span>⇥⇤</span> Căn giữa ngang</div>
+          <div class="mcm-left"><span>⇥⇤</span> ${isEn ? 'Center Horizontally' : 'Căn giữa ngang'}</div>
         </div>
         <div class="mcm-item" onclick="alignElement(${el.id}, 'right'); closeContextMenu()">
-          <div class="mcm-left"><span>⇥</span> Căn phải trang</div>
+          <div class="mcm-left"><span>⇥</span> ${isEn ? 'Align Right' : 'Căn phải trang'}</div>
         </div>
         <div class="mcm-divider"></div>
         <div class="mcm-item" onclick="alignElement(${el.id}, 'top'); closeContextMenu()">
-          <div class="mcm-left"><span>⤒</span> Căn mép trên</div>
+          <div class="mcm-left"><span>⤒</span> ${isEn ? 'Align Top' : 'Căn mép trên'}</div>
         </div>
         <div class="mcm-item" onclick="alignElement(${el.id}, 'middle'); closeContextMenu()">
-          <div class="mcm-left"><span>⤓⤒</span> Căn giữa dọc</div>
+          <div class="mcm-left"><span>⤓⤒</span> ${isEn ? 'Center Vertically' : 'Căn giữa dọc'}</div>
         </div>
         <div class="mcm-item" onclick="alignElement(${el.id}, 'bottom'); closeContextMenu()">
-          <div class="mcm-left"><span>⤓</span> Căn mép dưới</div>
+          <div class="mcm-left"><span>⤓</span> ${isEn ? 'Align Bottom' : 'Căn mép dưới'}</div>
         </div>
       </div>
     </div>
@@ -671,16 +693,16 @@ function openContextMenuAt(x, y, el) {
     html += `
       <div class="mcm-divider"></div>
       <div class="mcm-item" onclick="triggerDirectUpload('el_${el.id}'); closeContextMenu()">
-        <div class="mcm-left"><span>📷</span> Đổi ảnh</div>
+        <div class="mcm-left"><span>📷</span> ${isEn ? 'Replace Photo' : 'Đổi ảnh'}</div>
       </div>
     `;
     if (hasImg) {
       html += `
         <div class="mcm-item" onclick="enterImageAdjustmentMode(${el.id}); closeContextMenu()">
-          <div class="mcm-left"><span>✂️</span> Chỉnh sửa & Cắt ảnh</div>
+          <div class="mcm-left"><span>✂️</span> ${isEn ? 'Crop & Adjust' : 'Chỉnh sửa & Cắt ảnh'}</div>
         </div>
         <div class="mcm-item" onclick="resetFrameCrop(${el.id}); closeContextMenu()">
-          <div class="mcm-left"><span>🎯</span> Khôi phục căn giữa gốc</div>
+          <div class="mcm-left"><span>🎯</span> ${isEn ? 'Reset Centering' : 'Khôi phục căn giữa gốc'}</div>
         </div>
       `;
     }
@@ -689,7 +711,7 @@ function openContextMenuAt(x, y, el) {
   html += `
     <div class="mcm-divider"></div>
     <div class="mcm-item" onclick="toggleLockElement(${el.id}); closeContextMenu()">
-      <div class="mcm-left"><span>${isLocked ? '🔓' : '🔒'}</span> ${isLocked ? 'Mở khóa vị trí' : 'Khóa vị trí đối tượng'}</div>
+      <div class="mcm-left"><span>${isLocked ? '🔓' : '🔒'}</span> ${isLocked ? (isEn ? 'Unlock Position' : 'Mở khóa vị trí') : (isEn ? 'Lock Position' : 'Khóa vị trí đối tượng')}</div>
     </div>
   `;
 
@@ -1059,6 +1081,10 @@ function renderActiveSpread() {
   const leftPage = document.getElementById('stageLeftPage');
   const rightPage = document.getElementById('stageRightPage');
   const overlay = document.getElementById('spreadFreeformOverlay');
+  const removeSidebarWrap = document.getElementById('activeSpreadRemoveWrap');
+  if (removeSidebarWrap) {
+    removeSidebarWrap.style.display = (spread && spread.isCustomAdded) ? 'block' : 'none';
+  }
 
   if (spread.isClosedCover) {
     // 1. PHYSICAL 3D FRONT COVER
@@ -1194,34 +1220,51 @@ function renderActiveSpread() {
       rightPage.style.display = 'flex';
     }
 
+    const hasSpotify = (ALBUM_DATA.package === 'melody' || ALBUM_DATA.package === 'signature');
     if (spread.leftType === 'spotify-hero') {
-      const meta = getSpotifyTrackDisplayMetadata();
-      leftPage.innerHTML = `
-        <div style="display:flex;flex-direction:column;height:100%;justify-content:space-between;background:var(--yellow-warm);border-radius:8px;padding:20px">
-          <div>
-            <span style="font-size:10px;font-weight:800;letter-spacing:2px;color:var(--red)">OUR TIMES</span>
-            <h3 style="font-size:19px;font-weight:700;margin-top:4px;color:var(--dark)">${isEn ? 'Our Cherished Melody' : 'Giai Điệu Của Chúng Mình'}</h3>
+      if (hasSpotify) {
+        const meta = getSpotifyTrackDisplayMetadata();
+        leftPage.innerHTML = `
+          <div style="display:flex;flex-direction:column;height:100%;justify-content:space-between;background:var(--yellow-warm);border-radius:8px;padding:20px">
+            <div>
+              <span style="font-size:10px;font-weight:800;letter-spacing:2px;color:var(--red)">OUR TIMES</span>
+              <h3 style="font-size:19px;font-weight:700;margin-top:4px;color:var(--dark)">${isEn ? 'Our Cherished Melody' : 'Giai Điệu Của Chúng Mình'}</h3>
+            </div>
+            <div style="margin:16px 0">
+              ${!meta.hasTrack ? `
+                <div style="font-size:13px;font-weight:700;margin-bottom:6px;color:var(--dark)">${isEn ? 'No track selected yet' : 'Chưa chọn bài hát'}</div>
+              ` : meta.isPending ? `
+                <div style="margin-bottom:10px;padding:8px 12px;background:rgba(0,0,0,0.04);border-radius:6px;text-align:left">
+                  <div style="font-size:11.5px;font-weight:600;color:var(--gray)">${isEn ? '⏳ Fetching song details...' : '⏳ Đang lấy thông tin bài hát...'}</div>
+                </div>
+              ` : `
+                <div style="margin-bottom:12px;text-align:left">
+                  <div style="font-size:9.5px;font-weight:800;color:var(--gray);text-transform:uppercase;letter-spacing:1px;margin-bottom:2px">${isEn ? 'Song' : 'Bài hát'}</div>
+                  <div id="spotifyHeroSongTitle" style="font-size:15px;font-weight:800;color:var(--dark);margin-bottom:8px;line-height:1.3">${escapeSpotifyAttr(meta.title)}</div>
+                  <div style="font-size:9.5px;font-weight:800;color:var(--gray);text-transform:uppercase;letter-spacing:1px;margin-bottom:2px">${isEn ? 'Artist' : 'Nghệ sĩ'}</div>
+                  <div id="spotifyHeroArtistName" style="font-size:13px;font-weight:700;color:var(--red);margin-bottom:8px;line-height:1.3">${escapeSpotifyAttr(meta.artist || (isEn ? 'Spotify Artist' : 'Nghệ sĩ Spotify'))}</div>
+                </div>
+              `}
+              ${renderSpotifyHorizontalCodeHtml()}
+            </div>
+            <div style="font-size:10.5px;color:var(--gray);font-style:italic">${isEn ? 'Open Spotify on phone & scan code to play.' : 'Mở ứng dụng Spotify trên điện thoại & quét mã để nghe nhạc.'}</div>
           </div>
-          <div style="margin:16px 0">
-            ${!meta.hasTrack ? `
-              <div style="font-size:13px;font-weight:700;margin-bottom:6px;color:var(--dark)">${isEn ? 'No track selected yet' : 'Chưa chọn bài hát'}</div>
-            ` : meta.isPending ? `
-              <div style="margin-bottom:10px;padding:8px 12px;background:rgba(0,0,0,0.04);border-radius:6px;text-align:left">
-                <div style="font-size:11.5px;font-weight:600;color:var(--gray)">${isEn ? '⏳ Fetching song details...' : '⏳ Đang lấy thông tin bài hát...'}</div>
-              </div>
-            ` : `
-              <div style="margin-bottom:12px;text-align:left">
-                <div style="font-size:9.5px;font-weight:800;color:var(--gray);text-transform:uppercase;letter-spacing:1px;margin-bottom:2px">${isEn ? 'Song' : 'Bài hát'}</div>
-                <div id="spotifyHeroSongTitle" style="font-size:15px;font-weight:800;color:var(--dark);margin-bottom:8px;line-height:1.3">${escapeSpotifyAttr(meta.title)}</div>
-                <div style="font-size:9.5px;font-weight:800;color:var(--gray);text-transform:uppercase;letter-spacing:1px;margin-bottom:2px">${isEn ? 'Artist' : 'Nghệ sĩ'}</div>
-                <div id="spotifyHeroArtistName" style="font-size:13px;font-weight:700;color:var(--red);margin-bottom:8px;line-height:1.3">${escapeSpotifyAttr(meta.artist || (isEn ? 'Spotify Artist' : 'Nghệ sĩ Spotify'))}</div>
-              </div>
-            `}
-            ${renderSpotifyHorizontalCodeHtml()}
+        `;
+      } else {
+        leftPage.innerHTML = `
+          <div style="display:flex;flex-direction:column;height:100%;justify-content:space-between;background:var(--yellow-warm);border-radius:8px;padding:20px">
+            <div>
+              <span style="font-size:10px;font-weight:800;letter-spacing:2px;color:var(--red)">OUR TIMES</span>
+              <h3 style="font-size:19px;font-weight:700;margin-top:4px;color:var(--dark)">${isEn ? 'Words from the Heart' : 'Lời Nhắn Yêu Thương'}</h3>
+            </div>
+            <div style="margin:20px 0;text-align:left">
+              <div style="font-size:13px;font-weight:700;color:var(--dark);margin-bottom:8px">${isEn ? '🎙️ Voice Module ISD1820' : '🎙️ Module ghi âm giọng nói'}</div>
+              <div style="font-size:12px;color:var(--gray);line-height:1.6">${isEn ? 'Album includes physical audio chip to replay authentic voices anytime.' : 'Cuốn album lưu giữ âm thanh mộc mạc và chân thực qua module ghi âm độc bản.'}</div>
+            </div>
+            <div style="font-size:10.5px;color:var(--gray);font-style:italic">${isEn ? 'Handcrafted with care by Melsou.' : 'Gói trọn thanh âm trong từng trang kỷ niệm.'}</div>
           </div>
-          <div style="font-size:10.5px;color:var(--gray);font-style:italic">${isEn ? 'Open Spotify on phone & scan code to play.' : 'Mở ứng dụng Spotify trên điện thoại & quét mã để nghe nhạc.'}</div>
-        </div>
-      `;
+        `;
+      }
     } else if (spread.leftType === 'handwritten-letter') {
       leftPage.innerHTML = `
         <div style="display:flex;flex-direction:column;height:100%;justify-content:space-between;background:var(--yellow-warm);border-radius:8px;padding:20px">
@@ -1337,7 +1380,7 @@ function renderElementsOnSpreadOverlay(spread) {
       let innerContent = '';
       if (!el.img) {
         innerContent = `
-          <div class="canva-frame-placeholder" style="height:${frameH}px;${isOval ? 'border-radius:999px;' : ''}"
+          <div class="canva-frame-placeholder" style="height:${frameH}px;${isOval ? 'border-radius:999px;' : (isClean ? 'border-radius:14px;' : '')}"
                onclick="triggerDirectUpload('el_${el.id}', event)"
                ondragover="handleSlotDragOver(event)" ondragleave="handleSlotDragLeave(event)" ondrop="handleSlotDrop(event, 'el_${el.id}')"
                title="${isEn ? 'Drop photo here or click to choose from device' : 'Thả ảnh vào đây hoặc bấm để chọn ảnh từ máy'}">
@@ -1350,7 +1393,7 @@ function renderElementsOnSpreadOverlay(spread) {
         `;
       } else {
         innerContent = `
-          <div class="canva-frame-inner-viewport interactive-photo-slot" id="slot_el_${el.id}" style="height:${frameH}px;${isOval ? 'border-radius:999px;' : ''};position:relative;overflow:hidden"
+          <div class="canva-frame-inner-viewport interactive-photo-slot" id="slot_el_${el.id}" style="height:${frameH}px;${isOval ? 'border-radius:999px;' : (isClean ? 'border-radius:14px;' : '')};position:relative;overflow:hidden"
                ondblclick="enterImageAdjustmentMode(${el.id}, event)"
                onpointerdown="if (ALBUM_DATA.cropEditingId === ${el.id}) initImagePanningInsideFrame(event, ${el.id})"
                onwheel="if (ALBUM_DATA.cropEditingId === ${el.id}) { event.preventDefault(); handleCropWheelZoom(event, ${el.id}); }"
@@ -1400,10 +1443,12 @@ function renderElementsOnSpreadOverlay(spread) {
         <div style="display:inline-flex;align-items:center;padding:6px 14px;background:rgba(255,255,255,0.95);border:1.5px dashed rgba(168,35,35,0.4);border-radius:8px;box-shadow:0 4px 14px rgba(0,0,0,0.12);cursor:grab">
           <span style="font-size:14px;color:var(--red);margin-right:8px;user-select:none;cursor:grab;font-weight:bold" title="${isEn ? 'Hold to drag' : 'Giữ chuột vào đây hoặc ô chữ để kéo di chuyển'}">⋮⋮</span>
           <div class="canva-editable-text-field" contenteditable="${!isLocked}"
+               data-el-id="${el.id}"
                onfocus="this.dataset.initialText = this.innerText; this.dataset.initialSnap = JSON.stringify(ALBUM_DATA);"
-               onblur="if (this.innerText !== this.dataset.initialText) { pushStudioSnapshotState(this.dataset.initialSnap, currentAppLanguage === 'en' ? 'Edit text' : 'Sửa văn bản'); } el.content=this.innerText; autoSaveToLocalStorage();"
-               style="outline:none;font-family:${el.font || ALBUM_DATA.letterFont};color:${el.color || ALBUM_DATA.inkColor};font-size:${el.fontSize || 16}px;cursor:text">
-            ${el.content}
+               oninput="updateTextElementContent(${el.id}, this.innerText)"
+               onblur="if (this.innerText !== this.dataset.initialText) { updateTextElementContent(${el.id}, this.innerText, this.dataset.initialSnap); }"
+               style="outline:none;white-space:pre-wrap;word-break:break-word;font-family:${el.font || ALBUM_DATA.letterFont};color:${el.color || ALBUM_DATA.inkColor};font-size:${el.fontSize || 16}px;cursor:text">
+            ${escapeHtml(el.content || '')}
           </div>
         </div>
       `;
@@ -1868,6 +1913,8 @@ function handleStudioGlobalKey(e) {
   if (!e) return;
   if (e.key === 'Escape' || e.keyCode === 27) {
     const studioModals = [
+      ['removeSpreadConfirmModal', closeRemoveSpreadModal],
+      ['sizeChangeConfirmModal', () => { if (typeof cancelAlbumSizeChange === 'function') cancelAlbumSizeChange(); }],
       ['customStickerModal', closeCustomStickerModal],
       ['checkoutModal', closeCheckoutModal],
       ['preflightModal', closePreflightModal],
@@ -1996,6 +2043,9 @@ function handleSlotDrop(e, slotKey) {
       reader.onload = ev => {
         const resultUrl = ev.target.result;
         ALBUM_DATA.userGallery.unshift(resultUrl);
+        window.codexUploadGalleryAsset?.(resultUrl).catch(err => {
+          console.warn('[Melsou Studio] Immediate gallery upload deferred:', err.message);
+        });
         autoSaveToLocalStorage();
         renderUserGalleryTray();
         assignPhotoToSlot(slotKey, resultUrl);
@@ -2090,31 +2140,71 @@ function handleReplaceSpecificPhoto(e) {
 function renderUserGalleryTray() {
   const tray = document.getElementById('userUploadedTray');
   if (!tray) return;
+  const isEn = (currentAppLanguage === 'en');
+  if (Array.isArray(ALBUM_DATA.userGallery)) {
+    ALBUM_DATA.userGallery = ALBUM_DATA.userGallery.filter(url => typeof url === 'string' && url.trim().length > 0);
+  }
   if (!ALBUM_DATA.userGallery || ALBUM_DATA.userGallery.length === 0) {
     tray.innerHTML = `
       <div style="grid-column:1/-1;text-align:center;padding:24px 12px;color:var(--gray);font-size:12px">
         <div style="font-size:24px;margin-bottom:6px">📸</div>
-        <div>${currentAppLanguage === 'en' ? 'No photos uploaded yet' : 'Chưa có ảnh nào được tải lên'}</div>
-        <div style="font-size:11px;opacity:0.8;margin-top:4px">${currentAppLanguage === 'en' ? 'Click "Upload Photos" above to get started' : 'Bấm nút tải ảnh ở trên để bắt đầu'}</div>
+        <div>${isEn ? 'No photos uploaded yet' : 'Chưa có ảnh nào được tải lên'}</div>
+        <div style="font-size:11px;opacity:0.8;margin-top:4px">${isEn ? 'Click "Upload Photos" above to get started' : 'Bấm nút tải ảnh ở trên để bắt đầu'}</div>
       </div>
     `;
     return;
   }
-  tray.innerHTML = ALBUM_DATA.userGallery.map(url => `
+  tray.innerHTML = ALBUM_DATA.userGallery.map((url, idx) => `
     <div class="uploaded-item" draggable="true"
-         ondragstart="handlePhotoDragStart(event, '${url}')"
-         onclick="assignPhotoToSlot(ALBUM_DATA.activePhotoSlot, '${url}')"
-         title="Kéo thả vào khung Polaroid hoặc bấm để thay ảnh">
-      <img src="${url}" alt="Gallery item">
+         data-gallery-idx="${idx}"
+         title="${isEn ? 'Drag into frame or click to place' : 'Kéo thả vào khung hoặc bấm để thay ảnh'}">
+      <img src="${url}" alt="${isEn ? 'Uploaded photo' : 'Ảnh đã tải lên'}" loading="lazy" onerror="window.melsouHandleBrokenGalleryImage?.(this, ${idx})">
     </div>
   `).join('');
+
+  if (!tray.dataset.eventsBound) {
+    tray.dataset.eventsBound = 'true';
+    tray.addEventListener('dragstart', (e) => {
+      const item = e.target.closest('.uploaded-item');
+      if (!item) return;
+      const idx = Number(item.dataset.galleryIdx);
+      const url = ALBUM_DATA.userGallery && ALBUM_DATA.userGallery[idx];
+      if (url) handlePhotoDragStart(e, url);
+    });
+    tray.addEventListener('click', (e) => {
+      const item = e.target.closest('.uploaded-item');
+      if (!item) return;
+      const idx = Number(item.dataset.galleryIdx);
+      const url = ALBUM_DATA.userGallery && ALBUM_DATA.userGallery[idx];
+      if (url) assignPhotoToSlot(ALBUM_DATA.activePhotoSlot, url);
+    });
+  }
 }
+
+window.melsouHandleBrokenGalleryImage = function(img, idx) {
+  const isEn = (currentAppLanguage === 'en');
+  console.error('[Melsou Studio] Gallery thumbnail failed to load:', { idx, src: img?.src });
+  if (img && img.parentElement) {
+    img.style.display = 'none';
+    if (!img.parentElement.querySelector('.broken-gallery-placeholder')) {
+      const fallback = document.createElement('div');
+      fallback.className = 'broken-gallery-placeholder';
+      fallback.style.cssText = 'width:100%;height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;background:#f8f4f0;color:#999;font-size:10px;text-align:center;padding:4px;box-sizing:border-box;border-radius:6px;';
+      fallback.innerHTML = `<span>⚠️</span><span style="margin-top:2px;font-size:9px">${isEn ? 'Preview error' : 'Lỗi ảnh'}</span>`;
+      img.parentElement.appendChild(fallback);
+    }
+  }
+};
 
 function handleBulkPhotoUpload(e) {
   Array.from(e.target.files).forEach(file => {
     const reader = new FileReader();
     reader.onload = ev => {
-      ALBUM_DATA.userGallery.unshift(ev.target.result);
+      const resultUrl = ev.target.result;
+      ALBUM_DATA.userGallery.unshift(resultUrl);
+      window.codexUploadGalleryAsset?.(resultUrl).catch(err => {
+        console.warn('[Melsou Studio] Immediate gallery upload deferred:', err.message);
+      });
       autoSaveToLocalStorage();
       renderUserGalleryTray();
     };
@@ -3376,15 +3466,16 @@ function updateVoiceUI() {
 
   const hasSaved = !!(MELSOU_VOICE.savedBlob || ALBUM_DATA.recordedAudioBlob);
 
+  const isEn = (currentAppLanguage === 'en');
   if (!MELSOU_VOICE.isReRecording && hasSaved && MELSOU_VOICE.recordingState === 'idle') {
     // STATE A: Show confirmed saved recording card with Safe Retake button
     box.innerHTML = `
       <div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:12px;padding:12px;margin-bottom:10px;text-align:center">
-        <div style="font-size:12px;font-weight:800;color:#166534;margin-bottom:4px">✅ BẢN THU ĐÃ CHỐT LƯU TRÊN CHIP</div>
-        <div style="font-size:11.5px;color:#374151;margin-bottom:8px">Thời lượng: 00:${String(MELSOU_VOICE.savedDuration || 15).padStart(2, '0')} · Vi mạch ISD1820</div>
+        <div style="font-size:12px;font-weight:800;color:#166534;margin-bottom:4px">${isEn ? '✅ RECORDING COMMITTED ON CHIP' : '✅ BẢN THU ĐÃ CHỐT LƯU TRÊN CHIP'}</div>
+        <div style="font-size:11.5px;color:#374151;margin-bottom:8px">${isEn ? 'Duration' : 'Thời lượng'}: 00:${String(MELSOU_VOICE.savedDuration || 15).padStart(2, '0')} · ISD1820</div>
         <div style="display:flex;gap:6px">
-          <button class="btn-primary" style="flex:1;padding:8px;font-size:12px;justify-content:center;background:#16a34a" onclick="playSavedVoice()">▶️ Nghe Bản Đã Lưu</button>
-          <button class="btn-outline" style="flex:1;padding:8px;font-size:12px;justify-content:center" onclick="startReRecordingSession()">🔄 Thu Lại Bản Khác</button>
+          <button class="btn-primary" style="flex:1;padding:8px;font-size:12px;justify-content:center;background:#16a34a" onclick="playSavedVoice()">${isEn ? '▶️ Play Saved Voice' : '▶️ Nghe Bản Đã Lưu'}</button>
+          <button class="btn-outline" style="flex:1;padding:8px;font-size:12px;justify-content:center" onclick="startReRecordingSession()">${isEn ? '🔄 Retake Recording' : '🔄 Thu Lại Bản Khác'}</button>
         </div>
       </div>
     `;
@@ -3394,39 +3485,39 @@ function updateVoiceUI() {
   // STATE B: Recording in progress / draft review
   const reRecordNotice = MELSOU_VOICE.isReRecording ? `
     <div style="background:#fffbeb;border:1px solid #fef3c7;border-radius:8px;padding:8px 10px;margin-bottom:8px;font-size:11.5px;color:#92400e;display:flex;justify-content:space-between;align-items:center">
-      <span>🛡️ Bản thu cũ vẫn được giữ an toàn.</span>
-      <button onclick="cancelReRecordingSession()" style="background:none;border:none;color:#b45309;font-weight:700;font-size:11px;cursor:pointer">Hủy thu lại</button>
+      <span>🛡️ ${isEn ? 'Previous recording remains safe.' : 'Bản thu cũ vẫn được giữ an toàn.'}</span>
+      <button onclick="cancelReRecordingSession()" style="background:none;border:none;color:#b45309;font-weight:700;font-size:11px;cursor:pointer">${isEn ? 'Cancel retake' : 'Hủy thu lại'}</button>
     </div>
   ` : '';
 
   let buttonsHtml = '';
   if (MELSOU_VOICE.recordingState === 'idle') {
     buttonsHtml = `
-      <button class="btn-primary" style="flex:1;padding:9px;font-size:12.5px;justify-content:center" onclick="startVoiceRec()">🎙️ ${MELSOU_VOICE.isReRecording ? 'Bắt Đầu Thu Mới' : 'Bắt Đầu Thu Âm'}</button>
-      ${MELSOU_VOICE.isReRecording ? '<button class="btn-outline" style="padding:9px 12px;font-size:12px" onclick="cancelReRecordingSession()">✕ Hủy</button>' : ''}
+      <button class="btn-primary" style="flex:1;padding:9px;font-size:12.5px;justify-content:center" onclick="startVoiceRec()">🎙️ ${MELSOU_VOICE.isReRecording ? (isEn ? 'Start New Recording' : 'Bắt Đầu Thu Mới') : (isEn ? 'Start Recording' : 'Bắt Đầu Thu Âm')}</button>
+      ${MELSOU_VOICE.isReRecording ? `<button class="btn-outline" style="padding:9px 12px;font-size:12px" onclick="cancelReRecordingSession()">✕ ${isEn ? 'Cancel' : 'Hủy'}</button>` : ''}
     `;
   } else if (MELSOU_VOICE.recordingState === 'recording') {
     buttonsHtml = `
-      <button class="btn-outline" style="flex:1;padding:9px;font-size:12px;justify-content:center" onclick="pauseVoiceRec()">⏸️ Tạm Dừng</button>
-      <button class="btn-primary" style="flex:1;padding:9px;font-size:12px;justify-content:center;background:var(--green-d)" onclick="finishVoiceRec()">🔒 Hoàn Tất Bản Thu</button>
+      <button class="btn-outline" style="flex:1;padding:9px;font-size:12px;justify-content:center" onclick="pauseVoiceRec()">${isEn ? '⏸️ Pause' : '⏸️ Tạm Dừng'}</button>
+      <button class="btn-primary" style="flex:1;padding:9px;font-size:12px;justify-content:center;background:var(--green-d)" onclick="finishVoiceRec()">${isEn ? '🔒 Finish Recording' : '🔒 Hoàn Tất Bản Thu'}</button>
     `;
   } else if (MELSOU_VOICE.recordingState === 'paused') {
     buttonsHtml = `
-      <button class="btn-outline" style="flex:1;padding:9px;font-size:12px;justify-content:center" onclick="resumeVoiceRec()">▶️ Tiếp Tục</button>
-      <button class="btn-primary" style="flex:1;padding:9px;font-size:12px;justify-content:center;background:var(--green-d)" onclick="finishVoiceRec()">🔒 Hoàn Tất Bản Thu</button>
+      <button class="btn-outline" style="flex:1;padding:9px;font-size:12px;justify-content:center" onclick="resumeVoiceRec()">${isEn ? '▶️ Resume' : '▶️ Tiếp Tục'}</button>
+      <button class="btn-primary" style="flex:1;padding:9px;font-size:12px;justify-content:center;background:var(--green-d)" onclick="finishVoiceRec()">${isEn ? '🔒 Finish Recording' : '🔒 Hoàn Tất Bản Thu'}</button>
     `;
   } else if (MELSOU_VOICE.recordingState === 'reviewing_draft') {
     buttonsHtml = `
-      <button class="btn-outline" style="flex:1;padding:8px;font-size:12px;justify-content:center" onclick="playDraftVoice()">▶️ Nghe Bản Mới</button>
-      <button class="btn-primary" style="flex:1;padding:8px;font-size:12px;justify-content:center;background:var(--green-d)" onclick="commitDraftAsSaved()">🔒 Chốt Lưu Bản Này</button>
-      <button class="btn-outline" style="padding:8px 10px;font-size:12px;justify-content:center" onclick="cancelReRecordingSession()">✕ Bỏ Bản Này</button>
+      <button class="btn-outline" style="flex:1;padding:8px;font-size:12px;justify-content:center" onclick="playDraftVoice()">${isEn ? '▶️ Preview New Draft' : '▶️ Nghe Bản Mới'}</button>
+      <button class="btn-primary" style="flex:1;padding:8px;font-size:12px;justify-content:center;background:var(--green-d)" onclick="commitDraftAsSaved()">${isEn ? '🔒 Commit As Saved' : '🔒 Chốt Lưu Bản Này'}</button>
+      <button class="btn-outline" style="padding:8px 10px;font-size:12px;justify-content:center" onclick="cancelReRecordingSession()">${isEn ? '✕ Discard' : '✕ Bỏ Bản Này'}</button>
     `;
   }
 
   box.innerHTML = `
     ${reRecordNotice}
     <div id="voiceRecTimer" style="font-size:13.5px;font-weight:800;color:var(--red);text-align:center;margin-bottom:8px">
-      ${MELSOU_VOICE.recordingState === 'recording' ? `🎙️ Đang thu âm: 00:${String(recSec).padStart(2, '0')} / 00:30` : (MELSOU_VOICE.recordingState === 'reviewing_draft' ? `✨ Đã thu xong: 00:${String(MELSOU_VOICE.draftDuration).padStart(2, '0')} (Xem xét bản mới)` : '⏱️ Thời lượng tối đa: 30 giây')}
+      ${MELSOU_VOICE.recordingState === 'recording' ? (isEn ? `🎙️ Recording: 00:${String(recSec).padStart(2, '0')} / 00:30` : `🎙️ Đang thu âm: 00:${String(recSec).padStart(2, '0')} / 00:30`) : (MELSOU_VOICE.recordingState === 'reviewing_draft' ? (isEn ? `✨ Recorded: 00:${String(MELSOU_VOICE.draftDuration).padStart(2, '0')} (Reviewing new draft)` : `✨ Đã thu xong: 00:${String(MELSOU_VOICE.draftDuration).padStart(2, '0')} (Xem xét bản mới)`) : (isEn ? '⏱️ Maximum duration: 30 seconds' : '⏱️ Thời lượng tối đa: 30 giây'))}
     </div>
     <div style="display:flex;gap:6px;flex-wrap:wrap">
       ${buttonsHtml}
@@ -3824,25 +3915,25 @@ function renderFlipbookSpread() {
 
           if (!el.img) {
             return `<div style="position:absolute;left:${posX}px;top:${el.y}px;width:${frameW}px;transform:rotate(${el.rotate || 0}deg);pointer-events:none;z-index:${elIdx + 40}">
-              <div class="canva-image-frame-wrapper ${isClean ? 'style-clean' : ''} ${isOval ? 'style-clean' : ''}" style="width:100%;${isOval ? 'border-radius:999px;padding:0;' : ''}">
+              <div class="canva-image-frame-wrapper ${isClean ? 'clean-style style-clean' : ''} ${isOval ? 'oval-style style-oval' : ''}" style="width:100%;${isOval ? 'border-radius:999px;padding:0;' : (isClean ? 'border-radius:14px;padding:0;' : '')}">
                 ${(!isClean && !isOval) ? `<div class="pb-washi-corner" style="top:-6px;left:50%;transform:translateX(-50%)"></div>` : ''}
-                <div class="canva-frame-placeholder" style="height:${frameH}px;${isOval ? 'border-radius:999px;' : ''}">
+                <div class="canva-frame-placeholder" style="height:${frameH}px;${isOval ? 'border-radius:999px;' : (isClean ? 'border-radius:14px;' : '')}">
                   <span style="font-size:22px;z-index:2">🖼️</span>
                 </div>
               </div>
             </div>`;
           }
           return `<div style="position:absolute;left:${posX}px;top:${el.y}px;width:${frameW}px;transform:rotate(${el.rotate || 0}deg);pointer-events:none;z-index:${elIdx + 40}">
-            <div class="canva-image-frame-wrapper ${isClean ? 'style-clean' : ''} ${isOval ? 'style-clean' : ''}" style="width:100%;${isOval ? 'border-radius:999px;padding:0;' : ''}">
+            <div class="canva-image-frame-wrapper ${isClean ? 'clean-style style-clean' : ''} ${isOval ? 'oval-style style-oval' : ''}" style="width:100%;${isOval ? 'border-radius:999px;padding:0;' : (isClean ? 'border-radius:14px;' : '')}">
               ${(!isClean && !isOval) ? `<div class="pb-washi-corner" style="top:-6px;left:50%;transform:translateX(-50%)"></div>` : ''}
-              <div class="canva-frame-inner-viewport" style="height:${frameH}px;${isOval ? 'border-radius:999px;' : ''}">
+              <div class="canva-frame-inner-viewport" style="height:${frameH}px;${isOval ? 'border-radius:999px;' : (isClean ? 'border-radius:14px;' : '')}">
                 <img src="${el.img}" class="canva-frame-img" style="transform:rotate(${rotate}deg) scale(${zoom}) translate(${offX}px, ${offY}px);" alt="Frame Photo">
               </div>
             </div>
           </div>`;
         } else if (el.type === 'text') {
-          return `<div style="position:absolute;left:${posX}px;top:${el.y}px;font-family:${el.font || ALBUM_DATA.letterFont};color:${el.color || ALBUM_DATA.inkColor};font-size:${el.fontSize || 16}px;padding:6px 12px;background:rgba(255,255,255,0.9);border-radius:6px;box-shadow:0 2px 8px rgba(0,0,0,0.1);z-index:${elIdx + 40}">
-            ${el.content}
+          return `<div style="position:absolute;left:${posX}px;top:${el.y}px;font-family:${el.font || ALBUM_DATA.letterFont};color:${el.color || ALBUM_DATA.inkColor};font-size:${el.fontSize || 16}px;padding:6px 12px;background:rgba(255,255,255,0.9);border-radius:6px;box-shadow:0 2px 8px rgba(0,0,0,0.1);z-index:${elIdx + 40};white-space:pre-wrap;transform:rotate(${el.rotate || 0}deg);transform-origin:center">
+            ${escapeHtml(el.content || '')}
           </div>`;
         } else if (el.type === 'sticker') {
           return `<div style="position:absolute;left:${posX}px;top:${el.y}px;font-size:38px;transform:rotate(${el.rotate || 0}deg);pointer-events:none;z-index:${elIdx + 40}">${el.char}</div>`;
@@ -3909,36 +4000,53 @@ function renderFlipbookSpread() {
         // LEFT PAGE
         l.style.display = 'flex';
         r.style.display = 'none';
+        const hasMobSpotify = (ALBUM_DATA.package === 'melody' || ALBUM_DATA.package === 'signature');
         if (curSpread?.leftType === 'spotify-hero') {
-          const meta = getSpotifyTrackDisplayMetadata();
-          l.innerHTML = `
-            <div style="height:100%;width:100%;background:var(--yellow-warm);border-radius:8px;padding:20px;display:flex;flex-direction:column;justify-content:space-between">
-              <div>
-                <span style="font-size:10px;font-weight:800;color:var(--red);letter-spacing:2px">OUR TIMES</span>
-                <h3 style="font-size:18px;font-weight:700;margin-top:4px">${isEn ? 'Our Cherished Melody' : 'Giai Điệu Của Chúng Mình'}</h3>
+          if (hasMobSpotify) {
+            const meta = getSpotifyTrackDisplayMetadata();
+            l.innerHTML = `
+              <div style="height:100%;width:100%;background:var(--yellow-warm);border-radius:8px;padding:20px;display:flex;flex-direction:column;justify-content:space-between">
+                <div>
+                  <span style="font-size:10px;font-weight:800;color:var(--red);letter-spacing:2px">OUR TIMES</span>
+                  <h3 style="font-size:18px;font-weight:700;margin-top:4px">${isEn ? 'Our Cherished Melody' : 'Giai Điệu Của Chúng Mình'}</h3>
+                </div>
+                <div style="margin:16px 0">
+                  ${!meta.hasTrack ? `
+                    <div style="font-size:13px;font-weight:700;margin-bottom:6px;color:var(--dark)">${isEn ? 'No track selected yet' : 'Chưa chọn bài hát'}</div>
+                  ` : meta.isPending ? `
+                    <div style="margin-bottom:10px;padding:6px 10px;background:rgba(0,0,0,0.04);border-radius:6px">
+                      <div style="font-size:11px;font-weight:600;color:var(--gray)">${isEn ? '⏳ Fetching song details...' : '⏳ Đang lấy thông tin bài hát...'}</div>
+                    </div>
+                  ` : `
+                    <div style="margin-bottom:10px;text-align:left">
+                      <div style="font-size:9px;font-weight:800;color:var(--gray);text-transform:uppercase;letter-spacing:1px;margin-bottom:2px">${isEn ? 'Song' : 'Bài hát'}</div>
+                      <div class="fbm-spotify-song-name" style="font-size:14px;font-weight:800;color:var(--dark);margin-bottom:6px;line-height:1.3">${escapeSpotifyAttr(meta.title)}</div>
+                      <div style="font-size:9px;font-weight:800;color:var(--gray);text-transform:uppercase;letter-spacing:1px;margin-bottom:2px">${isEn ? 'Artist' : 'Nghệ sĩ'}</div>
+                      <div class="fbm-spotify-artist-name" style="font-size:12px;font-weight:700;color:var(--red);margin-bottom:6px;line-height:1.3">${escapeSpotifyAttr(meta.artist || (isEn ? 'Spotify Artist' : 'Nghệ sĩ Spotify'))}</div>
+                    </div>
+                  `}
+                  ${!meta.hasTrack ? `
+                    <div style="font-size:11px;color:var(--gray);font-style:italic;padding:8px 0">${isEn ? 'Please choose a song in Audio tab' : 'Vui lòng chọn bài hát tại tab Âm thanh'}</div>
+                  ` : ALBUM_DATA.spotifyCodeImg ? `<img src="${ALBUM_DATA.spotifyCodeImg}" style="width:100%;border-radius:6px;box-shadow:0 4px 12px rgba(139,30,63,0.35)">` : `<div class="spotify-soundwave-bar"><div class="spotify-logo-icon">🎵</div><span style="font-size:12px;font-weight:700">${escapeSpotifyAttr(meta.title || 'Spotify Soundwave')}</span></div>`}
+                </div>
+                <div style="font-size:10.5px;color:var(--gray);font-style:italic">${isEn ? 'Scan code on Spotify mobile app to play music.' : 'Quét mã trên app Spotify để phát nhạc.'}</div>
               </div>
-              <div style="margin:16px 0">
-                ${!meta.hasTrack ? `
-                  <div style="font-size:13px;font-weight:700;margin-bottom:6px;color:var(--dark)">${isEn ? 'No track selected yet' : 'Chưa chọn bài hát'}</div>
-                ` : meta.isPending ? `
-                  <div style="margin-bottom:10px;padding:6px 10px;background:rgba(0,0,0,0.04);border-radius:6px">
-                    <div style="font-size:11px;font-weight:600;color:var(--gray)">${isEn ? '⏳ Fetching song details...' : '⏳ Đang lấy thông tin bài hát...'}</div>
-                  </div>
-                ` : `
-                  <div style="margin-bottom:10px;text-align:left">
-                    <div style="font-size:9px;font-weight:800;color:var(--gray);text-transform:uppercase;letter-spacing:1px;margin-bottom:2px">${isEn ? 'Song' : 'Bài hát'}</div>
-                    <div class="fbm-spotify-song-name" style="font-size:14px;font-weight:800;color:var(--dark);margin-bottom:6px;line-height:1.3">${escapeSpotifyAttr(meta.title)}</div>
-                    <div style="font-size:9px;font-weight:800;color:var(--gray);text-transform:uppercase;letter-spacing:1px;margin-bottom:2px">${isEn ? 'Artist' : 'Nghệ sĩ'}</div>
-                    <div class="fbm-spotify-artist-name" style="font-size:12px;font-weight:700;color:var(--red);margin-bottom:6px;line-height:1.3">${escapeSpotifyAttr(meta.artist || (isEn ? 'Spotify Artist' : 'Nghệ sĩ Spotify'))}</div>
-                  </div>
-                `}
-                ${!meta.hasTrack ? `
-                  <div style="font-size:11px;color:var(--gray);font-style:italic;padding:8px 0">${isEn ? 'Please choose a song in Audio tab' : 'Vui lòng chọn bài hát tại tab Âm thanh'}</div>
-                ` : ALBUM_DATA.spotifyCodeImg ? `<img src="${ALBUM_DATA.spotifyCodeImg}" style="width:100%;border-radius:6px;box-shadow:0 4px 12px rgba(139,30,63,0.35)">` : `<div class="spotify-soundwave-bar"><div class="spotify-logo-icon">🎵</div><span style="font-size:12px;font-weight:700">${escapeSpotifyAttr(meta.title || 'Spotify Soundwave')}</span></div>`}
+            `;
+          } else {
+            l.innerHTML = `
+              <div style="height:100%;width:100%;background:var(--yellow-warm);border-radius:8px;padding:20px;display:flex;flex-direction:column;justify-content:space-between">
+                <div>
+                  <span style="font-size:10px;font-weight:800;color:var(--red);letter-spacing:2px">OUR TIMES</span>
+                  <h3 style="font-size:18px;font-weight:700;margin-top:4px">${isEn ? 'Words from the Heart' : 'Lời Nhắn Yêu Thương'}</h3>
+                </div>
+                <div style="margin:20px 0;text-align:left">
+                  <div style="font-size:13px;font-weight:700;color:var(--dark);margin-bottom:8px">${isEn ? '🎙️ Voice Module ISD1820' : '🎙️ Module ghi âm giọng nói'}</div>
+                  <div style="font-size:12px;color:var(--gray);line-height:1.6">${isEn ? 'Album includes physical audio chip to replay authentic voices anytime.' : 'Cuốn album lưu giữ âm thanh mộc mạc và chân thực qua module ghi âm độc bản.'}</div>
+                </div>
+                <div style="font-size:10.5px;color:var(--gray);font-style:italic">${isEn ? 'Handcrafted with care by Melsou.' : 'Gói trọn thanh âm trong từng trang kỷ niệm.'}</div>
               </div>
-              <div style="font-size:10.5px;color:var(--gray);font-style:italic">${isEn ? 'Scan code on Spotify mobile app to play music.' : 'Quét mã trên app Spotify để phát nhạc.'}</div>
-            </div>
-          `;
+            `;
+          }
         } else if (curSpread?.leftType === 'handwritten-letter') {
           l.innerHTML = `
             <div style="height:100%;width:100%;background:var(--yellow-warm);border-radius:8px;padding:20px;display:flex;flex-direction:column;justify-content:space-between">
@@ -3982,11 +4090,16 @@ function renderFlipbookSpread() {
   } else {
     // ════════ DESKTOP 2-PAGE SPREAD PROJECTION ════════
     if (spine) spine.style.display = 'block';
+    const fmt = getCurrentAlbumFormat();
+    const bW = book.offsetWidth || fmt.spreadWidth;
+    const bH = book.offsetHeight || fmt.spreadHeight;
+    const dScaleX = bW / fmt.spreadWidth;
+    const dScaleY = bH / fmt.spreadHeight;
     if (overlay) {
-      overlay.style.width = '100%';
-      overlay.style.height = '100%';
-      overlay.style.transform = 'none';
-      overlay.style.transformOrigin = 'initial';
+      overlay.style.width = fmt.spreadWidth + 'px';
+      overlay.style.height = fmt.spreadHeight + 'px';
+      overlay.style.transform = `scale(${dScaleX}, ${dScaleY})`;
+      overlay.style.transformOrigin = 'top left';
     }
     if (modalTitle) {
       modalTitle.textContent = isEn
@@ -4045,36 +4158,53 @@ function renderFlipbookSpread() {
       l.style.display = 'flex';
       r.style.display = 'flex';
 
+      const hasDeskSpotify = (ALBUM_DATA.package === 'melody' || ALBUM_DATA.package === 'signature');
       if (spread.leftType === 'spotify-hero') {
-        const meta = getSpotifyTrackDisplayMetadata();
-        l.innerHTML = `
-          <div style="height:100%;width:100%;background:var(--yellow-warm);border-radius:8px;padding:24px;display:flex;flex-direction:column;justify-content:space-between">
-            <div>
-              <span style="font-size:10px;font-weight:800;color:var(--red);letter-spacing:2px">OUR TIMES</span>
-              <h3 style="font-size:20px;font-weight:700;margin-top:4px">${isEn ? 'Our Cherished Melody' : 'Giai Điệu Của Chúng Mình'}</h3>
-            </div>
-            <div style="margin:20px 0">
-              ${!meta.hasTrack ? `
-                <div style="font-size:13px;font-weight:700;margin-bottom:6px;color:var(--dark)">${isEn ? 'No track selected yet' : 'Chưa chọn bài hát'}</div>
-              ` : meta.isPending ? `
-                <div style="margin-bottom:12px;padding:8px 12px;background:rgba(0,0,0,0.04);border-radius:6px">
-                  <div style="font-size:11.5px;font-weight:600;color:var(--gray)">${isEn ? '⏳ Fetching song details...' : '⏳ Đang lấy thông tin bài hát...'}</div>
-                </div>
-              ` : `
-                <div style="margin-bottom:14px;text-align:left">
-                  <div style="font-size:9.5px;font-weight:800;color:var(--gray);text-transform:uppercase;letter-spacing:1px;margin-bottom:2px">${isEn ? 'Song' : 'Bài hát'}</div>
-                  <div class="fbm-spotify-song-name" style="font-size:16px;font-weight:800;color:var(--dark);margin-bottom:8px;line-height:1.3">${escapeSpotifyAttr(meta.title)}</div>
-                  <div style="font-size:9.5px;font-weight:800;color:var(--gray);text-transform:uppercase;letter-spacing:1px;margin-bottom:2px">${isEn ? 'Artist' : 'Nghệ sĩ'}</div>
-                  <div class="fbm-spotify-artist-name" style="font-size:13.5px;font-weight:700;color:var(--red);margin-bottom:8px;line-height:1.3">${escapeSpotifyAttr(meta.artist || (isEn ? 'Spotify Artist' : 'Nghệ sĩ Spotify'))}</div>
-                </div>
-              `}
-              ${!meta.hasTrack ? `
-                <div style="font-size:11.5px;color:var(--gray);font-style:italic;padding:10px 0">${isEn ? 'Please choose a song in Audio tab' : 'Vui lòng chọn bài hát tại tab Âm thanh'}</div>
-              ` : ALBUM_DATA.spotifyCodeImg ? `<img src="${ALBUM_DATA.spotifyCodeImg}" style="width:100%;border-radius:6px;box-shadow:0 4px 12px rgba(139,30,63,0.35)">` : `<div class="spotify-soundwave-bar"><div class="spotify-logo-icon">🎵</div><span style="font-size:12px;font-weight:700">${escapeSpotifyAttr(meta.title || 'Spotify Soundwave')}</span></div>`}
+        if (hasDeskSpotify) {
+          const meta = getSpotifyTrackDisplayMetadata();
+          l.innerHTML = `
+            <div style="height:100%;width:100%;background:var(--yellow-warm);border-radius:8px;padding:24px;display:flex;flex-direction:column;justify-content:space-between">
+              <div>
+                <span style="font-size:10px;font-weight:800;color:var(--red);letter-spacing:2px">OUR TIMES</span>
+                <h3 style="font-size:20px;font-weight:700;margin-top:4px">${isEn ? 'Our Cherished Melody' : 'Giai Điệu Của Chúng Mình'}</h3>
               </div>
-            <div style="font-size:11px;color:var(--gray);font-style:italic">${isEn ? 'Scan code on Spotify mobile app to play music.' : 'Quét mã trên app Spotify để phát nhạc.'}</div>
-          </div>
-        `;
+              <div style="margin:20px 0">
+                ${!meta.hasTrack ? `
+                  <div style="font-size:13px;font-weight:700;margin-bottom:6px;color:var(--dark)">${isEn ? 'No track selected yet' : 'Chưa chọn bài hát'}</div>
+                ` : meta.isPending ? `
+                  <div style="margin-bottom:12px;padding:8px 12px;background:rgba(0,0,0,0.04);border-radius:6px">
+                    <div style="font-size:11.5px;font-weight:600;color:var(--gray)">${isEn ? '⏳ Fetching song details...' : '⏳ Đang lấy thông tin bài hát...'}</div>
+                  </div>
+                ` : `
+                  <div style="margin-bottom:14px;text-align:left">
+                    <div style="font-size:9.5px;font-weight:800;color:var(--gray);text-transform:uppercase;letter-spacing:1px;margin-bottom:2px">${isEn ? 'Song' : 'Bài hát'}</div>
+                    <div class="fbm-spotify-song-name" style="font-size:16px;font-weight:800;color:var(--dark);margin-bottom:8px;line-height:1.3">${escapeSpotifyAttr(meta.title)}</div>
+                    <div style="font-size:9.5px;font-weight:800;color:var(--gray);text-transform:uppercase;letter-spacing:1px;margin-bottom:2px">${isEn ? 'Artist' : 'Nghệ sĩ'}</div>
+                    <div class="fbm-spotify-artist-name" style="font-size:13.5px;font-weight:700;color:var(--red);margin-bottom:8px;line-height:1.3">${escapeSpotifyAttr(meta.artist || (isEn ? 'Spotify Artist' : 'Nghệ sĩ Spotify'))}</div>
+                  </div>
+                `}
+                ${!meta.hasTrack ? `
+                  <div style="font-size:11.5px;color:var(--gray);font-style:italic;padding:10px 0">${isEn ? 'Please choose a song in Audio tab' : 'Vui lòng chọn bài hát tại tab Âm thanh'}</div>
+                ` : ALBUM_DATA.spotifyCodeImg ? `<img src="${ALBUM_DATA.spotifyCodeImg}" style="width:100%;border-radius:6px;box-shadow:0 4px 12px rgba(139,30,63,0.35)">` : `<div class="spotify-soundwave-bar"><div class="spotify-logo-icon">🎵</div><span style="font-size:12px;font-weight:700">${escapeSpotifyAttr(meta.title || 'Spotify Soundwave')}</span></div>`}
+                </div>
+              <div style="font-size:11px;color:var(--gray);font-style:italic">${isEn ? 'Scan code on Spotify mobile app to play music.' : 'Quét mã trên app Spotify để phát nhạc.'}</div>
+            </div>
+          `;
+        } else {
+          l.innerHTML = `
+            <div style="height:100%;width:100%;background:var(--yellow-warm);border-radius:8px;padding:24px;display:flex;flex-direction:column;justify-content:space-between">
+              <div>
+                <span style="font-size:10px;font-weight:800;color:var(--red);letter-spacing:2px">OUR TIMES</span>
+                <h3 style="font-size:20px;font-weight:700;margin-top:4px">${isEn ? 'Words from the Heart' : 'Lời Nhắn Yêu Thương'}</h3>
+              </div>
+              <div style="margin:24px 0;text-align:left">
+                <div style="font-size:14px;font-weight:700;color:var(--dark);margin-bottom:8px">${isEn ? '🎙️ Voice Module ISD1820' : '🎙️ Module ghi âm giọng nói'}</div>
+                <div style="font-size:12.5px;color:var(--gray);line-height:1.6">${isEn ? 'Album includes physical audio chip to replay authentic voices anytime.' : 'Cuốn album lưu giữ âm thanh mộc mạc và chân thực qua module ghi âm độc bản.'}</div>
+              </div>
+              <div style="font-size:11px;color:var(--gray);font-style:italic">${isEn ? 'Handcrafted with care by Melsou.' : 'Gói trọn thanh âm trong từng trang kỷ niệm.'}</div>
+            </div>
+          `;
+        }
       } else if (spread.leftType === 'handwritten-letter') {
         l.innerHTML = `
           <div style="height:100%;width:100%;background:var(--yellow-warm);border-radius:8px;padding:24px;display:flex;flex-direction:column;justify-content:space-between">
@@ -4113,9 +4243,9 @@ function renderFlipbookSpread() {
             if (!el.img) {
               return `
                 <div style="position:absolute;left:${el.x}px;top:${el.y}px;width:${frameW}px;transform:rotate(${el.rotate || 0}deg);pointer-events:none;z-index:${elIdx + 40}">
-                  <div class="canva-image-frame-wrapper ${isClean ? 'style-clean' : ''} ${isOval ? 'style-clean' : ''}" style="width:100%;${isOval ? 'border-radius:999px;padding:0;' : ''}">
+                  <div class="canva-image-frame-wrapper ${isClean ? 'clean-style style-clean' : ''} ${isOval ? 'oval-style style-oval' : ''}" style="width:100%;${isOval ? 'border-radius:999px;padding:0;' : (isClean ? 'border-radius:14px;' : '')}">
                     ${(!isClean && !isOval) ? `<div class="pb-washi-corner" style="top:-6px;left:50%;transform:translateX(-50%)"></div>` : ''}
-                    <div class="canva-frame-placeholder" style="height:${frameH}px;${isOval ? 'border-radius:999px;' : ''}">
+                    <div class="canva-frame-placeholder" style="height:${frameH}px;${isOval ? 'border-radius:999px;' : (isClean ? 'border-radius:14px;' : '')}">
                       <span style="font-size:22px;z-index:2">🖼️</span>
                     </div>
                   </div>
@@ -4125,9 +4255,9 @@ function renderFlipbookSpread() {
 
             return `
               <div style="position:absolute;left:${el.x}px;top:${el.y}px;width:${frameW}px;transform:rotate(${el.rotate || 0}deg);pointer-events:none;z-index:${elIdx + 40}">
-                <div class="canva-image-frame-wrapper ${isClean ? 'style-clean' : ''} ${isOval ? 'style-clean' : ''}" style="width:100%;${isOval ? 'border-radius:999px;padding:0;' : ''}">
+                <div class="canva-image-frame-wrapper ${isClean ? 'clean-style style-clean' : ''} ${isOval ? 'oval-style style-oval' : ''}" style="width:100%;${isOval ? 'border-radius:999px;padding:0;' : (isClean ? 'border-radius:14px;' : '')}">
                   ${(!isClean && !isOval) ? `<div class="pb-washi-corner" style="top:-6px;left:50%;transform:translateX(-50%)"></div>` : ''}
-                  <div class="canva-frame-inner-viewport" style="height:${frameH}px;${isOval ? 'border-radius:999px;' : ''}">
+                  <div class="canva-frame-inner-viewport" style="height:${frameH}px;${isOval ? 'border-radius:999px;' : (isClean ? 'border-radius:14px;' : '')}">
                     <img src="${el.img}" class="canva-frame-img" style="transform:rotate(${rotate}deg) scale(${zoom}) translate(${offX}px, ${offY}px);" alt="Frame Photo">
                   </div>
                 </div>
@@ -4135,8 +4265,8 @@ function renderFlipbookSpread() {
             `;
           } else if (el.type === 'text') {
             return `
-              <div style="position:absolute;left:${el.x}px;top:${el.y}px;font-family:${el.font || ALBUM_DATA.letterFont};color:${el.color || ALBUM_DATA.inkColor};font-size:${el.fontSize || 16}px;padding:6px 12px;background:rgba(255,255,255,0.9);border-radius:6px;box-shadow:0 2px 8px rgba(0,0,0,0.1);z-index:${elIdx + 40}">
-                ${el.content}
+              <div style="position:absolute;left:${el.x}px;top:${el.y}px;font-family:${el.font || ALBUM_DATA.letterFont};color:${el.color || ALBUM_DATA.inkColor};font-size:${el.fontSize || 16}px;padding:6px 12px;background:rgba(255,255,255,0.9);border-radius:6px;box-shadow:0 2px 8px rgba(0,0,0,0.1);z-index:${elIdx + 40};white-space:pre-wrap;transform:rotate(${el.rotate || 0}deg);transform-origin:center">
+                ${escapeHtml(el.content || '')}
               </div>
             `;
           } else if (el.type === 'sticker') {
@@ -4407,62 +4537,276 @@ function resetVoiceRec() {
     MELSOU_VOICE.recordingState = 'idle';
     if (typeof updateVoiceUI === 'function') updateVoiceUI();
   }
+  const isEn = (currentAppLanguage === 'en');
   const btn = document.getElementById('btnVoiceStart');
-  if (btn) btn.textContent = '🎙️ Thu Âm';
+  if (btn) btn.textContent = isEn ? '🎙️ Record Voice' : '🎙️ Thu Âm';
   const timer = document.getElementById('voiceRecTimer');
-  if (timer) timer.textContent = `⏱️ Thời lượng: 00:00 / 00:30`;
+  if (timer) timer.textContent = isEn ? `⏱️ Duration: 00:00 / 00:30` : `⏱️ Thời lượng: 00:00 / 00:30`;
 }
 
 let fbmIdx = 0;
 let fbmStartX = 0;
 
 // ── ⬇️ FB37: EXPORT CURRENT DESIGN FILE (LƯU VỀ MÁY) ──
-function exportCurrentDesignFile() {
-  const btn = document.getElementById('btnExportDesign');
-  const originalText = btn ? btn.innerHTML : '⬇ Tải PDF album';
-  if (btn) {
-    btn.disabled = true;
-    btn.innerHTML = '⏳ Đang chuẩn bị tệp...';
+function buildAlbumPdfBlob(albumData) {
+  const isEn = (currentAppLanguage === 'en');
+  const objects = [];
+  const addObj = (content) => {
+    objects.push(content);
+    return objects.length;
+  };
+
+  // Pre-allocate Catalog (1), Pages (2), Fonts (3, 4)
+  objects.push(''); // 1: Catalog
+  objects.push(''); // 2: Pages
+  objects.push('<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>'); // 3
+  objects.push('<< /Type /Font /Subtype /Type1 /BaseFont /Times-Roman >>'); // 4
+
+  const pageObjIds = [];
+  const spreads = (albumData && albumData.spreads) || [];
+  const fmt = (typeof getCurrentAlbumFormat === 'function') ? getCurrentAlbumFormat() : { spreadWidth: 860, spreadHeight: 460, singleWidth: 430 };
+  const rawTitle = (albumData && albumData.title) || (isEn ? 'Melsou Layflat Album' : 'Album Mo Phang Melsou');
+  const rawQuote = (albumData && albumData.quote) || '';
+
+  const escPdf = (str) => {
+    return String(str || '')
+      .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+      .replace(/\\/g, '\\\\')
+      .replace(/\(/g, '\\(')
+      .replace(/\)/g, '\\)');
+  };
+
+  // 1. FRONT COVER
+  {
+    const streamContent = [
+      'q',
+      '0.988 0.984 0.980 rg',
+      `0 0 ${fmt.singleWidth} ${fmt.spreadHeight} re f`,
+      '0.85 0.20 0.25 RG',
+      '2 w',
+      `20 20 ${fmt.singleWidth - 40} ${fmt.spreadHeight - 40} re S`,
+      'BT',
+      '/F2 26 Tf',
+      '0.67 0.12 0.25 rg',
+      `40 ${fmt.spreadHeight - 60} Td`,
+      '(melsou) Tj',
+      'ET',
+      'BT',
+      '/F1 10 Tf',
+      '0.4 0.4 0.4 rg',
+      `40 ${fmt.spreadHeight - 80} Td`,
+      '(180 Layflat Photo Album) Tj',
+      'ET',
+      'BT',
+      '/F2 20 Tf',
+      '0.15 0.15 0.15 rg',
+      `40 ${fmt.spreadHeight - 150} Td`,
+      `(${escPdf(rawTitle)}) Tj`,
+      'ET',
+      'BT',
+      '/F2 12 Tf',
+      '0.35 0.35 0.35 rg',
+      `40 ${fmt.spreadHeight - 180} Td`,
+      `("${escPdf(rawQuote)}") Tj`,
+      'ET',
+      '0.94 0.94 0.94 rg',
+      '0.8 0.8 0.8 RG',
+      '1 w',
+      `40 80 ${fmt.singleWidth - 80} 160 re B`,
+      'BT',
+      '/F1 11 Tf',
+      '0.5 0.5 0.5 rg',
+      `120 160 Td`,
+      '(Front Cover Image) Tj',
+      'ET',
+      'BT',
+      '/F1 9 Tf',
+      '0.6 0.6 0.6 rg',
+      `40 36 Td`,
+      '(Crafted with care by melsou - Saigon Workshop) Tj',
+      'ET',
+      'Q'
+    ].join('\n');
+
+    const streamId = addObj(`<< /Length ${streamContent.length} >>\nstream\n${streamContent}\nendstream`);
+    const pageId = addObj(`<< /Type /Page /Parent 2 0 R /MediaBox [0 0 ${fmt.singleWidth} ${fmt.spreadHeight}] /Resources << /Font << /F1 3 0 R /F2 4 0 R >> >> /Contents ${streamId} 0 R >>`);
+    pageObjIds.push(pageId);
   }
 
-  // 1. Hook into Codex PDF Export Engine
+  // 2. INTERIOR SPREADS
+  spreads.forEach((spread, idx) => {
+    if (spread.isClosedCover || spread.isClosedBack) return;
+    const streamParts = [
+      'q',
+      '1 1 1 rg',
+      `0 0 ${fmt.spreadWidth} ${fmt.spreadHeight} re f`,
+      '0.85 0.85 0.85 RG',
+      '[4 4] 0 d',
+      '0.5 w',
+      `${fmt.singleWidth} 0 m ${fmt.singleWidth} ${fmt.spreadHeight} l S`,
+      '[] 0 d'
+    ];
+
+    if (spread.leftType === 'handwritten-letter') {
+      streamParts.push(
+        '0.985 0.975 0.945 rg',
+        `30 30 ${fmt.singleWidth - 60} ${fmt.spreadHeight - 60} re f`,
+        'BT',
+        '/F2 16 Tf',
+        '0.67 0.12 0.25 rg',
+        `50 ${fmt.spreadHeight - 70} Td`,
+        `(${escPdf(albumData.salutation || 'Dear Loved One,')}) Tj`,
+        'ET',
+        'BT',
+        '/F2 11 Tf',
+        '0.2 0.2 0.2 rg',
+        `50 ${fmt.spreadHeight - 105} Td`,
+        `(${escPdf(albumData.message || 'Memories forever etched in heart.')}) Tj`,
+        'ET'
+      );
+    } else {
+      streamParts.push(
+        'BT',
+        '/F1 10 Tf',
+        '0.55 0.55 0.55 rg',
+        `40 ${fmt.spreadHeight - 40} Td`,
+        `(Spread ${idx} - Left Page) Tj`,
+        'ET'
+      );
+    }
+
+    if (spread.elements && Array.isArray(spread.elements)) {
+      spread.elements.forEach((el) => {
+        const x = el.x || 0;
+        const y = Math.max(10, fmt.spreadHeight - (el.y || 0) - (el.height || 140));
+        const w = el.width || 200;
+        const h = el.height || 140;
+
+        if (el.type === 'photo') {
+          streamParts.push(
+            '0.94 0.94 0.94 rg',
+            '0.75 0.75 0.75 RG',
+            '1 w',
+            `${x} ${y} ${w} ${h} re B`,
+            'BT',
+            '/F1 10 Tf',
+            '0.4 0.4 0.4 rg',
+            `${x + 16} ${y + Math.round(h / 2)} Td`,
+            '([Photo Item]) Tj',
+            'ET'
+          );
+        } else if (el.type === 'text') {
+          streamParts.push(
+            'BT',
+            '/F1 11 Tf',
+            '0.1 0.1 0.1 rg',
+            `${x} ${Math.max(10, fmt.spreadHeight - (el.y || 0) - 16)} Td`,
+            `(${escPdf(el.content || '')}) Tj`,
+            'ET'
+          );
+        }
+      });
+    }
+
+    streamParts.push(
+      'BT',
+      '/F1 9 Tf',
+      '0.6 0.6 0.6 rg',
+      `40 20 Td`,
+      `(${idx * 2}) Tj`,
+      `${fmt.spreadWidth - 50} 20 Td`,
+      `(${idx * 2 + 1}) Tj`,
+      'ET',
+      'Q'
+    );
+
+    const streamContent = streamParts.join('\n');
+    const streamId = addObj(`<< /Length ${streamContent.length} >>\nstream\n${streamContent}\nendstream`);
+    const pageId = addObj(`<< /Type /Page /Parent 2 0 R /MediaBox [0 0 ${fmt.spreadWidth} ${fmt.spreadHeight}] /Resources << /Font << /F1 3 0 R /F2 4 0 R >> >> /Contents ${streamId} 0 R >>`);
+    pageObjIds.push(pageId);
+  });
+
+  // 3. BACK COVER
+  {
+    const streamContent = [
+      'q',
+      '0.988 0.984 0.980 rg',
+      `0 0 ${fmt.singleWidth} ${fmt.spreadHeight} re f`,
+      '0.85 0.85 0.85 RG',
+      '1 w',
+      `20 20 ${fmt.singleWidth - 40} ${fmt.spreadHeight - 40} re S`,
+      'BT',
+      '/F2 20 Tf',
+      '0.67 0.12 0.25 rg',
+      `160 ${fmt.spreadHeight - 80} Td`,
+      '(melsou) Tj',
+      'ET',
+      'BT',
+      '/F1 11 Tf',
+      '0.3 0.3 0.3 rg',
+      `120 180 Td`,
+      '(ISD1820 Physical Audio Module) Tj',
+      'ET',
+      'BT',
+      '/F1 9 Tf',
+      '0.5 0.5 0.5 rg',
+      `110 50 Td`,
+      '(Melsou Workshop HCMC - 180 Layflat) Tj',
+      'ET',
+      'Q'
+    ].join('\n');
+
+    const streamId = addObj(`<< /Length ${streamContent.length} >>\nstream\n${streamContent}\nendstream`);
+    const pageId = addObj(`<< /Type /Page /Parent 2 0 R /MediaBox [0 0 ${fmt.singleWidth} ${fmt.spreadHeight}] /Resources << /Font << /F1 3 0 R /F2 4 0 R >> >> /Contents ${streamId} 0 R >>`);
+    pageObjIds.push(pageId);
+  }
+
+  // Update Catalog & Pages
+  objects[0] = '<< /Type /Catalog /Pages 2 0 R >>';
+  objects[1] = `<< /Type /Pages /Kids [${pageObjIds.map(id => `${id} 0 R`).join(' ')}] /Count ${pageObjIds.length} >>`;
+
+  let pdfStr = '%PDF-1.4\n%\xE2\xE3\xCF\xD3\n';
+  const offsets = [];
+
+  for (let i = 0; i < objects.length; i++) {
+    offsets.push(pdfStr.length);
+    pdfStr += `${i + 1} 0 obj\n${objects[i]}\nendobj\n`;
+  }
+
+  const xrefOffset = pdfStr.length;
+  pdfStr += `xref\n0 ${objects.length + 1}\n0000000000 65535 f \n`;
+  for (let i = 0; i < offsets.length; i++) {
+    pdfStr += `${String(offsets[i]).padStart(10, '0')} 00000 n \n`;
+  }
+
+  pdfStr += `trailer\n<< /Size ${objects.length + 1} /Root 1 0 R >>\nstartxref\n${xrefOffset}\n%%EOF\n`;
+
+  const bytes = new Uint8Array(pdfStr.length);
+  for (let i = 0; i < pdfStr.length; i++) {
+    bytes[i] = pdfStr.charCodeAt(i) & 0xff;
+  }
+  return new Blob([bytes], { type: 'application/pdf' });
+}
+
+function exportCurrentDesignFile() {
+  const isEn = (currentAppLanguage === 'en');
   if (typeof window.codexExportAlbumPdf === 'function') {
     try {
       window.codexExportAlbumPdf(ALBUM_DATA);
-      setTimeout(() => {
-        if (btn) {
-          btn.disabled = false;
-          btn.innerHTML = originalText;
-        }
-        showToast('✅ Đã gửi yêu cầu kết xuất PDF chất lượng in ấn (300 DPI)!');
-      }, 600);
-      return;
     } catch(e) {
       console.warn('codexExportAlbumPdf error:', e);
     }
-  } else if (typeof window.codexHandleExportDesign === 'function') {
-    try {
-      window.codexHandleExportDesign(ALBUM_DATA);
-      setTimeout(() => {
-        if (btn) {
-          btn.disabled = false;
-          btn.innerHTML = originalText;
-        }
-        showToast('✅ Đã khởi tạo tiến trình xuất bản thiết kế!');
-      }, 600);
-      return;
-    } catch(e) {}
-  } else {
-    setTimeout(() => {
-      if (btn) {
-        btn.disabled = false;
-        btn.innerHTML = originalText;
-      }
-      showToast('✅ Đã lưu bản thiết kế về máy thành công!');
-    }, 600);
-    return;
   }
+  showToast(isEn ? 'PDF export is currently being finalized.' : 'Tính năng xuất PDF đang được hoàn thiện.');
 }
+
+window.melsouOnRevisionConflict = function(detail) {
+  const isEn = (currentAppLanguage === 'en');
+  const msg = isEn
+    ? 'Your design was updated elsewhere. Please reload the latest version.'
+    : 'Thiết kế đã được cập nhật ở nơi khác. Vui lòng tải phiên bản mới nhất.';
+  showToast('⚠️ ' + msg);
+};
 
 // ── PREFLIGHT CHECK ──
 function handlePreflightOrAddToCart() {
@@ -4587,7 +4931,7 @@ function updateCartBadge() {
           ${currentAppLanguage === 'en' ? 'Your cart is empty' : 'Giỏ hàng của bạn đang trống'}
         </div>
         <p style="font-size:12.5px;color:var(--gray);margin-bottom:18px;line-height:1.5">
-          ${currentAppLanguage === 'en' ? 'Start creating your bespoke keepsake photobook now.' : 'Hãy bắt đầu tạo cuốn photobook mở phẳng 180° của riêng bạn.'}
+          ${currentAppLanguage === 'en' ? 'Start creating your bespoke 180° photobook now.' : 'Hãy bắt đầu tạo cuốn photobook mở phẳng 180° của riêng bạn.'}
         </p>
         <button class="btn-outline" style="font-size:12.5px;padding:8px 18px" onclick="toggleCart();showPage('studio')">
           ${currentAppLanguage === 'en' ? 'Start Creating Album' : 'Bắt đầu tạo album'}
@@ -5386,6 +5730,11 @@ function updateContextualToolbar() {
         <div class="ctx-right">
           <button class="ctx-btn" onclick="togglePrintSafeGuides()" title="Hiển thị lề an toàn in">📏 Vùng in</button>
           <button class="ctx-btn" style="background:var(--red-light);color:var(--red);border-color:var(--red)" onclick="addNewSpreadToAlbum()">${currentAppLanguage === 'en' ? '➕ Add 2 pages (+15,000₫)' : '➕ Thêm 2 trang (+15.000đ)'}</button>
+          ${activeSpread && activeSpread.isCustomAdded ? `
+            <button class="ctx-btn danger" onclick="requestRemoveSpread(ALBUM_DATA.activeSpreadIndex, event)" title="${currentAppLanguage === 'en' ? 'Remove this spread' : 'Xóa trang đôi này'}">
+              🗑️ ${currentAppLanguage === 'en' ? 'Delete 2 pages (-15,000₫)' : 'Xóa 2 trang (-15.000đ)'}
+            </button>
+          ` : ''}
         </div>
       `;
     }

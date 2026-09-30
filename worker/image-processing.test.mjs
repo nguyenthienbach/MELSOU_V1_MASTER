@@ -164,16 +164,16 @@ test('database queue has explicit state, bounded retry and stale-lease recovery'
 test('authenticated upload decodes before storing a private original and queues processing', async (t) => {
   const projectId = '11111111-1111-4111-8111-111111111111';
   const stored = [];
-  let inserted;
+  let registered;
   let background;
   t.mock.method(globalThis, 'fetch', async (url, init = {}) => {
     const target = String(url);
     if (target.includes('/auth/v1/user')) return new Response(JSON.stringify({ id: 'user-1' }));
-    if (target.includes('/rest/v1/projects?')) return new Response(JSON.stringify([{ id: projectId, owner_user_id: 'user-1' }]));
+    if (target.includes('/rest/v1/projects?')) return new Response(JSON.stringify([{ id: projectId, owner_user_id: 'user-1', revision: 1, document: {}, template_id: 'first-love', template_version: 1 }]));
     if (target.includes('/rest/v1/project_assets?project_id=')) return new Response('[]');
-    if (target.endsWith('/rest/v1/project_assets')) {
-      inserted = JSON.parse(init.body);
-      return new Response(JSON.stringify([inserted]), { status: 201 });
+    if (target.endsWith('/rpc/melsou_register_gallery_asset')) {
+      registered = JSON.parse(init.body);
+      return new Response(JSON.stringify({ asset: { id: registered.p_asset_id, status: 'ORIGINAL_ONLY', processing_state: 'PENDING', mime_type: registered.p_mime_type, width_px: registered.p_width_px, height_px: registered.p_height_px }, project_revision: 2 }), { status: 200 });
     }
     if (target.endsWith('/rpc/melsou_claim_asset_processing')) return new Response('null');
     throw new Error(`unexpected fetch: ${target}`);
@@ -183,18 +183,72 @@ test('authenticated upload decodes before storing a private original and queues 
     MELSOU_ASSETS: { async put(key, _value, options) { stored.push({ key, options }); }, async delete() { throw new Error('original must not be deleted'); } }
   };
   const response = await worker.fetch(new Request(`https://melsou.test/api/projects/${projectId}/assets`, {
-    method: 'POST', headers: { Authorization: 'Bearer user-token', 'Content-Type': 'image/png' }, body: png()
+    method: 'POST', headers: { Authorization: 'Bearer user-token', 'Content-Type': 'image/png', 'X-Melsou-Expected-Revision': '1' }, body: png()
   }), env, { waitUntil(promise) { background = promise; } });
   await background;
   assert.equal(response.status, 201);
-  assert.equal(inserted.processing_state, 'PENDING');
-  assert.equal(inserted.status, 'ORIGINAL_ONLY');
-  assert.equal(inserted.mime_type, 'image/png');
-  assert.equal(inserted.width_px, 2400);
-  assert.equal(inserted.height_px, 1600);
+  const body = await response.json();
+  assert.equal(body.projectRevision, 2);
+  assert.equal(registered.p_expected_revision, 1);
+  assert.equal(registered.p_owner_user_id, 'user-1');
+  assert.equal(registered.p_guest_session_hash, null);
+  assert.equal(registered.p_mime_type, 'image/png');
+  assert.equal(registered.p_width_px, 2400);
+  assert.equal(registered.p_height_px, 1600);
   assert.equal(stored.length, 1);
   assert.match(stored[0].key, new RegExp(`^projects/${projectId}/assets/[0-9a-f-]{36}/original$`, 'i'));
   assert.equal(stored[0].options.httpMetadata.cacheControl, 'private, no-store');
+});
+
+test('asset upload rejects a stale revision and deletes only its uncommitted R2 object', async (t) => {
+  const projectId = '11111111-1111-4111-8111-111111111111';
+  const deleted = [];
+  t.mock.method(globalThis, 'fetch', async (url) => {
+    const target = String(url);
+    if (target.includes('/auth/v1/user')) return Response.json({ id: 'user-1' });
+    if (target.includes('/rest/v1/projects?')) return Response.json([{ id: projectId, revision: 4, document: {}, template_id: 'first-love', template_version: 1 }]);
+    if (target.includes('/rest/v1/project_assets?project_id=')) return Response.json([]);
+    if (target.endsWith('/rpc/melsou_register_gallery_asset')) return Response.json({ conflict: true, revision: 4 });
+    throw new Error(`unexpected fetch: ${target}`);
+  });
+  const env = {
+    SUPABASE_URL: 'https://db.test', SUPABASE_SERVICE_ROLE_KEY: 'service', SUPABASE_ANON_KEY: 'anon', IMAGES: new FakeImages(),
+    MELSOU_ASSETS: { async put() {}, async delete(key) { deleted.push(key); } }
+  };
+  const response = await worker.fetch(new Request(`https://melsou.test/api/projects/${projectId}/assets`, {
+    method: 'POST', headers: { Authorization: 'Bearer user-token', 'Content-Type': 'image/png', 'X-Melsou-Expected-Revision': '3' }, body: png()
+  }), env, { waitUntil() {} });
+  assert.equal(response.status, 409);
+  assert.deepEqual(await response.json(), { error: 'REVISION_CONFLICT', currentRevision: 4 });
+  assert.equal(deleted.length, 1);
+  assert.match(deleted[0], new RegExp(`^projects/${projectId}/assets/[0-9a-f-]{36}/original$`, 'i'));
+});
+
+test('transactional checksum race reuses one canonical asset and removes the losing R2 object', async (t) => {
+  const projectId = '11111111-1111-4111-8111-111111111111';
+  const existingId = '22222222-2222-4222-8222-222222222222';
+  const deleted = [];
+  t.mock.method(globalThis, 'fetch', async (url) => {
+    const target = String(url);
+    if (target.includes('/auth/v1/user')) return Response.json({ id: 'user-1' });
+    if (target.includes('/rest/v1/projects?')) return Response.json([{ id: projectId, revision: 1, document: {}, template_id: 'first-love', template_version: 1 }]);
+    if (target.includes('/rest/v1/project_assets?project_id=')) return Response.json([]);
+    if (target.endsWith('/rpc/melsou_register_gallery_asset')) return Response.json({ asset: { id: existingId, processing_state: 'READY' }, project_revision: 2, duplicate: true });
+    throw new Error(`unexpected fetch: ${target}`);
+  });
+  const env = {
+    SUPABASE_URL: 'https://db.test', SUPABASE_SERVICE_ROLE_KEY: 'service', SUPABASE_ANON_KEY: 'anon', IMAGES: new FakeImages(),
+    MELSOU_ASSETS: { async put() {}, async delete(key) { deleted.push(key); } }
+  };
+  const response = await worker.fetch(new Request(`https://melsou.test/api/projects/${projectId}/assets`, {
+    method: 'POST', headers: { Authorization: 'Bearer user-token', 'Content-Type': 'image/png', 'X-Melsou-Expected-Revision': '1' }, body: png()
+  }), env, { waitUntil() { assert.fail('ready duplicate must not queue processing'); } });
+  assert.equal(response.status, 200);
+  const body = await response.json();
+  assert.equal(body.asset.id, existingId);
+  assert.equal(body.duplicate, true);
+  assert.equal(body.projectRevision, 2);
+  assert.equal(deleted.length, 1);
 });
 
 test('preview endpoint remains authenticated and serves only the private derivative', async (t) => {

@@ -124,7 +124,9 @@
       modal.setAttribute('aria-modal', 'false');
       modal.style.position = 'relative';
       modal.style.display = 'flex';
-      body.textContent = 'Đang tải câu chuyện...';
+      if (!body.innerHTML || !body.innerHTML.trim()) {
+        body.textContent = 'Đang tải câu chuyện...';
+      }
       const fetchPost = (typeof window.codexGetPublishedPost === 'function')
         ? window.codexGetPublishedPost
         : ((slug) => fetch(`/api/blog/${encodeURIComponent(slug)}`).then(r => r.json()));

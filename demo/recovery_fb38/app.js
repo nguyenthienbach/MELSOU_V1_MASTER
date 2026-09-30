@@ -87,7 +87,7 @@ const TEMPLATES_DATA = [
   {
     id: 'memory-box',
     nameVi: 'Hộp kỷ vật hoài niệm',
-    nameEn: 'Memory Box Keepsake',
+    nameEn: 'Memory Box Album',
     taglineVi: 'Giấy Kraft mộc mạc lưu giữ những điều trân quý',
     taglineEn: 'Rustic Kraft paper preserving your most cherished moments',
     tagVi: 'Chọn mẫu này →',
@@ -257,7 +257,7 @@ function getFreshAlbumData() {
     quote: '',
     salutation: 'Gửi người thương,',
     message: '',
-    signature: '— melsou keepsake —',
+    signature: '— melsou —',
     letterFont: "'Lora', serif",
     inkColor: '#1A1A1A',
     spotifyUrl: null,
@@ -336,10 +336,137 @@ function getFreshAlbumData() {
 let ALBUM_DATA = getFreshAlbumData();
 
 // ── LOCALSTORAGE SAFE SYNC ──
+// ── INDEXEDDB PERSISTENCE HELPER (FB92: Unlimited Quota Local Draft Store) ──
+const MELSOU_IDB_NAME = 'melsou_studio_v1';
+const MELSOU_IDB_STORE = 'drafts';
+let melsouIdbInstance = null;
+
+function getMelsouIdb() {
+  if (melsouIdbInstance) return Promise.resolve(melsouIdbInstance);
+  if (typeof indexedDB === 'undefined') return Promise.resolve(null);
+  return new Promise((resolve) => {
+    try {
+      const req = indexedDB.open(MELSOU_IDB_NAME, 1);
+      req.onupgradeneeded = (e) => {
+        const db = e.target.result;
+        if (!db.objectStoreNames.contains(MELSOU_IDB_STORE)) {
+          db.createObjectStore(MELSOU_IDB_STORE, { keyPath: 'id' });
+        }
+      };
+      req.onsuccess = (e) => {
+        melsouIdbInstance = e.target.result;
+        resolve(melsouIdbInstance);
+      };
+      req.onerror = () => resolve(null);
+    } catch {
+      resolve(null);
+    }
+  });
+}
+
+async function melsouEnsureDataUrl(url) {
+  if (!url || typeof url !== 'string' || !url.startsWith('blob:')) return url;
+  try {
+    const res = await fetch(url);
+    const blob = await res.blob();
+    return new Promise((resolve) => {
+      const reader = new FileReader();
+      reader.onloadend = () => resolve(reader.result || url);
+      reader.onerror = () => resolve(url);
+      reader.readAsDataURL(blob);
+    });
+  } catch {
+    return url;
+  }
+}
+
+async function melsouSaveDraftToDb(draft) {
+  try {
+    const db = await getMelsouIdb();
+    if (!db) return;
+
+    let persistentDraft = draft;
+    try {
+      const serialized = JSON.stringify(draft);
+      if (serialized && serialized.includes('"blob:')) {
+        persistentDraft = JSON.parse(serialized);
+        if (Array.isArray(persistentDraft.userGallery)) {
+          persistentDraft.userGallery = await Promise.all(
+            persistentDraft.userGallery.map(u => (typeof u === 'string' && u.startsWith('blob:')) ? melsouEnsureDataUrl(u) : u)
+          );
+        }
+        if (Array.isArray(persistentDraft.spreads)) {
+          for (const s of persistentDraft.spreads) {
+            if (s.coverImg && s.coverImg.startsWith('blob:')) s.coverImg = await melsouEnsureDataUrl(s.coverImg);
+            if (s.backImg && s.backImg.startsWith('blob:')) s.backImg = await melsouEnsureDataUrl(s.backImg);
+            if (Array.isArray(s.elements)) {
+              for (const el of s.elements) {
+                if (el.img && el.img.startsWith('blob:')) el.img = await melsouEnsureDataUrl(el.img);
+              }
+            }
+          }
+        }
+      }
+    } catch {
+      persistentDraft = draft;
+    }
+
+    const tx = db.transaction(MELSOU_IDB_STORE, 'readwrite');
+    const store = tx.objectStore(MELSOU_IDB_STORE);
+    store.put({ id: 'active_draft', data: persistentDraft, updatedAt: Date.now() });
+  } catch (e) {
+    console.warn('[Melsou IDB] save error:', e);
+  }
+}
+
+async function melsouLoadDraftFromDb() {
+  try {
+    const db = await getMelsouIdb();
+    if (!db) return null;
+    return new Promise((resolve) => {
+      const tx = db.transaction(MELSOU_IDB_STORE, 'readonly');
+      const store = tx.objectStore(MELSOU_IDB_STORE);
+      const req = store.get('active_draft');
+      req.onsuccess = () => resolve(req.result?.data || null);
+      req.onerror = () => resolve(null);
+    });
+  } catch {
+    return null;
+  }
+}
+
+function pruneHeavyData(data) {
+  if (!data || typeof data !== 'object') return data;
+  const clone = JSON.parse(JSON.stringify(data));
+  if (Array.isArray(clone.userGallery)) {
+    clone.userGallery = clone.userGallery.filter(url => !url.startsWith('data:')).slice(0, 10);
+  }
+  if (Array.isArray(clone.spreads)) {
+    clone.spreads.forEach(s => {
+      if (s.coverImg && s.coverImg.startsWith('data:') && s.coverImg.length > 50000) s.coverImg = '';
+      if (s.backImg && s.backImg.startsWith('data:') && s.backImg.length > 50000) s.backImg = '';
+      if (Array.isArray(s.elements)) {
+        s.elements.forEach(el => {
+          if (el.img && el.img.startsWith('data:') && el.img.length > 50000) el.img = '';
+        });
+      }
+    });
+  }
+  return clone;
+}
+
+// ── LOCALSTORAGE & INDEXEDDB SAFE SYNC ──
 function autoSaveToLocalStorage() {
   try {
     ALBUM_DATA.version = SCHEMA_VERSION;
-    localStorage.setItem('melsou_active_draft', JSON.stringify(ALBUM_DATA));
+    melsouSaveDraftToDb(ALBUM_DATA);
+    try {
+      localStorage.setItem('melsou_active_draft', JSON.stringify(ALBUM_DATA));
+    } catch (quotaErr) {
+      try {
+        localStorage.setItem('melsou_active_draft', JSON.stringify(pruneHeavyData(ALBUM_DATA)));
+      } catch (_) {}
+    }
     // The auth bridge is deliberately notified after the browser backup succeeds.
     // It mirrors the draft to the server using the opaque guest session; it never
     // treats localStorage as proof that somebody is signed in.
@@ -356,12 +483,54 @@ window.melsouApplyCanonicalDraft = (draft) => {
   // cart already established in this browser/session and ignore legacy carts
   // that may still exist inside an older canonical editor payload.
   const activeCart = Array.isArray(ALBUM_DATA?.cart) ? ALBUM_DATA.cart : [];
+  const currentData = ALBUM_DATA || {};
   const designDraft = Object.assign({}, draft);
   delete designDraft.cart;
+
+  // SAFELY PRESERVE LOCAL IMAGES: If incoming draft has null/empty image for an element/cover,
+  // but current local data has a valid image, retain the local image!
+  if (Array.isArray(designDraft.spreads) && Array.isArray(currentData.spreads)) {
+    designDraft.spreads.forEach((spread, sIdx) => {
+      const curSpread = currentData.spreads[sIdx];
+      if (!curSpread) return;
+      if (!spread.coverImg && curSpread.coverImg) spread.coverImg = curSpread.coverImg;
+      if (!spread.backImg && curSpread.backImg) spread.backImg = curSpread.backImg;
+      if (Array.isArray(spread.elements) && Array.isArray(curSpread.elements)) {
+        spread.elements.forEach(el => {
+          const curEl = curSpread.elements.find(e => String(e.id) === String(el.id));
+          if (curEl && curEl.img && !el.img) {
+            el.img = curEl.img;
+            if (curEl.crop && !el.crop) el.crop = curEl.crop;
+          }
+        });
+      }
+    });
+  }
+
+  // Preserve userGallery
+  if (Array.isArray(currentData.userGallery) && currentData.userGallery.length > 0) {
+    const existing = new Set(designDraft.userGallery || []);
+    const mergedGallery = [...(designDraft.userGallery || [])];
+    currentData.userGallery.forEach(img => {
+      if (!existing.has(img)) {
+        mergedGallery.push(img);
+        existing.add(img);
+      }
+    });
+    designDraft.userGallery = mergedGallery;
+  }
+
   ALBUM_DATA = Object.assign(getFreshAlbumData(), designDraft, { cart: activeCart });
   ALBUM_DATA.spreads.forEach(s => normalizeElementsToSafeArea(s));
   ALBUM_DATA.extraSpreadsCount = ALBUM_DATA.spreads.filter(s => s.isCustomAdded).length;
-  localStorage.setItem('melsou_active_draft', JSON.stringify(ALBUM_DATA));
+  melsouSaveDraftToDb(ALBUM_DATA);
+  try {
+    localStorage.setItem('melsou_active_draft', JSON.stringify(ALBUM_DATA));
+  } catch (quotaErr) {
+    try {
+      localStorage.setItem('melsou_active_draft', JSON.stringify(pruneHeavyData(ALBUM_DATA)));
+    } catch (_) {}
+  }
   if (studioWorkspaceInitialized && typeof renderStudioWorkspace === 'function') renderStudioWorkspace();
   if (typeof updateCartBadge === 'function') updateCartBadge();
   return true;
@@ -381,11 +550,41 @@ function loadFromLocalStorage() {
         if (Array.isArray(ALBUM_DATA.spreads)) {
           ALBUM_DATA.spreads.forEach(s => normalizeElementsToSafeArea(s));
         }
-        return;
       }
     }
   } catch(e) {}
-  ALBUM_DATA = getFreshAlbumData();
+  if (!ALBUM_DATA) ALBUM_DATA = getFreshAlbumData();
+
+  // Asynchronously hydrate any full images stored in IndexedDB
+  if (typeof window !== 'undefined') {
+    melsouLoadDraftFromDb().then(idbDraft => {
+      if (idbDraft && Array.isArray(idbDraft.spreads) && idbDraft.version === SCHEMA_VERSION) {
+        let hasNewImages = false;
+        idbDraft.spreads.forEach((s, sIdx) => {
+          const curSpread = ALBUM_DATA.spreads?.[sIdx];
+          if (!curSpread) return;
+          if (!curSpread.coverImg && s.coverImg) { curSpread.coverImg = s.coverImg; hasNewImages = true; }
+          if (!curSpread.backImg && s.backImg) { curSpread.backImg = s.backImg; hasNewImages = true; }
+          if (Array.isArray(s.elements) && Array.isArray(curSpread.elements)) {
+            s.elements.forEach(el => {
+              const curEl = curSpread.elements.find(e => String(e.id) === String(el.id));
+              if (curEl && !curEl.img && el.img) {
+                curEl.img = el.img;
+                hasNewImages = true;
+              }
+            });
+          }
+        });
+        if (Array.isArray(idbDraft.userGallery) && idbDraft.userGallery.length > (ALBUM_DATA.userGallery?.length || 0)) {
+          ALBUM_DATA.userGallery = idbDraft.userGallery;
+          hasNewImages = true;
+        }
+        if (hasNewImages && studioWorkspaceInitialized && typeof renderStudioWorkspace === 'function') {
+          renderStudioWorkspace();
+        }
+      }
+    }).catch(() => {});
+  }
 }
 
 // ── STUDIO CURSIVE FONTS LAZY LOADER ──
@@ -2056,7 +2255,7 @@ const MELSOU_I18N = {
     // Pricing Section
     pricingTitle: 'Gói sản phẩm',
     pkgFeaturedBadge: '✦ Được nhiều khách lựa chọn nhất',
-    pkgMelodyLabel: 'MELODY KEEPSAKE',
+    pkgMelodyLabel: 'MELODY ALBUM',
     pkgMelodyNote: 'Nhỏ gọn, mở phẳng liền trang kèm mã nhạc Spotify độc bản',
     pkgMelodyFeat1: 'Album mở phẳng 180° liền trang cao cấp (không rách gáy)',
     pkgMelodyFeat2: 'Tùy chọn khổ ảnh: Vuông 20×20cm hoặc A5 Đứng',
@@ -2064,7 +2263,7 @@ const MELSOU_I18N = {
     pkgMelodyFeat4: 'Tặng kèm hộp quà Kraft mộc mạc + Thiệp tay',
     btnSelectMelody: 'Chọn gói này',
 
-    pkgVoiceLabel: 'VOICE KEEPSAKE',
+    pkgVoiceLabel: 'VOICE ALBUM',
     pkgVoiceNote: 'Chạm để lắng nghe giọng nói thật lưu trên vi mạch vật lý',
     pkgVoiceFeat1: 'Album mở phẳng 180° liền trang cao cấp',
     pkgVoiceFeat2: 'Module âm thanh ISD1820 tích hợp ở bìa sau',
@@ -2162,7 +2361,12 @@ const MELSOU_I18N = {
     forgotPwBackLink: '← Quay lại đăng nhập',
     lblLinkedEmailHeading: 'Email liên kết',
     lblLinkedEmailDesc: 'Dùng để khôi phục mật khẩu và nhận hóa đơn',
-    btnSettingsLinkEmail: 'Thêm email'
+    btnSettingsLinkEmail: 'Thêm email',
+    flipbookSound: '🔊 Âm thanh',
+    flipbookExport: '⬇ Lưu về máy',
+    voiceRecTimerPrefix: '⏱️ Thời lượng',
+    voiceRecTimerDefault: '⏱️ Thời lượng: 00:00 / 00:30',
+    authTermsDisclaimer: 'Bằng việc tiếp tục, bạn đồng ý với <a href="/chinh-sach-bao-mat" target="_blank" onclick="openPrivacyPolicyModal(event)" style="color:var(--red);font-weight:700">Chính sách bảo mật</a> và <a href="/chinh-sach-bao-hanh" target="_blank" onclick="openWarrantyPolicyModal(event)" style="color:var(--red);font-weight:700">Chính sách bảo hành</a> của Melsou.'
   },
   en: {
     // Topbar & Header
@@ -2180,7 +2384,7 @@ const MELSOU_I18N = {
     cartBtnLabel: 'Cart',
 
     // Hero Section
-    heroBadge: '180° Seamless Layflat Photobook with Sound Keepsake',
+    heroBadge: '180° Seamless Layflat Photobook with Sound',
     heroTitle: 'Cherish feelings',
     heroTitleAccent: 'in the shape of sound',
     heroDesc: 'Cameras capture visual silhouettes, but often leave voices behind. melsou fuses melody and souvenir so every printed page sings its own heartfelt tune.',
@@ -2202,14 +2406,14 @@ const MELSOU_I18N = {
     valCardTitle2: 'Multi-Sensory Memory Awakening',
     valCardDesc2: 'Memories should never stay dormant on flat paper. At Melsou, nostalgia is preserved through the textured grain of fine paper and beloved voices.',
     valCardMore2: 'Explore story →',
-    valCardTitle3: 'Off-Grid Intimacy for Keepsakes',
+    valCardTitle3: 'Off-Grid Intimacy for Moments',
     valCardDesc3: 'All personal messages and recorded voices are stored directly onto a physical integrated circuit. No cloud leakage, totally safe.',
     valCardMore3: 'Explore story →',
 
     // Pricing Section
     pricingTitle: 'Packages',
     pkgFeaturedBadge: '✦ Most Popular Choice',
-    pkgMelodyLabel: 'MELODY KEEPSAKE',
+    pkgMelodyLabel: 'MELODY ALBUM',
     pkgMelodyNote: 'Compact, seamless layflat with personalized Spotify code',
     pkgMelodyFeat1: 'Premium 180° seamless layflat album (zero gutter split)',
     pkgMelodyFeat2: 'Size options: Square 20×20cm or A5 Portrait',
@@ -2217,7 +2421,7 @@ const MELSOU_I18N = {
     pkgMelodyFeat4: 'Complementary Kraft gift box + Handwritten card',
     btnSelectMelody: 'Select package',
 
-    pkgVoiceLabel: 'VOICE KEEPSAKE',
+    pkgVoiceLabel: 'VOICE ALBUM',
     pkgVoiceNote: 'Touch to hear real voices stored on physical microchips',
     pkgVoiceFeat1: 'Premium 180° seamless layflat album',
     pkgVoiceFeat2: 'Integrated ISD1820 audio module in back cover',
@@ -2266,7 +2470,7 @@ const MELSOU_I18N = {
 
     // Reviews & Blog
     reviewsHeading: 'Reflections from Melsou Creators',
-    reviewsSubheading: 'Authentic thoughts from customers who designed and held their own Melsou keepsakes',
+    reviewsSubheading: 'Authentic thoughts from customers who designed and held their own Melsou albums',
     reviewsBadge: 'CUSTOMER REVIEWS',
     reviewsDisclaimer: '* Reviews gathered from customers who designed and received their handcrafted albums.',
     btnWriteReview: 'Write Review',
@@ -2315,7 +2519,12 @@ const MELSOU_I18N = {
     forgotPwBackLink: '← Back to log in',
     lblLinkedEmailHeading: 'Linked Email',
     lblLinkedEmailDesc: 'Used for password recovery and receiving digital receipts',
-    btnSettingsLinkEmail: 'Link Email'
+    btnSettingsLinkEmail: 'Link Email',
+    flipbookSound: '🔊 Sound',
+    flipbookExport: '⬇ Save to device',
+    voiceRecTimerPrefix: '⏱️ Duration',
+    voiceRecTimerDefault: '⏱️ Duration: 00:00 / 00:30',
+    authTermsDisclaimer: 'By continuing, you agree to Melsou\'s <a href="/chinh-sach-bao-mat" target="_blank" onclick="openPrivacyPolicyModal(event)" style="color:var(--red);font-weight:700">Privacy Policy</a> and <a href="/chinh-sach-bao-hanh" target="_blank" onclick="openWarrantyPolicyModal(event)" style="color:var(--red);font-weight:700">Warranty Policy</a>.'
   }
 };
 
@@ -2356,8 +2565,16 @@ function applyStudioTranslations(lang) {
 
   const textReplacements = isEn ? [
     ['1. Chọn Gói Sản Phẩm', '1. Choose Photobook Package'],
-    ['Gói Melody', 'Melody Keepsake'],
-    ['Gói Voice', 'Voice Keepsake'],
+    ['2. Khổ Album & Kích Thước Thật', '2. Album Format & Actual Size'],
+    ['2. Khổ Album &amp; Kích Thước Thật', '2. Album Format & Actual Size'],
+    ['Gói Signature Combo · 199k', 'Signature Combo Package · 199k'],
+    ['Gói Melody · 119k', 'Melody Package · 119k'],
+    ['Gói Voice · 159k', 'Voice Package · 159k'],
+    ['⏱️ Thời lượng: 00:00 / 00:30', '⏱️ Duration: 00:00 / 00:30'],
+    ['🔊 Âm thanh', '🔊 Sound'],
+    ['⬇ Lưu về máy', '⬇ Save to device'],
+    ['Gói Melody', 'Melody Album'],
+    ['Gói Voice', 'Voice Album'],
     ['Full: Spotify + Voice Chip + Quà', 'Full: Spotify + Voice Chip + Gifts'],
     ['A5 Đứng', 'A5 Portrait'],
     ['Khổ Vuông', 'Square Format'],
@@ -2422,11 +2639,15 @@ function applyStudioTranslations(lang) {
     ['↷ Làm lại', '↷ Redo'],
     ['🎯 Căn Giữa', '🎯 Center'],
     ['📷 Đổi Ảnh', '📷 Replace Photo'],
-    ['Tất cả các trang', 'All pages']
+    ['Tất cả các trang', 'All pages'],
+    ['🗑️ Xóa trang đôi này (-15.000đ)', '🗑️ Remove this spread (-15,000₫)'],
+    ['Xóa trang đôi này (-15.000đ)', 'Remove this spread (-15,000₫)'],
+    ['Bạn muốn đổi khổ album?', 'Change Album Format?'],
+    ['Xóa trang đôi?', 'Remove Spread?']
   ] : [
     ['1. Choose Photobook Package', '1. Chọn Gói Sản Phẩm'],
-    ['Melody Keepsake', 'Gói Melody'],
-    ['Voice Keepsake', 'Gói Voice'],
+    ['Melody Album', 'Gói Melody'],
+    ['Voice Album', 'Gói Voice'],
     ['Full: Spotify + Voice Chip + Gifts', 'Full: Spotify + Voice Chip + Quà'],
     ['2. Album Dimensions & Sizes', '2. Khổ Album & Kích Thước Thật'],
     ['A5 Portrait', 'A5 Đứng'],
@@ -2492,7 +2713,18 @@ function applyStudioTranslations(lang) {
     ['↷ Redo', '↷ Làm lại'],
     ['🎯 Center', '🎯 Căn Giữa'],
     ['📷 Replace Photo', '📷 Đổi Ảnh'],
-    ['All pages', 'Tất cả các trang']
+    ['All pages', 'Tất cả các trang'],
+    ['🗑️ Remove this spread (-15,000₫)', '🗑️ Xóa trang đôi này (-15.000đ)'],
+    ['Remove this spread (-15,000₫)', 'Xóa trang đôi này (-15.000đ)'],
+    ['Change Album Format?', 'Bạn muốn đổi khổ album?'],
+    ['Remove Spread?', 'Xóa trang đôi?'],
+    ['2. Album Format & Actual Size', '2. Khổ Album & Kích Thước Thật'],
+    ['Signature Combo Package · 199k', 'Gói Signature Combo · 199k'],
+    ['Melody Package · 119k', 'Gói Melody · 119k'],
+    ['Voice Package · 159k', 'Gói Voice · 159k'],
+    ['⏱️ Duration: 00:00 / 00:30', '⏱️ Thời lượng: 00:00 / 00:30'],
+    ['🔊 Sound', '🔊 Âm thanh'],
+    ['⬇ Save to device', '⬇ Lưu về máy']
   ];
 
   const studio = document.getElementById('page-studio');
@@ -2510,6 +2742,26 @@ function applyStudioTranslations(lang) {
         }
       }
     }
+  }
+
+  const pkgBadge = document.getElementById('studioPackageBadge');
+  if (pkgBadge) {
+    const pkg = (typeof ALBUM_DATA !== 'undefined' && ALBUM_DATA.package) || 'signature';
+    pkgBadge.textContent = isEn
+      ? (pkg === 'melody' ? 'Melody Package · 119k' : (pkg === 'voice' ? 'Voice Package · 159k' : 'Signature Combo Package · 199k'))
+      : (pkg === 'melody' ? 'Gói Melody · 119k' : (pkg === 'voice' ? 'Gói Voice · 159k' : 'Gói Signature Combo · 199k'));
+  }
+
+  const fbmSound = document.getElementById('fbmSoundToggleBtn');
+  if (fbmSound) {
+    fbmSound.textContent = isEn ? '🔊 Sound' : '🔊 Âm thanh';
+    fbmSound.title = isEn ? 'Toggle flip sound' : 'Bật/Tắt âm thanh lật trang';
+  }
+  const fbmExp = document.getElementById('fbmExportDesignBtn');
+  if (fbmExp) fbmExp.textContent = isEn ? '⬇ Save to device' : '⬇ Lưu về máy';
+  const vTimer = document.getElementById('voiceRecTimer');
+  if (vTimer && vTimer.textContent.includes('00:00 / 00:30')) {
+    vTimer.textContent = isEn ? '⏱️ Duration: 00:00 / 00:30' : '⏱️ Thời lượng: 00:00 / 00:30';
   }
 
   // Sticker subtabs
@@ -2688,7 +2940,7 @@ function switchLanguage(lang) {
   });
 
   const authLabel = document.getElementById('headerAuthBtnLabel');
-  if (authLabel && (!currentUser || currentUser.isGuest)) {
+  if (authLabel && (!currentUser || !currentUser.loggedIn || currentUser.isGuest)) {
     authLabel.textContent = dict.authBtnLabel;
   }
   const cartLabel = document.getElementById('headerCartBtnLabel');
@@ -2903,6 +3155,10 @@ function switchLanguage(lang) {
   if (lblLinkedMailDesc && dict.lblLinkedEmailDesc) lblLinkedMailDesc.textContent = dict.lblLinkedEmailDesc;
   const btnSetLinkEmail = document.getElementById('btnSettingsLinkEmail');
   if (btnSetLinkEmail && dict.btnSettingsLinkEmail) btnSetLinkEmail.textContent = dict.btnSettingsLinkEmail;
+  const authDisclaimer = document.getElementById('authTermsDisclaimer');
+  if (authDisclaimer && dict.authTermsDisclaimer) {
+    authDisclaimer.innerHTML = dict.authTermsDisclaimer;
+  }
 
   // Speed Dial Translations (FB71)
   const sdBtn = document.getElementById('sdMainBtn');
@@ -2996,6 +3252,7 @@ function switchLanguage(lang) {
 
   syncHeroLiveBook();
   if (typeof renderReviewsList === 'function') renderReviewsList();
+  if (typeof renderCustomerReviews === 'function') renderCustomerReviews();
   if (typeof renderPublicBlog === 'function') renderPublicBlog();
 
   window.MelsouStudio?.refreshLanguage(lang);
@@ -3156,7 +3413,7 @@ function renderCustomerReviews() {
       <div>
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
           <div class="review-stars">${'⭐'.repeat(rev.rating || 5)}</div>
-          <span class="review-badge-verified">✓ Đã trải nghiệm Melsou</span>
+          <span class="review-badge-verified">${isEn ? '✓ Verified Melsou Experience' : '✓ Đã trải nghiệm Melsou'}</span>
         </div>
         <h3 style="font-size:15px;font-weight:700;color:var(--dark);margin-bottom:6px">${rev.title || ''}</h3>
         <p style="font-size:13.5px;line-height:1.65;color:#374151;font-style:italic">"${rev.content || ''}"</p>
@@ -3170,8 +3427,8 @@ function renderCustomerReviews() {
           ${(rev.authorName || 'KH').substring(0, 2).toUpperCase()}
         </div>
         <div>
-          <strong style="display:block;font-size:13.5px;color:var(--dark)">${rev.authorName || 'Khách hàng'}</strong>
-          <span style="font-size:11.5px;color:var(--gray)">${rev.package || 'Gói photobook'}</span>
+          <strong style="display:block;font-size:13.5px;color:var(--dark)">${rev.authorName || (isEn ? 'Customer' : 'Khách hàng')}</strong>
+          <span style="font-size:11.5px;color:var(--gray)">${rev.package || (isEn ? 'Photobook Package' : 'Gói photobook')}</span>
         </div>
       </div>
     </div>`).join('');
@@ -3375,7 +3632,7 @@ async function renderPublicBlog(category = 'all', page = 1) {
   }
   if (typeof window.codexGetPublishedPosts !== 'function') return;
   let result;
-  try { result = await window.codexGetPublishedPosts({ page, perPage: 6, category }); }
+  try { result = await window.codexGetPublishedPosts({ page, perPage: 12, category }); }
   catch (error) {
     if (requestId !== blogListRequestId) return;
     console.warn('codexGetPublishedPosts error:', error);
@@ -3412,7 +3669,7 @@ function renderFilteredBlogPosts() {
       : (isEn ? 'The first stories of Melsou are being prepared...' : 'Những câu chuyện đầu tiên của Melsou đang được chuẩn bị...');
     const emptySub = blogSearchQuery
       ? (isEn ? 'Try another keyword or select "All stories"' : 'Vui lòng thử từ khóa khác hoặc chọn "Tất cả bài viết"')
-      : (isEn ? 'We will soon share cherished keepsake memories.' : 'Chúng tôi sẽ sớm chia sẻ những câu chuyện từ xưởng in Melsou đến bạn.');
+      : (isEn ? 'We will soon share cherished stories from Melsou.' : 'Chúng tôi sẽ sớm chia sẻ những câu chuyện từ xưởng in Melsou đến bạn.');
     list.innerHTML = `
       <div class="blog-empty-state" style="width:100%;grid-column:1/-1">
         <h3 style="font-size:17.5px;font-weight:700;color:var(--dark);margin-bottom:6px">${emptyMsg}</h3>
@@ -3449,8 +3706,19 @@ function renderFilteredBlogPosts() {
     </article>`).join('');
 
   if (loadMoreWrap) {
-    loadMoreWrap.style.display = 'none';
-    loadMoreWrap.innerHTML = '';
+    if (currentBlogPage < currentBlogTotalPages) {
+      loadMoreWrap.style.display = 'flex';
+      loadMoreWrap.style.justifyContent = 'center';
+      loadMoreWrap.style.marginTop = '24px';
+      loadMoreWrap.innerHTML = `
+        <button class="btn-outline" onclick="loadMoreBlogPosts()" style="padding:10px 24px;border-radius:100px;font-size:13.5px;font-weight:700">
+          ${isEn ? 'Load more stories' : 'Xem thêm bài viết'}
+        </button>
+      `;
+    } else {
+      loadMoreWrap.style.display = 'none';
+      loadMoreWrap.innerHTML = '';
+    }
   }
 
   updateBlogCarouselArrows();
@@ -6059,4 +6327,7 @@ if (typeof window !== 'undefined') {
 }
 
 
-// ============================================================
+function loadMoreBlogPosts() {
+  if (currentBlogPage < currentBlogTotalPages) renderPublicBlog(activeBlogCategory, currentBlogPage + 1);
+}
+window.loadMoreBlogPosts = loadMoreBlogPosts;

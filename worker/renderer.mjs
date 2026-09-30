@@ -20,6 +20,35 @@ const points = (millimeters) => Number(millimeters) * MM_TO_POINTS;
 const color = (hex, rgb) => rgb(Number.parseInt(hex.slice(1, 3), 16) / 255, Number.parseInt(hex.slice(3, 5), 16) / 255, Number.parseInt(hex.slice(5, 7), 16) / 255);
 const xml = (value) => String(value || '').replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;').replaceAll('"', '&quot;');
 
+// This audit is deliberately fail-closed. The order renderer creates genuine
+// private PDF artifacts from R2, but it does not yet implement the complete
+// Studio design model. A customer-facing export route must not be enabled
+// until every required capability below is backed by the same renderer.
+export function projectRenderCapabilityAudit() {
+  return Object.freeze({
+    canonical_snapshot: true,
+    private_r2_assets: true,
+    non_empty_pdf_artifacts: true,
+    vietnamese_unicode_fonts: false,
+    per_spread_layout: false,
+    crop_pan_zoom: false,
+    rotation: false,
+    rounded_frame_mask: false,
+    oval_frame_mask: false,
+    multiline_studio_text: false,
+    package_specific_content: false,
+    customer_download_ready: false
+  });
+}
+
+export function assertCustomerProjectRenderReady() {
+  if (!projectRenderCapabilityAudit().customer_download_ready) {
+    const error = new Error('PROJECT_RENDER_FIDELITY_NOT_READY');
+    error.code = 'PROJECT_RENDER_FIDELITY_NOT_READY';
+    throw error;
+  }
+}
+
 export async function templateFor(id, version = 1) {
   const loader = templateLoaders[id]; if (!loader) throw new Error('TEMPLATE_VERSION_UNAVAILABLE');
   const template = (await loader()).default;
