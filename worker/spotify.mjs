@@ -235,29 +235,62 @@ async function objectBytes(object) {
 }
 
 export async function ensureSpotifyCode(trackId, env, fetchImpl = fetch) {
-  if (!TRACK_ID.test(String(trackId || '')) || !env.MELSOU_ASSETS || !env.IMAGES) throw new Error('SPOTIFY_CODE_GENERATION_FAILED');
+  if (!TRACK_ID.test(String(trackId || ''))) throw new Error('ERR_INVALID_TRACK_ID');
+  if (!env.MELSOU_ASSETS) throw new Error('ERR_MISSING_ASSETS_STORAGE');
   const key = spotifyCodeStorageKey(trackId);
-  const existing = await env.MELSOU_ASSETS.get(key);
+  const existing = await env.MELSOU_ASSETS.get(key).catch((e) => { console.error('get existing failed', e); return null; });
   if (existing) {
     try {
       const bytes = await objectBytes(existing);
-      inspectSpotifyCodePng(bytes);
-      const image = await inspectUploadedImage(bytes, env.IMAGES, 'image/png');
-      if (image.width <= image.height) throw new Error('SPOTIFY_CODE_GENERATION_FAILED');
+      const pngMeta = inspectSpotifyCodePng(bytes);
+      let image = pngMeta;
+      if (env.IMAGES?.info) {
+        try {
+          const inspected = await inspectUploadedImage(bytes, env.IMAGES, 'image/png');
+          if (inspected?.width) image = inspected;
+        } catch (e) {
+          console.warn('env.IMAGES.info skipped on existing:', e);
+        }
+      }
+      if (image.width <= image.height) throw new Error('ERR_BAD_DIMENSIONS');
       return { assetRef: spotifyCodeAssetRef(trackId), previewUrl: `/api/spotify/code/${spotifyCodeAssetRef(trackId)}`, ...image, cached: true };
     } catch {
-      await env.MELSOU_ASSETS.delete(key);
+      await env.MELSOU_ASSETS.delete(key).catch(() => {});
     }
   }
   const uri = `spotify:track:${trackId}`;
-  const response = await fetchImpl(`${SPOTIFY_CODE_SOURCE}/${uri}`, { headers: { Accept: 'image/png' }, redirect: 'follow' });
+  let response;
+  try {
+    response = await fetchImpl(`${SPOTIFY_CODE_SOURCE}/${uri}`, {
+      headers: {
+        Accept: 'image/png',
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+      },
+      redirect: 'follow'
+    });
+  } catch (err) {
+    throw new Error(`ERR_FETCH_FAILED:${err?.message || err}`);
+  }
   const contentType = String(response.headers.get('Content-Type') || '').split(';')[0].trim().toLowerCase();
-  if (!response.ok || contentType !== 'image/png') throw new Error('SPOTIFY_CODE_GENERATION_FAILED');
+  if (!response.ok || contentType !== 'image/png') throw new Error(`ERR_UPSTREAM_HTTP_${response.status}_CONTENT_${contentType}`);
   const bytes = new Uint8Array(await response.arrayBuffer());
-  inspectSpotifyCodePng(bytes);
-  const image = await inspectUploadedImage(bytes, env.IMAGES, 'image/png');
-  if (image.width <= image.height) throw new Error('SPOTIFY_CODE_GENERATION_FAILED');
-  await env.MELSOU_ASSETS.put(key, bytes, { httpMetadata: { contentType: 'image/png', cacheControl: 'private, max-age=31536000, immutable' }, customMetadata: { spotifyUri: uri, mode: 'ACADEMIC_DEMO_ONLY', source: 'NON_GUARANTEED_SPOTIFY_CODE_SOURCE' } });
+  const pngMeta = inspectSpotifyCodePng(bytes);
+  let image = pngMeta;
+  if (env.IMAGES?.info) {
+    try {
+      const inspected = await inspectUploadedImage(bytes, env.IMAGES, 'image/png');
+      if (inspected?.width) image = inspected;
+    } catch (e) {
+      console.warn('env.IMAGES.info skipped on new:', e);
+    }
+  }
+  if (image.width <= image.height) throw new Error('ERR_BAD_DIMENSIONS');
+  try {
+    await env.MELSOU_ASSETS.put(key, bytes, { httpMetadata: { contentType: 'image/png', cacheControl: 'private, max-age=31536000, immutable' }, customMetadata: { spotifyUri: uri, mode: 'ACADEMIC_DEMO_ONLY', source: 'NON_GUARANTEED_SPOTIFY_CODE_SOURCE' } });
+  } catch (err) {
+    console.error('MELSOU_ASSETS.put failed:', err);
+    throw new Error(`ERR_STORAGE_PUT_FAILED:${err?.message || err}`);
+  }
   return { assetRef: spotifyCodeAssetRef(trackId), previewUrl: `/api/spotify/code/${spotifyCodeAssetRef(trackId)}`, ...image, cached: false };
 }
 
@@ -279,7 +312,8 @@ export async function handleSpotifyCode(request, env, kind, { fetchImpl = fetch,
     const bytes = await objectBytes(object);
     inspectSpotifyCodePng(bytes);
     return new Response(bytes, { status: 200, headers: { 'Content-Type': 'image/png', 'Cache-Control': 'public, max-age=86400, immutable', 'X-Content-Type-Options': 'nosniff', 'Content-Length': String(bytes.byteLength) } });
-  } catch {
+  } catch (err) {
+    console.error('handleSpotifyCode error:', err);
     return failure('SPOTIFY_CODE_GENERATION_FAILED', 502);
   }
 }
