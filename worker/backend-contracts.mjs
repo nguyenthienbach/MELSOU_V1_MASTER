@@ -40,13 +40,45 @@ function rejectEmbeddedBinary(value, depth = 0) {
   }
 }
 
+const spotifyTrackIdPattern = /^[A-Za-z0-9]{22}$/;
+function validateCanonicalSpotifyTrack(track) {
+  if (!track || typeof track !== 'object' || Array.isArray(track) || !spotifyTrackIdPattern.test(String(track.id || ''))) throw new ContractError('INVALID_SPOTIFY_SELECTION');
+  const id = String(track.id);
+  if (track.uri !== `spotify:track:${id}` || track.url !== `https://open.spotify.com/track/${id}`) throw new ContractError('INVALID_SPOTIFY_SELECTION');
+  if (!String(track.name || '').trim() || String(track.name).length > 300 || !Array.isArray(track.artists) || track.artists.length < 1 || track.artists.length > 10) throw new ContractError('INVALID_SPOTIFY_SELECTION');
+  if (track.artists.some((artist) => !String(artist || '').trim() || String(artist).length > 200)) throw new ContractError('INVALID_SPOTIFY_SELECTION');
+  if (track.spotifyCodeAssetRef !== null && track.spotifyCodeAssetRef !== undefined && track.spotifyCodeAssetRef !== `spcode_${id}_v1`) throw new ContractError('INVALID_SPOTIFY_CODE_ASSET');
+}
+
 function validateSpotify(document) {
+  const canonical = document?.spotify;
+  if (canonical !== undefined) {
+    if (!canonical || typeof canonical !== 'object' || Array.isArray(canonical)) throw new ContractError('INVALID_SPOTIFY_SELECTION');
+    const packageCode = document?.configuration?.packageCode;
+    const history = canonical.history;
+    if (!Array.isArray(history) || history.length > 10) throw new ContractError('INVALID_SPOTIFY_HISTORY');
+    const ids = new Set();
+    for (const track of history) {
+      validateCanonicalSpotifyTrack(track);
+      if (ids.has(track.id)) throw new ContractError('INVALID_SPOTIFY_HISTORY');
+      ids.add(track.id);
+    }
+    if (canonical.activeTrack !== null) validateCanonicalSpotifyTrack(canonical.activeTrack);
+    if (canonical.activeTrack && !ids.has(canonical.activeTrack.id)) throw new ContractError('INVALID_SPOTIFY_HISTORY');
+    if (packageCode === 'VOICE' && (canonical.activeTrack || history.length)) throw new ContractError('SPOTIFY_NOT_ALLOWED_FOR_PACKAGE');
+    if (canonical.activeTrack && !['MELODY', 'SIGNATURE'].includes(packageCode)) throw new ContractError('SPOTIFY_NOT_ALLOWED_FOR_PACKAGE');
+    const projectedUrl = document?.options?.spotify_url;
+    if (Boolean(document?.options?.spotify_enabled) !== Boolean(canonical.activeTrack) || (canonical.activeTrack && projectedUrl !== canonical.activeTrack.url)) throw new ContractError('INVALID_SPOTIFY_SELECTION');
+    return;
+  }
   const enabled = document?.options?.spotify_enabled;
   const url = document?.options?.spotify_url;
   if (!enabled && (url === null || url === undefined || url === '')) return;
   if (enabled !== true || typeof url !== 'string') throw new ContractError('INVALID_SPOTIFY_SELECTION');
   let parsed;
   try { parsed = new URL(url); } catch { throw new ContractError('INVALID_SPOTIFY_SELECTION'); }
+  // Preserve pre-canonical drafts exactly as they were accepted. New search and
+  // resolve endpoints issue track-only canonical state above.
   if (parsed.protocol !== 'https:' || parsed.hostname !== 'open.spotify.com' || !/^\/(track|album|playlist)\/[A-Za-z0-9]+\/?$/.test(parsed.pathname)) {
     throw new ContractError('INVALID_SPOTIFY_SELECTION');
   }

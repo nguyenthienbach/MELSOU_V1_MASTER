@@ -673,15 +673,18 @@
             <div class="c-section-title">1. Chọn Nhạc Spotify Cho Album</div>
 
             <div style="background:white;border-radius:12px;padding:14px;border:1px solid var(--gray-l);margin-bottom:14px">
-              <!-- DYNAMIC SONG SEARCH INPUT -->
-              <label style="font-size:11.5px;font-weight:700;color:var(--gray);display:block;margin-bottom:4px">Tìm bài hát hoặc ca sĩ:</label>
+              <!-- PASTE SPOTIFY TRACK LINK INPUT -->
+              <label style="font-size:11.5px;font-weight:700;color:var(--gray);display:block;margin-bottom:4px" id="lblSpotifyInputTitle">Dán liên kết bài hát Spotify:</label>
               <div style="position:relative">
-                <input type="text" class="form-input" id="spotifySearchInput" placeholder="Gõ tên bài hát (vd: Until I Found You, Perfect...)" oninput="handleSpotifySongSearch(this.value)" onkeydown="if(event.key==='Enter'){handleSpotifySongSearch(this.value);}" autocomplete="off">
+                <input type="text" class="form-input" id="spotifySearchInput" placeholder="https://open.spotify.com/track/..." oninput="handleSpotifyLinkInput(this.value)" onkeydown="if(event.key==='Enter'){handleSpotifyLinkInput(this.value,true);}" autocomplete="off">
                 <div id="spotifySearchSpinner" style="display:none;position:absolute;right:12px;top:10px;font-size:12px">⏳</div>
               </div>
+              <div style="font-size:11px;color:var(--gray);margin-top:6px;display:flex;align-items:center;gap:4px" id="lblSpotifyHelperText">
+                💡 <span>Mở Spotify → Chia sẻ → Sao chép liên kết</span>
+              </div>
 
-              <!-- DYNAMIC SEARCH SUGGESTIONS DROPDOWN -->
-              <div id="spotifySearchResultsBox" style="display:none;margin-top:8px;border:1px solid var(--gray-l);border-radius:10px;background:white;max-height:220px;overflow-y:auto;box-shadow:0 4px 12px rgba(0,0,0,0.08)"></div>
+              <!-- RESOLVE ERROR MESSAGE BOX -->
+              <div id="spotifyResolveErrorBox" style="display:none;margin-top:8px;padding:8px 12px;background:#fef2f2;border:1px solid #fecaca;border-radius:8px;font-size:11.5px;color:#dc2626"></div>
 
               <!-- CURRENTLY SELECTED SONG CARD -->
               <div id="spotifySelectedSongCard" style="margin-top:12px;display:none;background:#f8fafc;border:1.5px solid #cbd5e1;border-radius:10px;padding:10px;align-items:center;gap:10px">
@@ -689,25 +692,27 @@
                 <div style="flex:1;min-width:0">
                   <div style="font-weight:700;font-size:13px;color:var(--dark);white-space:nowrap;overflow:hidden;text-overflow:ellipsis" id="spotifySelectedTitle"></div>
                   <div style="font-size:11.5px;color:var(--gray);white-space:nowrap;overflow:hidden;text-overflow:ellipsis" id="spotifySelectedArtist"></div>
-                  <div style="font-size:10px;color:var(--spotify);font-weight:700;margin-top:2px">✓ Đã liên kết mã Spotify Soundwave</div>
+                  <div style="font-size:10px;color:var(--spotify);font-weight:700;margin-top:2px" id="lblSpotifyLinkedBadge">✓ Đã liên kết Spotify Code</div>
                 </div>
-                <button onclick="removeSelectedSpotifySong()" style="background:none;border:none;color:#dc2626;font-size:16px;cursor:pointer" title="Gỡ bài hát">✕</button>
+                <button class="btn-outline" onclick="removeSelectedSpotifySong();document.getElementById('spotifySearchInput')?.focus()" style="padding:4px 8px;font-size:11px;border-radius:6px;white-space:nowrap;color:var(--gray);cursor:pointer" id="btnChangeSpotifySong">Đổi bài</button>
+                <button onclick="removeSelectedSpotifySong()" style="background:none;border:none;color:#dc2626;font-size:16px;cursor:pointer;padding:4px 6px" title="Gỡ bài hát">✕</button>
               </div>
 
               <!-- EMPTY STATE WHEN NO SONG IS SELECTED -->
               <div id="spotifyEmptyPlaceholder" style="margin-top:12px;text-align:center;padding:16px;background:var(--bg);border-radius:10px;border:1px dashed var(--gray-l)">
                 <div style="font-size:24px;margin-bottom:4px">🎵</div>
-                <strong style="font-size:12.5px;color:var(--dark);display:block">Chưa có bài hát nào được chọn</strong>
-                <span style="font-size:11px;color:var(--gray)">Hãy gõ tên bài hát ở trên để tìm hoặc dán đường dẫn Spotify</span>
+                <strong style="font-size:12.5px;color:var(--dark);display:block" id="lblSpotifyEmptyTitle">Chưa có bài hát nào được chọn</strong>
+                <span style="font-size:11px;color:var(--gray)" id="lblSpotifyEmptyDesc">Dán đường dẫn bài hát Spotify ở trên để liên kết</span>
               </div>
 
-              <!-- COLLAPSIBLE DIRECT URL OPTION -->
-              <details style="margin-top:12px;font-size:11.5px;color:var(--gray)">
-                <summary style="cursor:pointer;font-weight:600">Hoặc dán trực tiếp đường dẫn Spotify</summary>
-                <div style="margin-top:8px">
-                  <input type="text" class="form-input" id="spotifyLinkInput" placeholder="https://open.spotify.com/track/..." oninput="handleSpotifyLinkChange(this.value)" style="font-size:11.5px">
+              <!-- RECENTLY SELECTED SPOTIFY HISTORY (FB35) -->
+              <div id="spotifyHistorySection" style="margin-top:14px;border-top:1px solid var(--gray-l);padding-top:12px">
+                <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+                  <span style="font-size:11.5px;font-weight:700;color:var(--gray)" id="lblSpotifyHistoryTitle">Bài đã chọn gần đây:</span>
+                  <span id="spotifyHistoryCount" style="font-size:10.5px;color:var(--gray)"></span>
                 </div>
-              </details>
+                <div id="spotifyHistoryList" style="display:flex;flex-direction:column;gap:6px;max-height:220px;overflow-y:auto"></div>
+              </div>
 
               <!-- OFFICIAL SPOTIFY EMBED CONTAINER -->
               <div id="spotifyEmbedHostContainer" style="margin-top:12px"></div>

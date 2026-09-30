@@ -123,12 +123,40 @@
   const sha256Hex = async (bytes) => Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256', bytes))).map((value) => value.toString(16).padStart(2, '0')).join('');
   const showError = (message) => window.MelsouAuth?.setLoginState('error', window.getUserFriendlyErrorMessage ? window.getUserFriendlyErrorMessage(message) : message);
 
+  const canonicalPackageCode = (draft) => ({ melody: 'MELODY', voice: 'VOICE', signature: 'SIGNATURE' }[String(draft?.package || '').toLowerCase()] || null);
+  function canonicalSpotifyTrack(track) {
+    if (!track || !/^[A-Za-z0-9]{22}$/.test(String(track.id || ''))) return null;
+    const artists = Array.isArray(track.artists) ? track.artists.map((artist) => typeof artist === 'string' ? artist : artist?.name).filter(Boolean).map(String).slice(0, 10) : String(track.artistName || track.artist || '').split(',').map((item) => item.trim()).filter(Boolean).slice(0, 10);
+    if (!artists.length) return null;
+    return {
+      id: String(track.id), uri: `spotify:track:${track.id}`, url: `https://open.spotify.com/track/${track.id}`,
+      name: String(track.name || track.title || '').trim().slice(0, 300), artists,
+      artistName: artists.join(', ').slice(0, 500), albumName: String(track.albumName || '').slice(0, 300),
+      coverUrl: String(track.coverUrl || track.artwork || track.artworkUrl || '').slice(0, 2000) || null,
+      durationMs: Number.isSafeInteger(track.durationMs) ? track.durationMs : null,
+      spotifyCodeAssetRef: track.spotifyCodeAssetRef === `spcode_${track.id}_v1` ? track.spotifyCodeAssetRef : null
+    };
+  }
+  const spotifyUiTrack = (track) => ({ ...track, title: track.name, artist: track.artistName, artistNames: track.artists, artwork: track.coverUrl, artworkUrl: track.coverUrl, canonicalUrl: track.url });
+  function canonicalSpotifyState(draft) {
+    const packageCode = canonicalPackageCode(draft);
+    if (!['MELODY', 'SIGNATURE'].includes(packageCode)) return { activeTrack: null, history: [] };
+    const activeTrack = canonicalSpotifyTrack(draft?.spotifyCanonical?.activeTrack || draft?.spotifyTrackObj);
+    const history = [];
+    for (const candidate of [activeTrack, ...(draft?.spotifyCanonical?.history || draft?.spotifyHistory || [])]) {
+      const track = canonicalSpotifyTrack(candidate);
+      if (track && !history.some((item) => item.id === track.id)) history.push(track);
+      if (history.length === 10) break;
+    }
+    return { activeTrack, history };
+  }
+
   function safeEditorPayload(value) {
     // Do not write a local binary/blob into Postgres JSON. Private Supabase Storage
     // remains the only long-term store for uploaded originals. Layout,
     // typography, text, transforms and remote image URLs are retained here.
     if (typeof value === 'string') return /^(?:data:|blob:)/i.test(value) ? null : value;
-    if (Array.isArray(value)) return value.map(safeEditorPayload);
+    if (Array.isArray(value)) return value.map(safeEditorPayload).filter((item) => item !== null);
     if (!value || typeof value !== 'object') return value;
     if (value instanceof Blob || value instanceof File) return null;
     const output = {};
@@ -164,16 +192,26 @@
     if (bridge.primaryAssetId && !contentBindings.image_01) contentBindings.image_01 = { asset_id: bridge.primaryAssetId };
     if (templateId === 'melsou-editorial') contentBindings.headline_01 = { text: String(draft.title || 'Album chưa đặt tên').slice(0, 120) };
     const editorPayload = safeEditorPayload(draft);
+    const packageCode = canonicalPackageCode(draft);
+    const spotify = canonicalSpotifyState(draft);
+    if (packageCode === 'VOICE') {
+      for (const key of ['spotifyTrackObj','spotifyTrack','spotifyTrackTitle','spotifyArtist','spotifyUrl','spotifyTrackId','spotifyArtwork','spotifyCodeImg','spotifyEmbed','spotifyCanonical','spotifyHistory']) delete editorPayload[key];
+    } else {
+      editorPayload.spotifyCanonical = spotify;
+      editorPayload.spotifyCodeImg = null;
+    }
     // Gallery binaries and temporary preview URLs are reconstructed from the
     // canonical asset records. They never become durable project JSON.
     editorPayload.userGallery = [];
     return {
       schema_version: 1,
       template: { template_id: templateId, version: 1 },
-      configuration: { size, pages },
+      configuration: { size, pages, packageCode },
       cover: { title: String(draft.title || 'Album chưa đặt tên').slice(0, 120), quote: String(draft.quote || '').slice(0, 500) },
       content_bindings: contentBindings,
       gallery_assets: (bridge.galleryAssets || []).filter((item) => item?.assetId).map((item) => ({ asset_id: item.assetId })),
+      spotify,
+      options: { spotify_enabled: Boolean(spotify.activeTrack), spotify_url: spotify.activeTrack?.url || null },
       editor_asset_slots: bridge.uiSlotMap || {},
       // The Studio payload is namespaced so the locked V1 document remains valid
       // while the Antigravity UI is progressively migrated to template slots.
@@ -438,6 +476,40 @@
       || `placed_${String(slotKey || 'image').replace(/[^a-z0-9_-]/gi, '_').slice(0, 80)}`;
   }
 
+  window.codexSearchSpotifyTracks = async (query) => {
+    const result = await api(`/spotify/search?q=${encodeURIComponent(String(query || '').trim())}`);
+    return { tracks: (result.tracks || []).map(spotifyUiTrack) };
+  };
+  window.codexResolveSpotifyTrack = async (url) => {
+    const result = await api('/spotify/resolve', { method: 'POST', body: JSON.stringify({ url }) });
+    return spotifyUiTrack(result.track);
+  };
+  window.codexGetSpotifyState = () => canonicalSpotifyState(window.melsouGetActiveDraft?.() || {});
+  const selectCanonicalSpotifyTrack = async (track) => {
+    const draft = window.melsouGetActiveDraft?.() || {};
+    if (!['MELODY', 'SIGNATURE'].includes(canonicalPackageCode(draft))) throw Object.assign(new Error('SPOTIFY_NOT_ALLOWED_FOR_PACKAGE'), { code: 'SPOTIFY_NOT_ALLOWED_FOR_PACKAGE' });
+    let activeTrack = canonicalSpotifyTrack(track);
+    if (!activeTrack) throw Object.assign(new Error('INVALID_SPOTIFY_SELECTION'), { code: 'INVALID_SPOTIFY_SELECTION' });
+    let codeError = null;
+    try {
+      const generated = await api('/spotify/code', { method: 'POST', body: JSON.stringify({ uri: activeTrack.uri }) });
+      activeTrack = { ...activeTrack, spotifyCodeAssetRef: generated.code?.assetRef || null };
+      draft.spotifyCodeImg = generated.code?.previewUrl || null;
+    } catch (error) {
+      codeError = error;
+      activeTrack = { ...activeTrack, spotifyCodeAssetRef: null };
+      draft.spotifyCodeImg = null;
+    }
+    const prior = canonicalSpotifyState(draft).history;
+    draft.spotifyCanonical = { activeTrack, history: [activeTrack, ...prior.filter((item) => item.id !== activeTrack.id)].slice(0, 10) };
+    draft.spotifyHistory = draft.spotifyCanonical.history;
+    schedulePersist();
+    window.dispatchEvent(new CustomEvent('melsou-spotify-code-updated', { detail: { available: Boolean(activeTrack.spotifyCodeAssetRef), error: codeError?.code || null } }));
+    return { ...structuredClone(draft.spotifyCanonical), codeError: codeError?.code || null };
+  };
+  window.codexSelectSpotifyTrack = selectCanonicalSpotifyTrack;
+  window.codexOnSpotifyTrackSelected = selectCanonicalSpotifyTrack;
+
   window.melsouOnImageAssigned = ({ slotKey, source } = {}) => {
     if (!slotKey || !supportedStudioSource(source)) return;
     const bridge = readBridge();
@@ -492,6 +564,43 @@
       };
       writeBridge(nextBridge);
       const hydrated = structuredClone(project.document.editor_payload);
+      const restoredSpotify = project.document.spotify;
+      if (['MELODY', 'SIGNATURE'].includes(project.document.configuration?.packageCode)) {
+        if (restoredSpotify) {
+          hydrated.spotifyCanonical = restoredSpotify;
+          hydrated.spotifyHistory = restoredSpotify.history || [];
+        }
+        if (restoredSpotify?.activeTrack) {
+          hydrated.spotifyTrackObj = spotifyUiTrack(restoredSpotify.activeTrack);
+          hydrated.spotifyTrack = `${restoredSpotify.activeTrack.name} — ${restoredSpotify.activeTrack.artistName}`;
+          hydrated.spotifyTrackTitle = restoredSpotify.activeTrack.name;
+          hydrated.spotifyArtist = restoredSpotify.activeTrack.artistName;
+          hydrated.spotifyUrl = restoredSpotify.activeTrack.url;
+          hydrated.spotifyTrackId = restoredSpotify.activeTrack.id;
+          hydrated.spotifyArtwork = restoredSpotify.activeTrack.coverUrl;
+          hydrated.spotifyCodeImg = restoredSpotify.activeTrack.spotifyCodeAssetRef ? `/api/spotify/code/${encodeURIComponent(restoredSpotify.activeTrack.spotifyCodeAssetRef)}` : null;
+        } else {
+          hydrated.spotifyTrackObj = null;
+          hydrated.spotifyTrack = null;
+          hydrated.spotifyTrackTitle = null;
+          hydrated.spotifyArtist = null;
+          hydrated.spotifyUrl = null;
+          hydrated.spotifyTrackId = null;
+          hydrated.spotifyArtwork = null;
+          hydrated.spotifyCodeImg = null;
+        }
+      } else {
+        hydrated.spotifyCanonical = { activeTrack: null, history: [] };
+        hydrated.spotifyHistory = [];
+        hydrated.spotifyTrackObj = null;
+        hydrated.spotifyTrack = null;
+        hydrated.spotifyTrackTitle = null;
+        hydrated.spotifyArtist = null;
+        hydrated.spotifyUrl = null;
+        hydrated.spotifyTrackId = null;
+        hydrated.spotifyArtwork = null;
+        hydrated.spotifyCodeImg = null;
+      }
       hydrated.userGallery = [];
       const assetIds = [...new Set([...galleryRefs.map((item) => item.asset_id), ...Object.values(restoredSlots).map((item) => item.assetId)])];
       const previewSources = new Map();

@@ -1238,7 +1238,7 @@ function renderActiveSpread() {
                   <div style="font-size:11.5px;font-weight:600;color:var(--gray)">${isEn ? '⏳ Fetching song details...' : '⏳ Đang lấy thông tin bài hát...'}</div>
                 </div>
               ` : `
-                <div style="margin-bottom:12px;text-align:left">
+                <div style="margin-bottom:12px;text-align:left;cursor:${ALBUM_DATA.spotifyUrl ? 'pointer' : 'default'}" ${ALBUM_DATA.spotifyUrl ? `onclick="window.open('${escapeSpotifyAttr(ALBUM_DATA.spotifyUrl)}','_blank','noopener,noreferrer')"` : ''} title="${ALBUM_DATA.spotifyUrl ? (isEn ? 'Click to open Spotify' : 'Bấm để mở bài hát trên Spotify') : ''}">
                   <div style="font-size:9.5px;font-weight:800;color:var(--gray);text-transform:uppercase;letter-spacing:1px;margin-bottom:2px">${isEn ? 'Song' : 'Bài hát'}</div>
                   <div id="spotifyHeroSongTitle" style="font-size:15px;font-weight:800;color:var(--dark);margin-bottom:8px;line-height:1.3">${escapeSpotifyAttr(meta.title)}</div>
                   <div style="font-size:9.5px;font-weight:800;color:var(--gray);text-transform:uppercase;letter-spacing:1px;margin-bottom:2px">${isEn ? 'Artist' : 'Nghệ sĩ'}</div>
@@ -2649,200 +2649,132 @@ function navigateToSpotifyQrPage() {
   showToast(toastMsg);
 }
 
-let spotifySearchDebounce = null;
-let spotifySearchSeqId = 0;
+let spotifyLinkDebounce = null;
+let spotifyLinkSeqId = 0;
 
-function handleSpotifySongSearch(query) {
-  const rawQuery = (query || '').trim();
-  const resBox = document.getElementById('spotifySearchResultsBox');
+function handleSpotifyLinkInput(val, immediate = false) {
+  const rawQuery = (val || '').trim();
+  const errorBox = document.getElementById('spotifyResolveErrorBox');
   const spinner = document.getElementById('spotifySearchSpinner');
-  if (!resBox) return;
+  const resBox = document.getElementById('spotifySearchResultsBox');
+  const isEn = (currentAppLanguage === 'en');
 
-  if (spotifySearchDebounce) clearTimeout(spotifySearchDebounce);
+  if (spotifyLinkDebounce) clearTimeout(spotifyLinkDebounce);
+  if (resBox) { resBox.style.display = 'none'; resBox.innerHTML = ''; }
 
   if (!rawQuery) {
-    resBox.style.display = 'none';
-    resBox.innerHTML = '';
     if (spinner) spinner.style.display = 'none';
+    if (errorBox) { errorBox.style.display = 'none'; errorBox.innerHTML = ''; }
     return;
   }
 
-  // 1. Direct Spotify URL detection inside search box
-  const parsedUrl = parseSpotifyUrl(rawQuery);
-  if (parsedUrl) {
+  // Quick rejection of non-track Spotify types (playlist, album, artist, show, episode, user)
+  if (/open\.spotify\.com\/(playlist|album|artist|episode|show|user)\b/i.test(rawQuery) ||
+      /spotify:(playlist|album|artist|episode|show|user):/i.test(rawQuery)) {
     if (spinner) spinner.style.display = 'none';
-    const isEn = (currentAppLanguage === 'en');
-    resBox.innerHTML = `
-      <div class="spotify-search-item" onclick="handleDirectSpotifyLinkResolve('${escapeSpotifyAttr(parsedUrl.cleanUrl)}', '${escapeSpotifyAttr(parsedUrl.id)}')"
-           style="display:flex;align-items:center;gap:10px;padding:12px 14px;cursor:pointer;background:#f0fdf4;border-bottom:1px solid #bbf7d0;transition:background 0.15s ease">
-        <span style="font-size:20px">🔗</span>
-        <div style="flex:1;min-width:0">
-          <div style="font-size:12.5px;font-weight:700;color:#166534">${isEn ? 'Direct Spotify Link Detected' : 'Nhận diện liên kết Spotify hợp lệ'}</div>
-          <div style="font-size:11px;color:#15803d;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${parsedUrl.cleanUrl}</div>
-        </div>
-        <button class="btn-primary" style="padding:4px 10px;font-size:11.5px;border-radius:6px;pointer-events:none">${isEn ? 'Apply' : 'Áp dụng'}</button>
-      </div>
-    `;
-    resBox.style.display = 'block';
+    if (errorBox) {
+      errorBox.textContent = isEn
+        ? 'Only song links (tracks) are supported. Playlists, albums, and artists are not supported.'
+        : 'Chỉ hỗ trợ liên kết bài hát (track). Không hỗ trợ danh sách phát, album hoặc nghệ sĩ.';
+      errorBox.style.display = 'block';
+    }
     return;
   }
 
-  if (rawQuery.length < 2) {
-    const isEn = (currentAppLanguage === 'en');
+  // Non-Spotify URL detection
+  if (/^https?:\/\//i.test(rawQuery) && !/(open\.spotify\.com|spotify\.link|spotify\.com)/i.test(rawQuery)) {
     if (spinner) spinner.style.display = 'none';
-    resBox.innerHTML = `
-      <div style="padding:12px 14px;text-align:center;font-size:11.5px;color:var(--gray);line-height:1.4">
-        ${isEn ? 'Type at least 2 characters to search...' : 'Nhập tối thiểu 2 ký tự để tìm kiếm...'}
-      </div>
-    `;
-    resBox.style.display = 'block';
+    if (errorBox) {
+      errorBox.textContent = isEn
+        ? 'Invalid link. Please paste a link from Spotify.'
+        : 'Liên kết không hợp lệ. Vui lòng dán liên kết từ Spotify.';
+      errorBox.style.display = 'block';
+    }
     return;
   }
 
-  // Immediate loading state feedback so UI never hangs silently
-  const isEn = (currentAppLanguage === 'en');
-  if (spinner) spinner.style.display = 'inline-block';
-  resBox.innerHTML = `
-    <div style="padding:16px 14px;text-align:center;font-size:12px;color:var(--gray);line-height:1.5">
-      <div style="font-size:18px;margin-bottom:4px">⏳</div>
-      <div>${isEn ? `Searching for "${escapeSpotifyAttr(rawQuery)}"...` : `Đang tìm bài hát "${escapeSpotifyAttr(rawQuery)}"...`}</div>
-    </div>
-  `;
-  resBox.style.display = 'block';
-
-  const thisSeqId = ++spotifySearchSeqId;
-
-  spotifySearchDebounce = setTimeout(async () => {
-    // 2. Check for backend API hook
-    // If Codex/backend hook is not yet available, provide clear, transparent status
-    if (typeof window.codexSearchSpotifyTracks !== 'function') {
-      if (thisSeqId !== spotifySearchSeqId) return;
+  // If user enters plain text that is clearly not a URL or track ID
+  if (!/^https?:\/\//i.test(rawQuery) && !/^spotify:track:/i.test(rawQuery) && !/^[A-Za-z0-9]{22}$/.test(rawQuery)) {
+    if (immediate || rawQuery.length > 5) {
       if (spinner) spinner.style.display = 'none';
-      resBox.innerHTML = `
-        <div style="padding:16px 14px;text-align:center;font-size:12px;color:var(--gray);line-height:1.5">
-          <div style="font-size:20px;margin-bottom:6px">📡</div>
-          <div style="font-weight:700;color:var(--dark);margin-bottom:4px">
-            ${isEn ? 'Spotify Search API Unavailable' : 'Tính năng tìm kiếm Spotify chưa khả dụng'}
-          </div>
-          <div style="font-size:11.5px;color:var(--gray);margin-bottom:8px">
-            ${isEn 
-              ? 'Backend search API is not connected. You can still paste a direct Spotify song link (URL) below.' 
-              : 'Chưa có API kết nối tìm kiếm. Bạn vẫn có thể dán trực tiếp đường dẫn bài hát Spotify vào ô bên dưới.'}
-          </div>
-          <div style="font-size:10.5px;color:#94a3b8;font-family:monospace;background:#f1f5f9;padding:4px 8px;border-radius:6px;display:inline-block">
-            BLOCKED_BY_API: codexSearchSpotifyTracks hook required
-          </div>
-        </div>
-      `;
-      resBox.style.display = 'block';
-      return;
-    }
-
-    // Call real Codex search contract
-    let matches = [];
-    let hasError = false;
-    try {
-      const remoteRes = await window.codexSearchSpotifyTracks(rawQuery);
-      if (thisSeqId !== spotifySearchSeqId) return;
-      if (Array.isArray(remoteRes)) {
-        matches = remoteRes;
-      } else if (remoteRes && Array.isArray(remoteRes.tracks)) {
-        matches = remoteRes.tracks;
-      } else {
-        matches = [];
+      if (errorBox) {
+        errorBox.textContent = isEn
+          ? 'Please paste a Spotify track link (e.g. https://open.spotify.com/track/...)'
+          : 'Vui lòng dán liên kết bài hát Spotify (ví dụ: https://open.spotify.com/track/...)';
+        errorBox.style.display = 'block';
       }
+    }
+    return;
+  }
+
+  const thisSeqId = ++spotifyLinkSeqId;
+  const executeResolve = async () => {
+    if (thisSeqId !== spotifyLinkSeqId) return;
+    if (spinner) spinner.style.display = 'inline-block';
+    if (errorBox) { errorBox.style.display = 'none'; errorBox.innerHTML = ''; }
+
+    try {
+      if (typeof window.codexResolveSpotifyTrack !== 'function') {
+        throw Object.assign(new Error('RESOLVER_UNAVAILABLE'), { code: 'RESOLVER_UNAVAILABLE' });
+      }
+      const resolved = await window.codexResolveSpotifyTrack(rawQuery);
+      if (thisSeqId !== spotifyLinkSeqId) return;
+      if (spinner) spinner.style.display = 'none';
+
+      if (!resolved || !resolved.id) {
+        throw Object.assign(new Error('INVALID_SPOTIFY_TRACK_URL'), { code: 'INVALID_SPOTIFY_TRACK_URL' });
+      }
+
+      await selectSpotifyTrack({
+        id: resolved.id,
+        name: resolved.name || resolved.title || '',
+        title: resolved.title || resolved.name || '',
+        artist: resolved.artist || resolved.artistNames || '',
+        artistNames: resolved.artistNames || resolved.artist || '',
+        artists: resolved.artists || (resolved.artist ? [resolved.artist] : []),
+        artwork: resolved.artwork || resolved.artworkUrl || resolved.coverUrl || '',
+        artworkUrl: resolved.artworkUrl || resolved.artwork || resolved.coverUrl || '',
+        albumName: resolved.albumName || '',
+        url: resolved.canonicalUrl || resolved.url || `https://open.spotify.com/track/${resolved.id}`,
+        canonicalUrl: resolved.canonicalUrl || resolved.url || `https://open.spotify.com/track/${resolved.id}`,
+        isPendingMetadata: false
+      });
+
+      // Clear input after successful selection so it's clean and shows the selected song card below
+      const inp = document.getElementById('spotifySearchInput');
+      if (inp) inp.value = '';
     } catch (err) {
-      console.warn('Codex Spotify search error:', err);
-      hasError = true;
+      if (thisSeqId !== spotifyLinkSeqId) return;
+      if (spinner) spinner.style.display = 'none';
+      let msg = isEn ? 'Could not load song from Spotify. Please check the link.' : 'Không thể tìm bài hát từ Spotify. Vui lòng kiểm tra lại liên kết.';
+      if (err?.code === 'INVALID_SPOTIFY_TRACK_URL') {
+        msg = isEn ? 'Invalid track link. Please paste a valid Spotify track link.' : 'Liên kết bài hát không hợp lệ. Vui lòng kiểm tra lại đường dẫn từ Spotify.';
+      } else if (err?.code === 'SPOTIFY_TRACK_NOT_FOUND') {
+        msg = isEn ? 'Track not found on Spotify or unavailable.' : 'Không tìm thấy bài hát này trên Spotify hoặc bài hát đã bị gỡ.';
+      } else if (err?.code === 'SPOTIFY_NOT_ALLOWED_FOR_PACKAGE') {
+        msg = isEn ? 'Spotify is not available for this package.' : 'Gói hiện tại không hỗ trợ liên kết Spotify.';
+      }
+      if (errorBox) {
+        errorBox.textContent = '⚠️ ' + msg;
+        errorBox.style.display = 'block';
+      }
     }
+  };
 
-    if (thisSeqId !== spotifySearchSeqId) return;
-    if (spinner) spinner.style.display = 'none';
-
-    if (hasError) {
-      resBox.innerHTML = `
-        <div style="padding:14px 16px;text-align:center;font-size:12px;color:#dc2626;line-height:1.5">
-          ⚠️ ${isEn 
-            ? 'Error searching Spotify tracks. Please try again or paste direct link below.' 
-            : 'Có lỗi xảy ra khi tìm kiếm bài hát. Vui lòng thử lại hoặc dán liên kết trực tiếp ở ô bên dưới.'}
-        </div>
-      `;
-      resBox.style.display = 'block';
-      return;
-    }
-
-    if (matches.length === 0) {
-      resBox.innerHTML = `
-        <div style="padding:14px 16px;text-align:center;font-size:12px;color:var(--gray);line-height:1.5">
-          🔍 ${isEn 
-            ? `No tracks found matching "${escapeSpotifyAttr(rawQuery)}". You can paste a direct Spotify link below.` 
-            : `Không tìm thấy bài hát nào khớp với "${escapeSpotifyAttr(rawQuery)}". Bạn có thể dán liên kết trực tiếp ở ô bên dưới.`}
-        </div>
-      `;
-      resBox.style.display = 'block';
-      return;
-    }
-
-    const displayMatches = matches.slice(0, 8);
-    resBox.innerHTML = displayMatches.map(item => `
-      <div class="spotify-search-item" onclick="selectSpotifyTrack(${JSON.stringify(item).replace(/"/g, '&quot;')})"
-           style="display:flex;align-items:center;gap:10px;padding:8px 10px;cursor:pointer;border-bottom:1px solid #f3f4f6;transition:background 0.15s ease">
-        ${item.artwork 
-          ? `<img src="${escapeSpotifyAttr(item.artwork)}" style="width:38px;height:38px;border-radius:6px;object-fit:cover" alt="${escapeSpotifyAttr(item.title)}">` 
-          : `<div style="width:38px;height:38px;border-radius:6px;background:#1e293b;color:var(--spotify);display:flex;align-items:center;justify-content:center;font-size:16px">🎵</div>`}
-        <div style="flex:1;min-width:0">
-          <div style="font-size:12.5px;font-weight:700;color:var(--dark);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${escapeSpotifyAttr(item.title)}</div>
-          <div style="font-size:11px;color:var(--gray);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${escapeSpotifyAttr(item.artist || 'Spotify')}</div>
-        </div>
-        <button class="btn-outline" style="padding:3px 8px;font-size:11px;border-radius:6px;pointer-events:none">${isEn ? 'Select' : 'Chọn'}</button>
-      </div>
-    `).join('');
-    resBox.style.display = 'block';
-  }, 280);
+  if (immediate) {
+    return executeResolve();
+  } else {
+    spotifyLinkDebounce = setTimeout(executeResolve, 300);
+    return null;
+  }
 }
 
-// FB75.1 / FB81: Direct link resolver with real metadata synchronization
-async function handleDirectSpotifyLinkResolve(cleanUrl, trackId) {
-  // 1. If external Codex resolver is available, attempt real metadata resolution
-  if (typeof window.codexResolveSpotifyTrack === 'function') {
-    try {
-      const resolved = await window.codexResolveSpotifyTrack(cleanUrl || trackId);
-      if (resolved && resolved.id) {
-        selectSpotifyTrack({
-          id: resolved.id,
-          name: resolved.name || resolved.title || '',
-          title: resolved.title || resolved.name || '',
-          artist: resolved.artist || resolved.artistNames || '',
-          artistNames: resolved.artistNames || resolved.artist || '',
-          artists: resolved.artists || (resolved.artist ? [resolved.artist] : []),
-          artwork: resolved.artwork || resolved.artworkUrl || '',
-          artworkUrl: resolved.artworkUrl || resolved.artwork || '',
-          albumName: resolved.albumName || '',
-          url: resolved.canonicalUrl || resolved.url || cleanUrl,
-          isPendingMetadata: false
-        });
-        return;
-      }
-    } catch (e) {
-      console.warn('Codex Spotify track resolver hook error:', e);
-    }
-  }
-
-  // 2. If resolver is not yet available:
-  // Strictly DO NOT fabricate fake title, artist, or singer artwork.
-  // Store authentic canonical track ID & URL, with pending metadata status.
-  const isEn = (currentAppLanguage === 'en');
-  const pendingTrack = {
-    id: trackId,
-    name: '',
-    title: '',
-    artist: isEn ? 'Awaiting track metadata connection' : 'Đang chờ kết nối thông tin bài hát',
-    artistNames: isEn ? 'Awaiting track metadata connection' : 'Đang chờ kết nối thông tin bài hát',
-    artwork: '',
-    url: cleanUrl,
-    isPendingMetadata: true
-  };
-  selectSpotifyTrack(pendingTrack);
+// Backwards compatibility aliases
+function handleSpotifySongSearch(query) {
+  handleSpotifyLinkInput(query, false);
+}
+function handleDirectSpotifyLinkResolve(cleanUrl, trackId) {
+  handleSpotifyLinkInput(cleanUrl || trackId, true);
 }
 
 // FB81: Canonical metadata helper for printed Page 2 & 3D Preview
@@ -2891,14 +2823,14 @@ function getSpotifyTrackDisplayMetadata() {
   };
 }
 
-function selectSpotifyTrack(track) {
+async function selectSpotifyTrack(track) {
   if (!track || !track.id) return;
 
   const rawTitle = track.name || track.title || '';
   const rawArtist = track.artistNames || (Array.isArray(track.artists) ? track.artists.join(', ') : track.artist) || '';
   const isPending = !!track.isPendingMetadata;
   const canonicalUrl = track.canonicalUrl || track.url || (`https://open.spotify.com/track/${track.id}`);
-  const artwork = track.artworkUrl || track.artwork || '';
+  const artwork = track.artworkUrl || track.artwork || track.coverUrl || '';
   const albumName = track.albumName || '';
 
   const displayTitle = rawTitle || (isPending ? `Spotify Track (${track.id})` : `Track ${track.id}`);
@@ -2915,7 +2847,9 @@ function selectSpotifyTrack(track) {
     artistNames: rawArtist,
     artists: Array.isArray(track.artists) ? track.artists : (rawArtist ? [rawArtist] : []),
     canonicalUrl: canonicalUrl,
+    url: canonicalUrl,
     artworkUrl: artwork,
+    artwork: artwork,
     albumName: albumName,
     isPendingMetadata: isPending
   };
@@ -2926,28 +2860,50 @@ function selectSpotifyTrack(track) {
   ALBUM_DATA.spotifyUrl = canonicalUrl;
   ALBUM_DATA.spotifyTrackId = track.id;
   ALBUM_DATA.spotifyArtwork = artwork;
-  // Scannable SVG directly from official Spotify Scannables CDN using valid canonical track ID
-  ALBUM_DATA.spotifyCodeImg = 'https://scannables.scdn.co/uri/plain/svg/000000/white/640/spotify:track:' + track.id;
+  ALBUM_DATA.spotifyCodeImg = null; // Await real previewUrl from backend
 
   const resBox = document.getElementById('spotifySearchResultsBox');
   if (resBox) resBox.style.display = 'none';
 
   const sInp = document.getElementById('spotifySearchInput');
-  if (sInp) sInp.value = ALBUM_DATA.spotifyTrack;
+  if (sInp) sInp.value = '';
 
   const lInp = document.getElementById('spotifyLinkInput');
   if (lInp) lInp.value = ALBUM_DATA.spotifyUrl;
+
+  const errorBox = document.getElementById('spotifyResolveErrorBox');
+  if (errorBox) { errorBox.style.display = 'none'; errorBox.innerHTML = ''; }
 
   renderSpotifySelectedState();
   renderSpotifyOfficialEmbed();
   autoSaveToLocalStorage();
   renderActiveSpread();
+  renderSpotifyHistorySection();
 
-  if (typeof window.codexOnSpotifyTrackSelected === 'function') {
+  if (typeof window.codexSelectSpotifyTrack === 'function' || typeof window.codexOnSpotifyTrackSelected === 'function') {
+    const fn = window.codexSelectSpotifyTrack || window.codexOnSpotifyTrackSelected;
     try {
-      window.codexOnSpotifyTrackSelected(ALBUM_DATA.spotifyTrackObj);
+      const selectResult = await fn(ALBUM_DATA.spotifyTrackObj);
+      const draft = (typeof window.melsouGetActiveDraft === 'function' && window.melsouGetActiveDraft()) || ALBUM_DATA;
+      if (draft.spotifyCodeImg) {
+        ALBUM_DATA.spotifyCodeImg = draft.spotifyCodeImg;
+      }
+      if (selectResult?.codeError) {
+        const isEn = (currentAppLanguage === 'en');
+        const errDesc = (typeof getUserFriendlyErrorMessage === 'function')
+          ? getUserFriendlyErrorMessage(selectResult.codeError)
+          : (isEn ? 'Spotify Code could not be generated for this track.' : 'Không thể tạo mã Spotify cho bài hát này.');
+        showToast(errDesc);
+      }
+      renderActiveSpread();
+      renderSpotifyHistorySection();
     } catch (e) {
-      console.warn('Codex track selected hook error:', e);
+      console.warn('[Melsou] Track selection error:', e);
+      const isEn = (currentAppLanguage === 'en');
+      const errDesc = (typeof getUserFriendlyErrorMessage === 'function')
+        ? getUserFriendlyErrorMessage(e)
+        : (isEn ? 'Failed to select Spotify track.' : 'Không thể chọn bài hát Spotify.');
+      showToast(errDesc);
     }
   }
 
@@ -2964,6 +2920,9 @@ function removeSelectedSpotifySong() {
   ALBUM_DATA.spotifyArtwork = null;
   ALBUM_DATA.spotifyCodeImg = null;
   ALBUM_DATA.spotifyEmbed = null;
+  if (ALBUM_DATA.spotifyCanonical) {
+    ALBUM_DATA.spotifyCanonical = { ...ALBUM_DATA.spotifyCanonical, activeTrack: null };
+  }
 
   const sInp = document.getElementById('spotifySearchInput');
   if (sInp) sInp.value = '';
@@ -2971,10 +2930,14 @@ function removeSelectedSpotifySong() {
   const lInp = document.getElementById('spotifyLinkInput');
   if (lInp) lInp.value = '';
 
+  const errorBox = document.getElementById('spotifyResolveErrorBox');
+  if (errorBox) { errorBox.style.display = 'none'; errorBox.innerHTML = ''; }
+
   renderSpotifySelectedState();
   renderSpotifyOfficialEmbed();
   autoSaveToLocalStorage();
   renderActiveSpread();
+  renderSpotifyHistorySection();
   showToast(currentAppLanguage === 'en' ? 'Spotify track unlinked' : 'Đã hủy liên kết bài hát Spotify');
 }
 
@@ -2990,52 +2953,118 @@ function renderSpotifyHorizontalCodeHtml() {
   }
   if (ALBUM_DATA.spotifyCodeImg) {
     return `
-      <div class="spotify-scannable-bar-wrap" style="width:100%;max-width:320px;margin:8px auto;text-align:center">
+      <div class="spotify-scannable-bar-wrap" style="width:100%;max-width:320px;margin:8px auto;text-align:center;cursor:${ALBUM_DATA.spotifyUrl ? 'pointer' : 'default'}" ${ALBUM_DATA.spotifyUrl ? `onclick="window.open('${escapeSpotifyAttr(ALBUM_DATA.spotifyUrl)}','_blank','noopener,noreferrer')"` : ''} title="${ALBUM_DATA.spotifyUrl ? (currentAppLanguage === 'en' ? 'Click to open Spotify' : 'Bấm để mở bài hát trên Spotify') : ''}">
         <img src="${ALBUM_DATA.spotifyCodeImg}" alt="Spotify Scannable Code"
-             style="width:100%;height:38px;border-radius:6px;box-shadow:0 3px 12px rgba(0,0,0,0.18);display:block;margin:0 auto;object-fit:cover"
+             style="width:100%;height:auto;aspect-ratio:4/1;border-radius:6px;box-shadow:0 3px 12px rgba(0,0,0,0.18);display:block;margin:0 auto;object-fit:contain;background:#000"
              onerror="this.onerror=null;this.replaceWith(renderFallbackSpotifyCodeSvg())">
         <div style="font-size:9.5px;color:var(--gray);margin-top:4px;letter-spacing:0.5px">${currentAppLanguage === 'en' ? 'Scan on Spotify app to play music' : 'Quét trên app Spotify để phát nhạc'}</div>
       </div>
     `;
   }
-  return `
-    <div class="spotify-soundwave-bar" style="width:100%;max-width:320px;margin:8px auto">
-      <div class="spotify-logo-icon">🎵</div>
-      <div class="spotify-wave-lines">
-        <span class="sw-line" style="height:6px"></span>
-        <span class="sw-line" style="height:14px"></span>
-        <span class="sw-line" style="height:22px"></span>
-        <span class="sw-line" style="height:8px"></span>
-        <span class="sw-line" style="height:18px"></span>
-        <span class="sw-line" style="height:24px"></span>
-        <span class="sw-line" style="height:12px"></span>
-        <span class="sw-line" style="height:20px"></span>
-      </div>
-      <span style="font-size:10.5px;font-weight:800;color:white;letter-spacing:1px">Spotify</span>
-    </div>
-  `;
+  return `<div class="spotify-code-unavailable" style="width:100%;max-width:320px;margin:8px auto;padding:10px;border:1px dashed var(--gray-l);border-radius:8px;text-align:center;font-size:11px;color:var(--gray)">${currentAppLanguage === 'en' ? 'Spotify Code could not be generated for this track.' : 'Không thể tạo mã Spotify cho bài hát này.'}</div>`;
 }
 
 function renderFallbackSpotifyCodeSvg() {
   const el = document.createElement('div');
-  el.className = 'spotify-soundwave-bar';
-  el.style.cssText = 'width:100%;max-width:320px;margin:8px auto;';
-  el.innerHTML = `
-    <div class="spotify-logo-icon">🎵</div>
-    <div class="spotify-wave-lines">
-      <span class="sw-line" style="height:6px"></span>
-      <span class="sw-line" style="height:14px"></span>
-      <span class="sw-line" style="height:22px"></span>
-      <span class="sw-line" style="height:8px"></span>
-      <span class="sw-line" style="height:18px"></span>
-      <span class="sw-line" style="height:24px"></span>
-      <span class="sw-line" style="height:12px"></span>
-      <span class="sw-line" style="height:20px"></span>
-    </div>
-    <span style="font-size:10.5px;font-weight:800;color:white;letter-spacing:1px">Spotify</span>
-  `;
+  el.className = 'spotify-code-unavailable';
+  el.style.cssText = 'width:100%;max-width:320px;margin:8px auto;padding:10px;border:1px dashed var(--gray-l);border-radius:8px;text-align:center;font-size:11px;color:var(--gray);';
+  el.textContent = currentAppLanguage === 'en' ? 'Spotify Code could not be generated for this track.' : 'Không thể tạo mã Spotify cho bài hát này.';
   return el;
 }
+
+function renderSpotifyHistorySection() {
+  const container = document.getElementById('spotifyHistoryList');
+  const countEl = document.getElementById('spotifyHistoryCount');
+  const titleEl = document.getElementById('lblSpotifyHistoryTitle');
+  if (!container) return;
+
+  const isEn = (currentAppLanguage === 'en');
+  if (titleEl) titleEl.textContent = isEn ? 'Recently selected:' : 'Bài đã chọn gần đây:';
+
+  let history = [];
+  if (typeof window.codexGetSpotifyState === 'function') {
+    try {
+      const state = window.codexGetSpotifyState();
+      history = (state && Array.isArray(state.history)) ? state.history : [];
+    } catch (e) {
+      console.warn('[Melsou] getSpotifyState error:', e);
+    }
+  }
+  if (!history.length && Array.isArray(ALBUM_DATA.spotifyHistory)) {
+    history = ALBUM_DATA.spotifyHistory;
+  }
+  if (!history.length && Array.isArray(ALBUM_DATA.spotifyCanonical?.history)) {
+    history = ALBUM_DATA.spotifyCanonical.history;
+  }
+
+  // Deduplicate and cap at 10
+  const uniqueHistory = [];
+  for (const item of history) {
+    if (item && item.id && !uniqueHistory.some(u => u.id === item.id)) {
+      uniqueHistory.push(item);
+    }
+    if (uniqueHistory.length >= 10) break;
+  }
+
+  if (countEl) countEl.textContent = uniqueHistory.length > 0 ? `(${uniqueHistory.length})` : '';
+
+  if (uniqueHistory.length === 0) {
+    container.innerHTML = `
+      <div style="padding:10px 12px;text-align:center;font-size:11px;color:var(--gray);background:#f9fafb;border-radius:8px;border:1px dashed #e5e7eb">
+        ${isEn ? 'No recently selected tracks yet' : 'Chưa có bài hát nào được chọn gần đây'}
+      </div>
+    `;
+    return;
+  }
+
+  const activeId = ALBUM_DATA.spotifyTrackId || ALBUM_DATA.spotifyTrackObj?.id;
+  container.innerHTML = uniqueHistory.map(track => {
+    const isCurrent = track.id === activeId;
+    const title = track.name || track.title || 'Track';
+    const artist = track.artistName || (Array.isArray(track.artists) ? track.artists.join(', ') : track.artist) || '';
+    const artwork = track.coverUrl || track.artwork || track.artworkUrl || '';
+    const safeTrack = {
+      id: track.id,
+      name: title,
+      title: title,
+      artist: artist,
+      artistNames: artist,
+      artists: Array.isArray(track.artists) ? track.artists : (artist ? [artist] : []),
+      canonicalUrl: track.url || track.canonicalUrl || `https://open.spotify.com/track/${track.id}`,
+      url: track.url || track.canonicalUrl || `https://open.spotify.com/track/${track.id}`,
+      artworkUrl: artwork,
+      artwork: artwork,
+      albumName: track.albumName || '',
+      spotifyCodeAssetRef: track.spotifyCodeAssetRef || null
+    };
+
+    return `
+      <div class="spotify-history-item" onclick="selectSpotifyTrack(${JSON.stringify(safeTrack).replace(/"/g, '&quot;')})"
+           style="display:flex;align-items:center;gap:8px;padding:6px 8px;border-radius:8px;cursor:pointer;background:${isCurrent ? '#f0fdf4' : '#ffffff'};border:1px solid ${isCurrent ? '#86efac' : '#f1f5f9'};transition:background 0.15s ease">
+        ${artwork
+          ? `<img src="${escapeSpotifyAttr(artwork)}" style="width:32px;height:32px;border-radius:6px;object-fit:cover;flex-shrink:0" alt="${escapeSpotifyAttr(title)}">`
+          : `<div style="width:32px;height:32px;border-radius:6px;background:#1e293b;color:var(--spotify);display:flex;align-items:center;justify-content:center;font-size:14px;flex-shrink:0">🎵</div>`}
+        <div style="flex:1;min-width:0">
+          <div style="font-size:11.5px;font-weight:${isCurrent ? '700' : '600'};color:${isCurrent ? '#15803d' : 'var(--dark)'};white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${escapeSpotifyAttr(title)}</div>
+          <div style="font-size:10px;color:var(--gray);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${escapeSpotifyAttr(artist || 'Spotify')}</div>
+        </div>
+        ${isCurrent ? `<span style="font-size:10px;font-weight:700;color:#16a34a;flex-shrink:0">✓ ${isEn ? 'Active' : 'Đang dùng'}</span>` : ''}
+      </div>
+    `;
+  }).join('');
+}
+
+window.addEventListener('melsou-spotify-code-updated', () => {
+  const draft = (typeof window.melsouGetActiveDraft === 'function' && window.melsouGetActiveDraft()) || ALBUM_DATA;
+  if (draft.spotifyCodeImg) {
+    ALBUM_DATA.spotifyCodeImg = draft.spotifyCodeImg;
+  }
+  renderSpotifySelectedState();
+  renderSpotifyOfficialEmbed();
+  autoSaveToLocalStorage();
+  renderActiveSpread();
+  renderSpotifyHistorySection();
+});
 
 // ── 📱 MOBILE STAGE POPUP MENU CONTROLLER (FB34) ──
 function toggleMobileStageMenu(e) {
@@ -3286,22 +3315,51 @@ function applyAudioGating() {
   const spotLock = document.getElementById('audioTabSpotifyLocked');
   const voiceSec = document.getElementById('audioTabVoiceSection');
   const voiceLock = document.getElementById('audioTabVoiceLocked');
+  const sInp = document.getElementById('spotifySearchInput');
+  const lInp = document.getElementById('spotifyLinkInput');
+  const histSec = document.getElementById('spotifyHistorySection');
 
-  if (pkg === 'melody') {
-    if (spotSec) spotSec.style.display = 'block';
-    if (spotLock) spotLock.style.display = 'none';
-    if (voiceSec) voiceSec.style.display = 'none';
-    if (voiceLock) voiceLock.style.display = 'block';
-  } else if (pkg === 'voice') {
+  if (pkg === 'voice') {
     if (spotSec) spotSec.style.display = 'none';
     if (spotLock) spotLock.style.display = 'block';
     if (voiceSec) voiceSec.style.display = 'block';
     if (voiceLock) voiceLock.style.display = 'none';
+    if (sInp) { sInp.disabled = true; sInp.value = ''; }
+    if (lInp) { lInp.disabled = true; lInp.value = ''; }
+    if (histSec) histSec.style.display = 'none';
+
+    // Clear Spotify state on Voice
+    ALBUM_DATA.spotifyTrack = null;
+    ALBUM_DATA.spotifyUrl = null;
+    ALBUM_DATA.spotifyTrackId = null;
+    ALBUM_DATA.spotifyTrackObj = null;
+    ALBUM_DATA.spotifyArtwork = null;
+    ALBUM_DATA.spotifyCodeImg = null;
+    ALBUM_DATA.spotifyEmbed = null;
+    if (ALBUM_DATA.spotifyCanonical) {
+      ALBUM_DATA.spotifyCanonical.activeTrack = null;
+    }
+    renderSpotifySelectedState();
+    renderSpotifyOfficialEmbed();
+    renderActiveSpread();
   } else {
+    // Melody or Signature: Spotify enabled
     if (spotSec) spotSec.style.display = 'block';
     if (spotLock) spotLock.style.display = 'none';
-    if (voiceSec) voiceSec.style.display = 'block';
-    if (voiceLock) voiceLock.style.display = 'none';
+    if (sInp) sInp.disabled = false;
+    if (lInp) lInp.disabled = false;
+    if (histSec) histSec.style.display = 'block';
+
+    if (pkg === 'melody') {
+      if (voiceSec) voiceSec.style.display = 'none';
+      if (voiceLock) voiceLock.style.display = 'block';
+    } else {
+      // Signature: both enabled
+      if (voiceSec) voiceSec.style.display = 'block';
+      if (voiceLock) voiceLock.style.display = 'none';
+    }
+    renderSpotifySelectedState();
+    renderSpotifyHistorySection();
   }
 }
 
@@ -4025,9 +4083,7 @@ function renderFlipbookSpread() {
                       <div class="fbm-spotify-artist-name" style="font-size:12px;font-weight:700;color:var(--red);margin-bottom:6px;line-height:1.3">${escapeSpotifyAttr(meta.artist || (isEn ? 'Spotify Artist' : 'Nghệ sĩ Spotify'))}</div>
                     </div>
                   `}
-                  ${!meta.hasTrack ? `
-                    <div style="font-size:11px;color:var(--gray);font-style:italic;padding:8px 0">${isEn ? 'Please choose a song in Audio tab' : 'Vui lòng chọn bài hát tại tab Âm thanh'}</div>
-                  ` : ALBUM_DATA.spotifyCodeImg ? `<img src="${ALBUM_DATA.spotifyCodeImg}" style="width:100%;border-radius:6px;box-shadow:0 4px 12px rgba(139,30,63,0.35)">` : `<div class="spotify-soundwave-bar"><div class="spotify-logo-icon">🎵</div><span style="font-size:12px;font-weight:700">${escapeSpotifyAttr(meta.title || 'Spotify Soundwave')}</span></div>`}
+                  ${renderSpotifyHorizontalCodeHtml()}
                 </div>
                 <div style="font-size:10.5px;color:var(--gray);font-style:italic">${isEn ? 'Scan code on Spotify mobile app to play music.' : 'Quét mã trên app Spotify để phát nhạc.'}</div>
               </div>
@@ -4183,9 +4239,7 @@ function renderFlipbookSpread() {
                     <div class="fbm-spotify-artist-name" style="font-size:13.5px;font-weight:700;color:var(--red);margin-bottom:8px;line-height:1.3">${escapeSpotifyAttr(meta.artist || (isEn ? 'Spotify Artist' : 'Nghệ sĩ Spotify'))}</div>
                   </div>
                 `}
-                ${!meta.hasTrack ? `
-                  <div style="font-size:11.5px;color:var(--gray);font-style:italic;padding:10px 0">${isEn ? 'Please choose a song in Audio tab' : 'Vui lòng chọn bài hát tại tab Âm thanh'}</div>
-                ` : ALBUM_DATA.spotifyCodeImg ? `<img src="${ALBUM_DATA.spotifyCodeImg}" style="width:100%;border-radius:6px;box-shadow:0 4px 12px rgba(139,30,63,0.35)">` : `<div class="spotify-soundwave-bar"><div class="spotify-logo-icon">🎵</div><span style="font-size:12px;font-weight:700">${escapeSpotifyAttr(meta.title || 'Spotify Soundwave')}</span></div>`}
+                ${renderSpotifyHorizontalCodeHtml()}
                 </div>
               <div style="font-size:11px;color:var(--gray);font-style:italic">${isEn ? 'Scan code on Spotify mobile app to play music.' : 'Quét mã trên app Spotify để phát nhạc.'}</div>
             </div>
@@ -5605,6 +5659,10 @@ function openFlyoutDrawer(tabIndex) {
   });
 
   switchCanvaTab(tabIndex);
+  if (tabIndex === 5) {
+    if (typeof applyAudioGating === 'function') applyAudioGating();
+    if (typeof renderSpotifyHistorySection === 'function') renderSpotifyHistorySection();
+  }
 }
 
 function closeFlyoutDrawer() {

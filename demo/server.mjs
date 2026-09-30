@@ -15,6 +15,32 @@ const types = {
   '.mp3': 'audio/mpeg', '.woff2': 'font/woff2', '.woff': 'font/woff', '.ttf': 'font/ttf'
 };
 
+const assetStore = new Map();
+const localEnv = {
+  ...process.env,
+  MELSOU_ASSETS: process.env.MELSOU_ASSETS || {
+    async get(key) {
+      const entry = assetStore.get(key);
+      if (!entry) return null;
+      return {
+        arrayBuffer: async () => entry.bytes.buffer.slice(entry.bytes.byteOffset, entry.bytes.byteOffset + entry.bytes.byteLength),
+        httpMetadata: entry.metadata
+      };
+    },
+    async put(key, bytes, { httpMetadata } = {}) {
+      assetStore.set(key, { bytes: new Uint8Array(bytes), metadata: httpMetadata });
+    },
+    async delete(key) {
+      assetStore.delete(key);
+    }
+  },
+  IMAGES: process.env.IMAGES || {
+    async info() {
+      return { format: 'png', width: 640, height: 160 };
+    }
+  }
+};
+
 http.createServer(async (request, response) => {
   const url = new URL(request.url, `http://${request.headers.host || '127.0.0.1'}`);
   if (url.pathname.startsWith('/api/')) {
@@ -23,7 +49,7 @@ http.createServer(async (request, response) => {
     const body = chunks.length ? Buffer.concat(chunks) : undefined;
     try {
       const workerRequest = new Request(url, { method: request.method, headers: request.headers, body });
-      const workerResponse = await worker.fetch(workerRequest, process.env);
+      const workerResponse = await worker.fetch(workerRequest, localEnv);
       response.writeHead(workerResponse.status, Object.fromEntries(workerResponse.headers.entries()));
       response.end(Buffer.from(await workerResponse.arrayBuffer()));
     } catch (error) {

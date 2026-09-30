@@ -1056,6 +1056,30 @@ function getUserFriendlyErrorMessage(error, defaultFallback = '') {
   if (codeUpper === 'INVALID_SPOTIFY_SELECTION') {
     return isEn ? 'Selected Spotify song is invalid.' : 'Bài hát Spotify đã chọn không hợp lệ.';
   }
+  if (codeUpper === 'INVALID_SPOTIFY_QUERY') {
+    return isEn ? 'Please enter a song title or artist.' : 'Vui lòng nhập tên bài hát hoặc ca sĩ.';
+  }
+  if (codeUpper === 'INVALID_SPOTIFY_TRACK_URL') {
+    return isEn ? 'Invalid Spotify track link.' : 'Đường dẫn bài hát Spotify không hợp lệ.';
+  }
+  if (codeUpper === 'SPOTIFY_NOT_CONFIGURED') {
+    return isEn ? 'Spotify is temporarily unavailable.' : 'Tính năng kết nối Spotify đang tạm thời gián đoạn.';
+  }
+  if (codeUpper === 'SPOTIFY_RATE_LIMITED') {
+    return isEn ? 'Spotify search is busy. Please try again shortly.' : 'Tìm kiếm Spotify đang bận. Vui lòng thử lại sau giây lát.';
+  }
+  if (codeUpper === 'SPOTIFY_TRACK_NOT_FOUND') {
+    return isEn ? 'Spotify track not found.' : 'Không tìm thấy bài hát Spotify tương ứng.';
+  }
+  if (codeUpper === 'SPOTIFY_NOT_ALLOWED_FOR_PACKAGE') {
+    return isEn ? 'Spotify is not included in the Voice package.' : 'Gói Voice không bao gồm tính năng Spotify.';
+  }
+  if (codeUpper === 'SPOTIFY_CODE_GENERATION_FAILED') {
+    return isEn ? 'Spotify Code could not be generated for this track.' : 'Không thể tạo mã Spotify cho bài hát này.';
+  }
+  if (codeUpper === 'REVISION_CONFLICT') {
+    return isEn ? 'Design was updated elsewhere. Please refresh.' : 'Bản thiết kế đã cập nhật từ nơi khác. Vui lòng tải lại.';
+  }
   if (codeUpper === 'INVALID_VOICE_SELECTION') {
     return isEn ? 'Voice recording is invalid.' : 'Tệp thu âm giọng nói không hợp lệ.';
   }
@@ -1074,6 +1098,9 @@ function getUserFriendlyErrorMessage(error, defaultFallback = '') {
 }
 
 window.getUserFriendlyErrorMessage = getUserFriendlyErrorMessage;
+window.addEventListener('melsou-spotify-code-updated', () => {
+  if (typeof syncHeroLiveBook === 'function') syncHeroLiveBook();
+});
 
 window.codexOnAuthError = function(errMsg) {
   const errorBox = document.getElementById('authModalErrorBox');
@@ -1690,12 +1717,12 @@ function syncHeroLiveBook() {
     const heroTitle = ALBUM_DATA.title || (isEn ? 'Artistic Photobook' : 'Album Kỷ Niệm');
     const heroQuote = ALBUM_DATA.quote || (isEn ? 'Snapshots of happiness that never fade.' : 'Mở phẳng 180° liền trang · Kỷ vật tình yêu');
     left.innerHTML = `<div style="font-family:'Pacifico',cursive;font-size:22px;color:var(--yellow)">melsou</div><div><div style="font-family:'Lora',serif;font-size:20px;font-weight:700">${heroTitle}</div><div style="font-size:11.5px;font-style:italic;opacity:0.8;margin-top:4px">"${heroQuote}"</div></div><div style="font-size:10px;opacity:0.7">${isEn ? '180° Layflat Hardcover · Click to flip 3D →' : 'Bìa cứng mở phẳng 180° · Bấm để lật 3D →'}</div>`;
-    right.innerHTML = `<div class="pb-polaroid" style="transform:rotate(2deg)"><div class="pb-washi-corner" style="top:-6px;left:50%;transform:translateX(-50%)"></div><div class="hero-book-photo" style="${heroPhotoStyle(heroCover, 'linear-gradient(135deg,#f5c2c2,#f6e7b0)')}"></div></div><div class="spotify-soundwave-bar" style="margin:0"><div class="spotify-logo-icon">🎵</div><div class="spotify-wave-lines"><span class="sw-line" style="height:8px"></span><span class="sw-line" style="height:16px"></span><span class="sw-line" style="height:10px"></span><span class="sw-line" style="height:20px"></span></div><span style="font-size:10px;font-weight:700">Spotify</span></div>`;
+    right.innerHTML = `<div class="pb-polaroid" style="transform:rotate(2deg)"><div class="pb-washi-corner" style="top:-6px;left:50%;transform:translateX(-50%)"></div><div class="hero-book-photo" style="${heroPhotoStyle(heroCover, 'linear-gradient(135deg,#f5c2c2,#f6e7b0)')}"></div></div><div style="display:flex;align-items:center;gap:6px;font-size:10px;font-weight:700;margin:0;color:var(--dark)"><span>🎵</span> Spotify</div>`;
   } else if (heroStep === 1) {
     const songName = (ALBUM_DATA.spotifyTrack || (isEn ? 'Until I Found You' : 'Giai Điệu Kỷ Niệm')).split('—')[0];
     const img1 = (ALBUM_DATA.userGallery && ALBUM_DATA.userGallery[0]) || TEMPLATES_DATA[0].spread1;
     const img2 = (ALBUM_DATA.userGallery && ALBUM_DATA.userGallery[1]) || TEMPLATES_DATA[0].spread2;
-    left.innerHTML = `<div style="font-size:10px;font-weight:800;color:var(--red)">OUR TIMES</div><div style="font-size:18px;font-weight:700;margin-bottom:4px">${isEn ? 'Cherished Melody' : 'Giai Điệu Kỷ Niệm'}</div><div class="spotify-soundwave-bar"><div class="spotify-logo-icon">🎵</div><div class="spotify-wave-lines"><span class="sw-line" style="height:14px"></span><span class="sw-line" style="height:22px"></span><span class="sw-line" style="height:8px"></span><span class="sw-line" style="height:18px"></span></div><span style="font-size:10px;font-weight:700">${songName}</span></div>`;
+    left.innerHTML = `<div style="font-size:10px;font-weight:800;color:var(--red)">OUR TIMES</div><div style="font-size:18px;font-weight:700;margin-bottom:4px">${isEn ? 'Cherished Melody' : 'Giai Điệu Kỷ Niệm'}</div><div style="display:flex;align-items:center;gap:6px;font-size:10px;font-weight:700;margin-top:10px;color:var(--dark)"><span>🎵</span> ${songName}</div>`;
     right.innerHTML = `<div class="pb-polaroid" style="transform:rotate(-3deg)"><div style="height:110px;${heroPhotoStyle(img1, 'linear-gradient(135deg,#dbeafe,#fce7f3)')};background-position:center;background-size:cover"></div></div><div class="pb-polaroid" style="transform:rotate(3deg);margin-top:6px"><div style="height:110px;${heroPhotoStyle(img2, 'linear-gradient(135deg,#fef3c7,#e9d5ff)')};background-position:center;background-size:cover"></div></div>`;
   } else {
     const img3 = (ALBUM_DATA.userGallery && ALBUM_DATA.userGallery[2]) || TEMPLATES_DATA[1].spread1;
@@ -2784,7 +2811,17 @@ function applyStudioTranslations(lang) {
   });
 
   const spotInput = document.getElementById('spotifySearchInput');
-  if (spotInput) spotInput.placeholder = isEn ? 'Type song name (e.g. Until I Found You, Perfect...)' : 'Gõ tên bài hát (vd: Until I Found You, Perfect...)';
+  if (spotInput) spotInput.placeholder = 'https://open.spotify.com/track/...';
+  const spotLbl = document.getElementById('lblSpotifyInputTitle');
+  if (spotLbl) spotLbl.textContent = isEn ? 'Paste Spotify song link:' : 'Dán liên kết bài hát Spotify:';
+  const spotHelper = document.getElementById('lblSpotifyHelperText');
+  if (spotHelper) spotHelper.innerHTML = isEn ? '💡 <span>Open Spotify → Share → Copy link</span>' : '💡 <span>Mở Spotify → Chia sẻ → Sao chép liên kết</span>';
+  const spotEmptyTitle = document.getElementById('lblSpotifyEmptyTitle');
+  if (spotEmptyTitle) spotEmptyTitle.textContent = isEn ? 'No song selected yet' : 'Chưa có bài hát nào được chọn';
+  const spotEmptyDesc = document.getElementById('lblSpotifyEmptyDesc');
+  if (spotEmptyDesc) spotEmptyDesc.textContent = isEn ? 'Paste Spotify song link above to connect' : 'Dán đường dẫn bài hát Spotify ở trên để liên kết';
+  const btnChangeSong = document.getElementById('btnChangeSpotifySong');
+  if (btnChangeSong) btnChangeSong.textContent = isEn ? 'Change' : 'Đổi bài';
   const sigInput = document.getElementById('sidebarSignatureInput');
   if (sigInput) sigInput.placeholder = isEn ? '— Sign name / Date —' : '— Ký tên / Ngày tháng —';
 }

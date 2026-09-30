@@ -9,6 +9,7 @@ import { withPrivateStorage } from './storage.mjs';
 import { handleBlogInteraction, matchBlogInteraction } from './blog-interactions.mjs';
 import { handleWordpressComment, matchWordpressComment, wordpressCommentMeta } from './wordpress-comments.mjs';
 import { exchangeWordpressToken, handleWordpressOauthCallback, handleWordpressOauthStart, handleWordpressOauthStatus } from './wordpress-oauth.mjs';
+import { handleSpotify, handleSpotifyCode } from './spotify.mjs';
 import {
   ContractError, assertCartConfiguration, assertCheckpointReason, assertIdempotencyKey, assertProjectDocument, assertUuid,
   buildPaymentInstructions, normalizeTrackingPhone, sanitizeAccountPatch, sanitizeAddress, sanitizeBlogPost, sanitizeShipments
@@ -1788,6 +1789,11 @@ export default {
     if (url.pathname === '/api/wordpress/oauth/callback' && request.method === 'POST') return routeWordpressOauth(request, env, 'callback');
     if (url.pathname === '/api/owner/wordpress/status' && request.method === 'GET') return routeWordpressOauth(request, env, 'status');
     if (url.pathname === '/api/public-config' && request.method === 'GET') return json({ supabaseUrl: env.SUPABASE_URL || null, supabaseAnonKey: env.SUPABASE_ANON_KEY || null, environment: env.APP_ENV || 'unknown', payment: { provider: 'SEPAY', mode: env.SEPAY_MODE || null } });
+    if (url.pathname === '/api/spotify/search' && request.method === 'GET') return handleSpotify(request, env, 'search', { rateLimit: (incoming, action) => allowRateLimitedAction(env, `${action}:${requestNetworkKey(incoming)}`) });
+    if (url.pathname === '/api/spotify/resolve' && request.method === 'POST') return handleSpotify(request, env, 'resolve', { rateLimit: (incoming, action) => allowRateLimitedAction(env, `${action}:${requestNetworkKey(incoming)}`) });
+    if (url.pathname === '/api/spotify/code' && request.method === 'POST') return handleSpotifyCode(request, withPrivateStorage(env), 'generate', { rateLimit: (incoming, action) => allowRateLimitedAction(env, `${action}:${requestNetworkKey(incoming)}`) });
+    const spotifyCode = url.pathname.match(/^\/api\/spotify\/code\/(spcode_[A-Za-z0-9]{22}_v1)$/);
+    if (spotifyCode && request.method === 'GET') return handleSpotifyCode(request, withPrivateStorage(env), spotifyCode[1]);
     if (url.pathname === '/api/quote' && request.method === 'POST') {
       const pricing = await activePricing(env);
       if (!pricing) return json({ error: 'ACTIVE_PRICING_UNAVAILABLE' }, 503);
