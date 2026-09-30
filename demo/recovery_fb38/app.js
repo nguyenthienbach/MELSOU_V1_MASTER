@@ -62,7 +62,7 @@ const TEMPLATES_DATA = [
     tagEn: 'Use this template →',
     coverImg: 'https://images.unsplash.com/photo-1511632765486-a01980e01a18?w=800&auto=format&fit=crop&q=80',
     spread1: 'https://images.unsplash.com/photo-1469474968028-56623f02e42e?w=600&auto=format&fit=crop&q=80',
-    spread2: 'https://images.unsplash.com/photo-1507525428033-b723cf961d3e?w=600&auto=format&fit=crop&q=80',
+    spread2: 'https://images.unsplash.com/photo-1507525428034-b723cf961d3e?w=600&auto=format&fit=crop&q=80',
     title: 'BESTIES ARCHIVE',
     quoteVi: 'Không cần hẹn trước, gặp nhau là rôm rả cả ngày.',
     quoteEn: 'No plans needed; just being together makes the whole day bright.',
