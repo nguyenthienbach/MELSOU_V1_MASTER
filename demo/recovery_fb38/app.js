@@ -435,19 +435,57 @@ async function melsouLoadDraftFromDb() {
   }
 }
 
+function prepareDraftForLocalStorage(draft) {
+  if (!draft || typeof draft !== 'object') return draft;
+  const clone = JSON.parse(JSON.stringify(draft));
+  if (Array.isArray(clone.userGallery)) {
+    clone.userGallery = clone.userGallery.filter(url => typeof url === 'string' && !url.startsWith('blob:'));
+  }
+  if (Array.isArray(clone.spreads)) {
+    clone.spreads.forEach(s => {
+      if (typeof s.coverImg === 'string' && s.coverImg.startsWith('blob:')) {
+        s.coverImg = '';
+        s._coverImgPending = true;
+      }
+      if (typeof s.backImg === 'string' && s.backImg.startsWith('blob:')) {
+        s.backImg = '';
+        s._backImgPending = true;
+      }
+      if (Array.isArray(s.elements)) {
+        s.elements.forEach(el => {
+          if (typeof el.img === 'string' && el.img.startsWith('blob:')) {
+            el.img = '';
+            el._imgPending = true;
+          }
+        });
+      }
+    });
+  }
+  return clone;
+}
+
 function pruneHeavyData(data) {
   if (!data || typeof data !== 'object') return data;
   const clone = JSON.parse(JSON.stringify(data));
   if (Array.isArray(clone.userGallery)) {
-    clone.userGallery = clone.userGallery.filter(url => !url.startsWith('data:')).slice(0, 10);
+    clone.userGallery = clone.userGallery.filter(url => !url.startsWith('data:') && !url.startsWith('blob:')).slice(0, 10);
   }
   if (Array.isArray(clone.spreads)) {
     clone.spreads.forEach(s => {
-      if (s.coverImg && s.coverImg.startsWith('data:') && s.coverImg.length > 50000) s.coverImg = '';
-      if (s.backImg && s.backImg.startsWith('data:') && s.backImg.length > 50000) s.backImg = '';
+      if (s.coverImg && ((s.coverImg.startsWith('data:') && s.coverImg.length > 50000) || s.coverImg.startsWith('blob:'))) {
+        if (s.coverImg.startsWith('blob:')) s._coverImgPending = true;
+        s.coverImg = '';
+      }
+      if (s.backImg && ((s.backImg.startsWith('data:') && s.backImg.length > 50000) || s.backImg.startsWith('blob:'))) {
+        if (s.backImg.startsWith('blob:')) s._backImgPending = true;
+        s.backImg = '';
+      }
       if (Array.isArray(s.elements)) {
         s.elements.forEach(el => {
-          if (el.img && el.img.startsWith('data:') && el.img.length > 50000) el.img = '';
+          if (el.img && ((el.img.startsWith('data:') && el.img.length > 50000) || el.img.startsWith('blob:'))) {
+            if (el.img.startsWith('blob:')) el._imgPending = true;
+            el.img = '';
+          }
         });
       }
     });
@@ -461,10 +499,10 @@ function autoSaveToLocalStorage() {
     ALBUM_DATA.version = SCHEMA_VERSION;
     melsouSaveDraftToDb(ALBUM_DATA);
     try {
-      localStorage.setItem('melsou_active_draft', JSON.stringify(ALBUM_DATA));
+      localStorage.setItem('melsou_active_draft', JSON.stringify(prepareDraftForLocalStorage(ALBUM_DATA)));
     } catch (quotaErr) {
       try {
-        localStorage.setItem('melsou_active_draft', JSON.stringify(pruneHeavyData(ALBUM_DATA)));
+        localStorage.setItem('melsou_active_draft', JSON.stringify(pruneHeavyData(prepareDraftForLocalStorage(ALBUM_DATA))));
       } catch (_) {}
     }
     // The auth bridge is deliberately notified after the browser backup succeeds.
@@ -493,12 +531,13 @@ window.melsouApplyCanonicalDraft = (draft) => {
     designDraft.spreads.forEach((spread, sIdx) => {
       const curSpread = currentData.spreads[sIdx];
       if (!curSpread) return;
-      if (!spread.coverImg && curSpread.coverImg) spread.coverImg = curSpread.coverImg;
-      if (!spread.backImg && curSpread.backImg) spread.backImg = curSpread.backImg;
+      const isValidLocalSource = (src) => typeof src === 'string' && src && !src.startsWith('blob:');
+      if (!spread.coverImg && isValidLocalSource(curSpread.coverImg)) spread.coverImg = curSpread.coverImg;
+      if (!spread.backImg && isValidLocalSource(curSpread.backImg)) spread.backImg = curSpread.backImg;
       if (Array.isArray(spread.elements) && Array.isArray(curSpread.elements)) {
         spread.elements.forEach(el => {
           const curEl = curSpread.elements.find(e => String(e.id) === String(el.id));
-          if (curEl && curEl.img && !el.img) {
+          if (curEl && isValidLocalSource(curEl.img) && !el.img) {
             el.img = curEl.img;
             if (curEl.crop && !el.crop) el.crop = curEl.crop;
           }
@@ -525,10 +564,10 @@ window.melsouApplyCanonicalDraft = (draft) => {
   ALBUM_DATA.extraSpreadsCount = ALBUM_DATA.spreads.filter(s => s.isCustomAdded).length;
   melsouSaveDraftToDb(ALBUM_DATA);
   try {
-    localStorage.setItem('melsou_active_draft', JSON.stringify(ALBUM_DATA));
+    localStorage.setItem('melsou_active_draft', JSON.stringify(prepareDraftForLocalStorage(ALBUM_DATA)));
   } catch (quotaErr) {
     try {
-      localStorage.setItem('melsou_active_draft', JSON.stringify(pruneHeavyData(ALBUM_DATA)));
+      localStorage.setItem('melsou_active_draft', JSON.stringify(pruneHeavyData(prepareDraftForLocalStorage(ALBUM_DATA))));
     } catch (_) {}
   }
   if (studioWorkspaceInitialized && typeof renderStudioWorkspace === 'function') renderStudioWorkspace();
@@ -540,8 +579,9 @@ function loadFromLocalStorage() {
   try {
     const saved = localStorage.getItem('melsou_active_draft');
     if (saved) {
-      const parsed = JSON.parse(saved);
+      let parsed = JSON.parse(saved);
       if (parsed.version === SCHEMA_VERSION && parsed.spreads && parsed.spreads.length >= 7) {
+        parsed = prepareDraftForLocalStorage(parsed);
         ALBUM_DATA = Object.assign(getFreshAlbumData(), parsed);
         if (!ALBUM_DATA.albumFormat) {
           const sc = ALBUM_DATA.sizeClass || 'ratio-portrait';
@@ -563,13 +603,23 @@ function loadFromLocalStorage() {
         idbDraft.spreads.forEach((s, sIdx) => {
           const curSpread = ALBUM_DATA.spreads?.[sIdx];
           if (!curSpread) return;
-          if (!curSpread.coverImg && s.coverImg) { curSpread.coverImg = s.coverImg; hasNewImages = true; }
-          if (!curSpread.backImg && s.backImg) { curSpread.backImg = s.backImg; hasNewImages = true; }
+          const needsHydration = (val) => !val || (typeof val === 'string' && val.startsWith('blob:'));
+          if (needsHydration(curSpread.coverImg) && s.coverImg && !s.coverImg.startsWith('blob:')) {
+            curSpread.coverImg = s.coverImg;
+            curSpread._coverImgPending = false;
+            hasNewImages = true;
+          }
+          if (needsHydration(curSpread.backImg) && s.backImg && !s.backImg.startsWith('blob:')) {
+            curSpread.backImg = s.backImg;
+            curSpread._backImgPending = false;
+            hasNewImages = true;
+          }
           if (Array.isArray(s.elements) && Array.isArray(curSpread.elements)) {
             s.elements.forEach(el => {
               const curEl = curSpread.elements.find(e => String(e.id) === String(el.id));
-              if (curEl && !curEl.img && el.img) {
+              if (curEl && needsHydration(curEl.img) && el.img && !el.img.startsWith('blob:')) {
                 curEl.img = el.img;
+                curEl._imgPending = false;
                 hasNewImages = true;
               }
             });

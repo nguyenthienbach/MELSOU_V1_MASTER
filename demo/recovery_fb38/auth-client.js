@@ -23,6 +23,7 @@
   let nativeUser = null;
   let activeOrder = null;
   const pendingSlotSources = new Map();
+  const hydratedPreviewBlobs = new Map();
 
   const readBridge = () => {
     try {
@@ -344,6 +345,11 @@
     let next = bridge;
     for (const [slotId, source] of pending) {
       if (!source || !supportedStudioSource(source)) continue;
+      // Do not re-upload display preview blob URLs of already-known canonical assets
+      if (source.startsWith('blob:') && (next.slotAssets?.[slotId]?.assetId || (slotId === 'image_01' && next.primaryAssetId))) {
+        if (pendingSlotSources.get(slotId) === source) pendingSlotSources.delete(slotId);
+        continue;
+      }
       const upload = await studioImageBody(source);
       const fingerprint = await sha256Hex(upload.body);
       const existing = next.slotAssets?.[slotId];
@@ -430,6 +436,11 @@
       });
     }, 700);
   }
+
+  window.melsouFlushPendingPersistence = async () => {
+    clearTimeout(saveTimer);
+    return persistDraft();
+  };
 
   async function claimGuestDraft(session = null) {
     const bridge = readBridge();
@@ -606,26 +617,49 @@
       const previewSources = new Map();
       for (const assetId of assetIds) {
         const previewPath = authenticated ? `/assets/${assetId}/preview` : `/guest/assets/${assetId}/preview`;
-        try {
-          const response = await fetch(`${apiBase}${previewPath}`, { credentials: 'include' });
-          if (!response.ok) continue;
-          previewSources.set(assetId, URL.createObjectURL(await response.blob()));
-        } catch {
-          // network or transient failure
+        for (let attempt = 0; attempt < 5; attempt += 1) {
+          try {
+            const response = await fetch(`${apiBase}${previewPath}`, { credentials: 'include' });
+            if (response.ok) {
+              const blobUrl = URL.createObjectURL(await response.blob());
+              previewSources.set(assetId, blobUrl);
+              hydratedPreviewBlobs.set(blobUrl, assetId);
+              break;
+            }
+            if (response.status === 409) {
+              await new Promise((resolve) => setTimeout(resolve, 300 * (attempt + 1)));
+              continue;
+            }
+            break;
+          } catch {
+            await new Promise((resolve) => setTimeout(resolve, 300));
+          }
         }
       }
       hydrated.userGallery = galleryRefs.map((item) => previewSources.get(item.asset_id)).filter(Boolean);
       for (const [slotId, value] of Object.entries(restoredSlots)) {
         const source = previewSources.get(value.assetId);
-        if (!source) continue;
         const uiSlot = Object.entries(nextBridge.uiSlotMap || {}).find(([, mapped]) => mapped === slotId)?.[0] || (slotId === 'image_01' ? 'coverImg' : null);
-        if (uiSlot === 'coverImg' && hydrated.spreads?.[0]) hydrated.spreads[0].coverImg = source;
-        else if (uiSlot === 'backImg' && hydrated.spreads?.length) hydrated.spreads[hydrated.spreads.length - 1].backImg = source;
-        else if (uiSlot?.startsWith('el_')) {
-          const elementId = uiSlot.slice(3);
-          for (const spread of hydrated.spreads || []) {
-            const element = spread.elements?.find((item) => String(item.id) === elementId);
-            if (element) { element.img = source; break; }
+        if (source) {
+          if (uiSlot === 'coverImg' && hydrated.spreads?.[0]) hydrated.spreads[0].coverImg = source;
+          else if (uiSlot === 'backImg' && hydrated.spreads?.length) hydrated.spreads[hydrated.spreads.length - 1].backImg = source;
+          else if (uiSlot?.startsWith('el_')) {
+            const elementId = uiSlot.slice(3);
+            for (const spread of hydrated.spreads || []) {
+              const element = spread.elements?.find((item) => String(item.id) === elementId);
+              if (element) { element.img = source; break; }
+            }
+          }
+        } else {
+          // Preview is not ready yet: keep slot binding recoverable without wiping existing draft content
+          if (uiSlot === 'coverImg' && hydrated.spreads?.[0]) hydrated.spreads[0]._coverImgPending = true;
+          else if (uiSlot === 'backImg' && hydrated.spreads?.length) hydrated.spreads[hydrated.spreads.length - 1]._backImgPending = true;
+          else if (uiSlot?.startsWith('el_')) {
+            const elementId = uiSlot.slice(3);
+            for (const spread of hydrated.spreads || []) {
+              const element = spread.elements?.find((item) => String(item.id) === elementId);
+              if (element) { element._imgPending = true; break; }
+            }
           }
         }
       }
@@ -793,6 +827,9 @@
       console.info('[Melsou] OAuth bridge inactive:', error.message);
     }
   };
+
+  window.melsouBootstrapSession = initAuthSession;
+  window.melsouRestoreCanonicalProject = restoreCanonicalProject;
 
   if (typeof document !== 'undefined' && document.readyState === 'loading') {
     if ('requestIdleCallback' in window) {

@@ -199,6 +199,9 @@ function addCanvaImageFrame(frameStyle = 'polaroid', initialImg = '') {
   });
 
   ALBUM_DATA.activePhotoSlot = 'el_' + newId;
+  if (initialImg) {
+    window.melsouOnImageAssigned?.({ slotKey: 'el_' + newId, source: initialImg });
+  }
   autoSaveToLocalStorage();
   renderActiveSpread();
 }
@@ -323,6 +326,14 @@ function applyPresetComposition(layoutType) {
     });
   }
 
+  if (Array.isArray(spread.elements)) {
+    spread.elements.forEach(el => {
+      if (el.type === 'photo' && el.img) {
+        window.melsouOnImageAssigned?.({ slotKey: 'el_' + el.id, source: el.img });
+      }
+    });
+  }
+
   autoSaveToLocalStorage();
   renderActiveSpread();
 }
@@ -349,6 +360,7 @@ function shuffleActiveSpreadPhotos() {
       el.crop.offsetX = 0;
       el.crop.offsetY = 0;
     }
+    window.melsouOnImageAssigned?.({ slotKey: 'el_' + el.id, source: el.img });
   });
 
   autoSaveToLocalStorage();
@@ -1015,12 +1027,34 @@ function handleSlotImageLoad(imgEl) {
   }
 }
 
+function isSlotPendingHydration(slotKey) {
+  const spread = ALBUM_DATA.spreads?.[ALBUM_DATA.activeSpreadIndex];
+  if (!spread) return false;
+  if (slotKey === 'coverImg') return Boolean(spread._coverImgPending);
+  if (slotKey === 'backImg') return Boolean(spread._backImgPending);
+  if (slotKey && slotKey.startsWith('el_')) {
+    const elId = slotKey.replace('el_', '');
+    const el = spread.elements?.find(e => String(e.id) === String(elId));
+    return Boolean(el?._imgPending);
+  }
+  return false;
+}
+
 function handleSlotImageError(imgEl, slotKey) {
   if (!imgEl) return;
-  imgEl.style.display = 'none';
+  const src = imgEl.getAttribute('src') || '';
   const container = imgEl.parentElement;
   if (!container) return;
   const loading = container.querySelector('.slot-loading-placeholder');
+
+  // If slot is pending hydration or is recovering a session blob, keep loading state
+  if (src.startsWith('blob:') || isSlotPendingHydration(slotKey)) {
+    imgEl.style.display = 'none';
+    if (loading) loading.style.display = 'flex';
+    return;
+  }
+
+  imgEl.style.display = 'none';
   if (loading) loading.style.display = 'none';
 
   if (!container.querySelector('.slot-error-placeholder')) {
@@ -1048,7 +1082,14 @@ function checkCachedSlotImages() {
         if (img.naturalWidth > 0) {
           handleSlotImageLoad(img);
         } else if (img.getAttribute('src')) {
-          handleSlotImageError(img, slotId);
+          const src = img.getAttribute('src') || '';
+          if (src.startsWith('blob:') || isSlotPendingHydration(slotId)) {
+            img.style.display = 'none';
+            const loading = slotContainer?.querySelector('.slot-loading-placeholder');
+            if (loading) loading.style.display = 'flex';
+          } else {
+            handleSlotImageError(img, slotId);
+          }
         }
       }
     });
@@ -1113,6 +1154,13 @@ function renderActiveSpread() {
               ${isEn ? '📷 Change Front Photo' : '📷 Đổi Ảnh Bìa Trước'}
             </button>
           </div>
+        ` : (spread._coverImgPending ? `
+          <div class="interactive-photo-slot slot-loading-state" id="slot_coverImg" style="height:240px;margin:10px 0;position:relative;overflow:hidden;border-radius:8px;background:#f3f4f6">
+            <div class="slot-loading-placeholder" style="display:flex">
+              <div class="slot-loading-spinner"></div>
+              <span>${isEn ? 'Restoring photo...' : 'Đang tải lại ảnh...'}</span>
+            </div>
+          </div>
         ` : `
           <div class="canva-frame-placeholder" id="slot_coverImg" style="height:240px;margin:10px 0;border-radius:8px;position:relative"
                onclick="triggerDirectUpload('coverImg', event)"
@@ -1127,7 +1175,7 @@ function renderActiveSpread() {
             </button>
             <div class="photo-drop-hint-overlay">${isEn ? '✨ Drop photo here' : '✨ Thả ảnh vào đây'}</div>
           </div>
-        `}
+        `)}
 
         <div>
           <div class="pb-editable-text" contenteditable="true" onblur="updateLiveAlbumTitle(this.innerText)" style="font-family:'Lora',serif;font-size:24px;font-weight:800;color:var(--red)">
@@ -1167,6 +1215,13 @@ function renderActiveSpread() {
               ${isEn ? '📷 Change Back Photo' : '📷 Đổi Ảnh Bìa Sau'}
             </button>
           </div>
+        ` : (spread._backImgPending ? `
+          <div class="interactive-photo-slot slot-loading-state" id="slot_backImg" style="height:140px;margin:8px 0;position:relative;overflow:hidden;border-radius:8px;background:#f3f4f6">
+            <div class="slot-loading-placeholder" style="display:flex">
+              <div class="slot-loading-spinner"></div>
+              <span>${isEn ? 'Restoring photo...' : 'Đang tải lại ảnh...'}</span>
+            </div>
+          </div>
         ` : `
           <div class="canva-frame-placeholder" id="slot_backImg" style="height:140px;margin:8px 0;border-radius:8px;position:relative"
                onclick="triggerDirectUpload('backImg', event)"
@@ -1181,7 +1236,7 @@ function renderActiveSpread() {
             </button>
             <div class="photo-drop-hint-overlay">${isEn ? '✨ Drop photo here' : '✨ Thả ảnh vào đây'}</div>
           </div>
-        `}
+        `)}
 
         ${hasVoice ? `
           <div style="background:var(--red-light);border:2px solid var(--red);border-radius:14px;padding:14px;cursor:pointer" onclick="playRealRecordedVoice()">
@@ -1379,18 +1434,29 @@ function renderElementsOnSpreadOverlay(spread) {
 
       let innerContent = '';
       if (!el.img) {
-        innerContent = `
-          <div class="canva-frame-placeholder" style="height:${frameH}px;${isOval ? 'border-radius:999px;' : (isClean ? 'border-radius:14px;' : '')}"
-               onclick="triggerDirectUpload('el_${el.id}', event)"
-               ondragover="handleSlotDragOver(event)" ondragleave="handleSlotDragLeave(event)" ondrop="handleSlotDrop(event, 'el_${el.id}')"
-               title="${isEn ? 'Drop photo here or click to choose from device' : 'Thả ảnh vào đây hoặc bấm để chọn ảnh từ máy'}">
-            <div class="cfp-cloud"></div>
-            <div class="cfp-hill"></div>
-            <span style="font-size:26px;z-index:2">🖼️</span>
-            <span style="font-size:11px;font-weight:800;z-index:2;margin-top:2px">${isEn ? 'Drop photo here' : 'Thả ảnh vào đây'}</span>
-            <div class="photo-drop-hint-overlay">${isEn ? '✨ Drop photo here' : '✨ Thả ảnh vào đây'}</div>
-          </div>
-        `;
+        if (el._imgPending) {
+          innerContent = `
+            <div class="canva-frame-inner-viewport interactive-photo-slot slot-loading-state" id="slot_el_${el.id}" style="height:${frameH}px;${isOval ? 'border-radius:999px;' : (isClean ? 'border-radius:14px;' : '')};position:relative;overflow:hidden;background:#f3f4f6">
+              <div class="slot-loading-placeholder" style="display:flex">
+                <div class="slot-loading-spinner"></div>
+                <span>${isEn ? 'Restoring photo...' : 'Đang tải lại ảnh...'}</span>
+              </div>
+            </div>
+          `;
+        } else {
+          innerContent = `
+            <div class="canva-frame-placeholder" style="height:${frameH}px;${isOval ? 'border-radius:999px;' : (isClean ? 'border-radius:14px;' : '')}"
+                 onclick="triggerDirectUpload('el_${el.id}', event)"
+                 ondragover="handleSlotDragOver(event)" ondragleave="handleSlotDragLeave(event)" ondrop="handleSlotDrop(event, 'el_${el.id}')"
+                 title="${isEn ? 'Drop photo here or click to choose from device' : 'Thả ảnh vào đây hoặc bấm để chọn ảnh từ máy'}">
+              <div class="cfp-cloud"></div>
+              <div class="cfp-hill"></div>
+              <span style="font-size:26px;z-index:2">🖼️</span>
+              <span style="font-size:11px;font-weight:800;z-index:2;margin-top:2px">${isEn ? 'Drop photo here' : 'Thả ảnh vào đây'}</span>
+              <div class="photo-drop-hint-overlay">${isEn ? '✨ Drop photo here' : '✨ Thả ảnh vào đây'}</div>
+            </div>
+          `;
+        }
       } else {
         innerContent = `
           <div class="canva-frame-inner-viewport interactive-photo-slot" id="slot_el_${el.id}" style="height:${frameH}px;${isOval ? 'border-radius:999px;' : (isClean ? 'border-radius:14px;' : '')};position:relative;overflow:hidden"
@@ -2094,19 +2160,24 @@ function assignPhotoToSlot(slotKey, url) {
   } else {
     // Nếu chưa có khung nào trên trang ruột thì tạo thêm khung ảnh mới
     if (spread.elements) {
+      const newElId = Date.now();
       spread.elements.push({
-        id: Date.now(),
+        id: newElId,
         type: 'photo',
         img: url,
         x: 100,
         y: 80,
         width: 220,
-        rotate: 0
+        rotate: 0,
+        crop: { zoom: 1.0, offsetX: 0, offsetY: 0, rotate: 0 }
       });
+      slotKey = 'el_' + newElId;
     }
   }
 
-  window.melsouOnImageAssigned?.({ slotKey, source: url });
+  if (slotKey) {
+    window.melsouOnImageAssigned?.({ slotKey, source: url });
+  }
   autoSaveToLocalStorage();
   renderActiveSpread();
 }
@@ -4929,6 +5000,9 @@ function addCurrentAlbumToCart() {
   }
 
   autoSaveToLocalStorage();
+  try {
+    window.melsouFlushPendingPersistence?.()?.catch?.(err => console.warn('[Melsou] cart persistence flush deferred:', err.message));
+  } catch (_) {}
   updateCartBadge();
   toggleCart();
 }
