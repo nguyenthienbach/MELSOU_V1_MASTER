@@ -230,7 +230,7 @@
       }
     }
 
-    var html = '<button type="button" class="blog-page-btn blog-page-arrow" id="blogPaginationPrevBtn" onclick="goToBlogPage(' + (currentPage - 1) + ', -1)"' +
+    var html = '<button type="button" class="blog-page-btn blog-page-arrow" id="blogPaginationPrevBtn" onclick="goToBlogPage(' + (currentPage - 1) + ', -1)" onkeydown="if(event.key===\'Enter\'||event.key===\' \'){event.preventDefault();goToBlogPage(' + (currentPage - 1) + ', -1)}" ' +
       (currentPage <= 1 ? ' disabled aria-disabled="true"' : '') +
       ' aria-label="' + prevLabel + '" title="' + prevLabel + '">‹</button>';
 
@@ -240,7 +240,7 @@
         html += '<span class="blog-page-dots" aria-hidden="true">…</span>';
       } else {
         var isActive = (item === currentPage);
-        html += '<button type="button" class="blog-page-btn' + (isActive ? ' active' : '') + '" onclick="goToBlogPage(' + item + ')"' +
+        html += '<button type="button" class="blog-page-btn' + (isActive ? ' active' : '') + '" onclick="goToBlogPage(' + item + ')" onkeydown="if(event.key===\'Enter\'||event.key===\' \'){event.preventDefault();goToBlogPage(' + item + ')}" ' +
           (isActive ? ' aria-current="page"' : '') +
           ' aria-label="' + (isEn ? 'Page ' + item : 'Trang ' + item) + '">' +
           item +
@@ -248,7 +248,7 @@
       }
     }
 
-    html += '<button type="button" class="blog-page-btn blog-page-arrow" id="blogPaginationNextBtn" onclick="goToBlogPage(' + (currentPage + 1) + ', 1)"' +
+    html += '<button type="button" class="blog-page-btn blog-page-arrow" id="blogPaginationNextBtn" onclick="goToBlogPage(' + (currentPage + 1) + ', 1)" onkeydown="if(event.key===\'Enter\'||event.key===\' \'){event.preventDefault();goToBlogPage(' + (currentPage + 1) + ', 1)}" ' +
       (currentPage >= totalPages ? ' disabled aria-disabled="true"' : '') +
       ' aria-label="' + nextLabel + '" title="' + nextLabel + '">›</button>';
 
@@ -291,6 +291,7 @@
   }
 
   async function goToBlogPage(targetPage, direction) {
+    if (typeof window !== 'undefined') window.blogStorefrontLoaded = true;
     if (isBlogTransitioning) return;
     if (targetPage < 1 || targetPage > currentBlogTotalPages) return;
     if (targetPage === currentBlogPage && typeof direction === 'undefined') return;
@@ -408,6 +409,7 @@
     try {
       var result = await fetchBlogPageData(category, page, blogSearchQuery);
       if (requestId !== blogListRequestId) return;
+      if (page === 1 && category === 'all' && currentBlogPage > 1) return;
 
       var allPosts = result.posts || [];
       currentBlogPage = page;
