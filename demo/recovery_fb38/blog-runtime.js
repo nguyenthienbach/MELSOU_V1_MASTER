@@ -208,25 +208,50 @@
     var prevLabel = isEn ? 'Previous stories' : 'Trang bài viết trước';
     var nextLabel = isEn ? 'Next stories' : 'Trang bài viết tiếp theo';
 
+    var isMobile = (typeof window !== 'undefined' && window.innerWidth <= 480);
     var pagesToShow = [];
-    if (totalPages <= 7) {
-      for (var i = 1; i <= totalPages; i++) pagesToShow.push(i);
-    } else {
-      pagesToShow.push(1);
-      if (currentPage <= 4) {
-        for (var p = 2; p <= 5; p++) pagesToShow.push(p);
-        pagesToShow.push('dots');
-        pagesToShow.push(totalPages);
-      } else if (currentPage >= totalPages - 3) {
-        pagesToShow.push('dots');
-        for (var p2 = totalPages - 4; p2 <= totalPages; p2++) pagesToShow.push(p2);
+    if (isMobile) {
+      if (totalPages <= 5) {
+        for (var im = 1; im <= totalPages; im++) pagesToShow.push(im);
       } else {
-        pagesToShow.push('dots');
-        pagesToShow.push(currentPage - 1);
-        pagesToShow.push(currentPage);
-        pagesToShow.push(currentPage + 1);
-        pagesToShow.push('dots');
-        pagesToShow.push(totalPages);
+        pagesToShow.push(1);
+        if (currentPage <= 2) {
+          pagesToShow.push(2);
+          pagesToShow.push(3);
+          pagesToShow.push('dots');
+          pagesToShow.push(totalPages);
+        } else if (currentPage >= totalPages - 1) {
+          pagesToShow.push('dots');
+          pagesToShow.push(totalPages - 2);
+          pagesToShow.push(totalPages - 1);
+          pagesToShow.push(totalPages);
+        } else {
+          pagesToShow.push('dots');
+          pagesToShow.push(currentPage);
+          pagesToShow.push('dots');
+          pagesToShow.push(totalPages);
+        }
+      }
+    } else {
+      if (totalPages <= 7) {
+        for (var i = 1; i <= totalPages; i++) pagesToShow.push(i);
+      } else {
+        pagesToShow.push(1);
+        if (currentPage <= 4) {
+          for (var p = 2; p <= 5; p++) pagesToShow.push(p);
+          pagesToShow.push('dots');
+          pagesToShow.push(totalPages);
+        } else if (currentPage >= totalPages - 3) {
+          pagesToShow.push('dots');
+          for (var p2 = totalPages - 4; p2 <= totalPages; p2++) pagesToShow.push(p2);
+        } else {
+          pagesToShow.push('dots');
+          pagesToShow.push(currentPage - 1);
+          pagesToShow.push(currentPage);
+          pagesToShow.push(currentPage + 1);
+          pagesToShow.push('dots');
+          pagesToShow.push(totalPages);
+        }
       }
     }
 
