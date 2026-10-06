@@ -3547,6 +3547,11 @@ function blogPostsFingerprint(posts) {
 }
 
 function hydrateSsrBlogPosts() {
+  if (typeof window !== 'undefined' && window.__melsouBlogRuntime) {
+    const ok = window.__melsouBlogRuntime.hydrateSsrBlogPosts();
+    currentLoadedBlogPosts = window.__melsouBlogRuntime.currentLoadedBlogPosts || currentLoadedBlogPosts;
+    return ok;
+  }
   const payload = document.getElementById('melsouSsrBlogPosts');
   if (!payload) return false;
   try {
@@ -3639,6 +3644,9 @@ async function renderBlogCategories() {
 }
 
 function filterBlogCategory(category, btn) {
+  if (typeof window !== 'undefined' && window.__melsouBlogRuntime) {
+    return window.__melsouBlogRuntime.filterBlogCategory(category, btn);
+  }
   activeBlogCategory = category;
   const container = document.getElementById('blogCategoryTabs');
   if (container) {
@@ -3668,6 +3676,9 @@ function resetBlogSearchState() {
 }
 
 function handleBlogSearch(val) {
+  if (typeof window !== 'undefined' && window.__melsouBlogRuntime) {
+    return window.__melsouBlogRuntime.handleBlogSearch(val);
+  }
   const cleanVal = String(val || '').trim();
   const clearBtn = document.getElementById('blogSearchClearBtn');
   if (!cleanVal) {
@@ -3686,6 +3697,9 @@ function handleBlogSearch(val) {
 }
 
 function clearBlogSearch() {
+  if (typeof window !== 'undefined' && window.__melsouBlogRuntime) {
+    return window.__melsouBlogRuntime.clearBlogSearch();
+  }
   const input = document.getElementById('blog-search-query');
   if (input) {
     input.value = '';
@@ -3710,6 +3724,11 @@ function getFilteredBlogPosts() {
 }
 
 async function renderPublicBlog(category = 'all', page = 1) {
+  if (typeof window !== 'undefined' && window.__melsouBlogRuntime) {
+    await window.__melsouBlogRuntime.renderPublicBlog(category, page);
+    currentLoadedBlogPosts = window.__melsouBlogRuntime.currentLoadedBlogPosts || currentLoadedBlogPosts;
+    return;
+  }
   const list = document.getElementById('publicBlogList');
   if (!list) return;
   const requestId = ++blogListRequestId;
@@ -3811,21 +3830,42 @@ function renderFilteredBlogPosts() {
   updateBlogCarouselArrows();
 }
 
+function goToBlogPage(targetPage, direction) {
+  if (typeof window !== 'undefined' && window.__melsouBlogRuntime) {
+    return window.__melsouBlogRuntime.goToBlogPage(targetPage, direction);
+  }
+}
+window.goToBlogPage = goToBlogPage;
+
+function renderBlogPagination() {
+  if (typeof window !== 'undefined' && window.__melsouBlogRuntime) {
+    return window.__melsouBlogRuntime.renderBlogPagination();
+  }
+}
+window.renderBlogPagination = renderBlogPagination;
+
 function scrollBlogCarousel(direction) {
+  if (typeof window !== 'undefined' && window.__melsouBlogRuntime) {
+    return window.__melsouBlogRuntime.scrollBlogCarousel(direction);
+  }
   const track = document.getElementById('publicBlogList');
   if (!track) return;
-  const card = track.querySelector('.blog-card-item');
+  const card = typeof track.querySelector === 'function' ? track.querySelector('.blog-card-item') : null;
   const scrollAmount = card ? (card.offsetWidth + 24) : 384;
-  track.scrollBy({ left: direction * scrollAmount, behavior: 'smooth' });
+  if (typeof track.scrollBy === 'function') track.scrollBy({ left: direction * scrollAmount, behavior: 'smooth' });
   setTimeout(updateBlogCarouselArrows, 350);
 }
+window.scrollBlogCarousel = scrollBlogCarousel;
 
 function updateBlogCarouselArrows() {
+  if (typeof window !== 'undefined' && window.__melsouBlogRuntime) {
+    return window.__melsouBlogRuntime.updateBlogCarouselArrows();
+  }
   const track = document.getElementById('publicBlogList');
   const prevBtn = document.getElementById('blogCarouselPrevBtn');
   const nextBtn = document.getElementById('blogCarouselNextBtn');
   if (!track || !prevBtn || !nextBtn) return;
-  if (window.innerWidth <= 768) {
+  if (typeof window !== 'undefined' && window.innerWidth <= 768) {
     prevBtn.style.display = 'none';
     nextBtn.style.display = 'none';
     return;
@@ -3841,6 +3881,7 @@ function updateBlogCarouselArrows() {
   prevBtn.disabled = track.scrollLeft <= 10;
   nextBtn.disabled = track.scrollLeft + track.clientWidth >= track.scrollWidth - 10;
 }
+window.updateBlogCarouselArrows = updateBlogCarouselArrows;
 
 if (typeof window !== 'undefined') {
   window.addEventListener('resize', () => {
