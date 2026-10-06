@@ -3618,6 +3618,7 @@ function plainWordPressText(html) {
 }
 
 async function renderBlogCategories() {
+  if (_bRt()) return _bRt().renderBlogCategories();
   const container = document.getElementById('blogCategoryTabs');
   if (!container || typeof window.codexGetPublishedCategories !== 'function') return;
   try {

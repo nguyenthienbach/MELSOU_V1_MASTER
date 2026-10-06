@@ -537,10 +537,16 @@ async function handleCartItem(request, env, projectId = null) {
 
 const wordpressApi = 'https://public-api.wordpress.com/wp/v2/sites/melsoucms.wordpress.com';
 const wordpressFetch = (path) => fetch(`${wordpressApi}${path}`, { headers: { Accept: 'application/json' }, cf: { cacheEverything: true, cacheTtl: 30 } });
-const wordpressCategory = (post) => {
+const wordpressCategories = (post) => {
   const terms = post?._embedded?.['wp:term'];
-  const category = Array.isArray(terms?.[0]) ? terms[0][0] : null;
-  return category ? { id: category.id, name: category.name, slug: category.slug } : null;
+  const categories = Array.isArray(terms?.[0]) ? terms[0] : [];
+  return categories
+    .filter((category) => category && category.id && category.name)
+    .map(({ id, name, slug }) => ({ id, name, slug }));
+};
+const wordpressCategory = (post) => {
+  const categories = wordpressCategories(post);
+  return categories[0] || null;
 };
 const decodeHtmlText = (value) => String(value || '')
   .replace(/<[^>]*>/g, ' ')
@@ -585,6 +591,7 @@ function resolveWordpressDescription(post) {
 }
 const wordpressPost = (post) => {
   const resolvedDescription = resolveWordpressDescription(post);
+  const categories = wordpressCategories(post);
   return {
     id: post.id,
     slug: post.slug,
@@ -595,7 +602,8 @@ const wordpressPost = (post) => {
     descriptionSource: resolvedDescription.source,
     publishedAt: post.date_gmt ? `${post.date_gmt}Z` : post.date,
     modifiedAt: post.modified_gmt ? `${post.modified_gmt}Z` : post.modified,
-    category: wordpressCategory(post),
+    category: categories[0] || null,
+    categories,
     featuredImage: post._embedded?.['wp:featuredmedia']?.[0]?.source_url || post.jetpack_featured_media_url || null,
     commentsOpen: post.comment_status === 'open',
     author: post._embedded?.author?.[0]?.name ? decodeHtmlText(post._embedded.author[0].name) : null
@@ -687,6 +695,7 @@ async function handlePublicHome(request, env) {
         content: decodeHtmlText(post.content),
         excerpt: decodeHtmlText(post.excerpt),
         category: post.category ? { ...post.category, name: decodeHtmlText(post.category.name) } : null,
+        categories: (post.categories || []).map((c) => ({ ...c, name: decodeHtmlText(c.name) })),
         featuredImage: safeImageUrl(post.featuredImage)
       }));
       const totalCount = Number(response.headers.get('x-wp-total')) || posts.length;
@@ -1069,7 +1078,17 @@ async function handlePublicBlog(url, slug = null) {
     query.set('orderby', 'date');
     query.set('order', 'desc');
     const category = url.searchParams.get('category');
-    if (category && /^\d+$/.test(category)) query.set('categories', category);
+    if (category && /^\d+$/.test(category)) {
+      query.set('categories', category);
+    } else if (category && category !== 'all' && /^[a-z0-9-]+$/i.test(category)) {
+      try {
+        const catLookup = await wordpressFetch(`/categories?slug=${encodeURIComponent(category)}&per_page=1`);
+        if (catLookup.ok) {
+          const [matchedCat] = await catLookup.json();
+          if (matchedCat?.id) query.set('categories', String(matchedCat.id));
+        }
+      } catch {}
+    }
   }
   let response;
   try { response = await wordpressFetch(`/posts?${query}`); }
@@ -1188,7 +1207,7 @@ async function handlePublicBlogCategories() {
       page += 1;
     } while (page <= totalPages);
   } catch { return publicJson({ error: 'BLOG_CATEGORIES_UNAVAILABLE' }, 503); }
-  return publicJson({ categories: categories.filter((category) => category.count > 0).map(({ id, name, slug, count }) => ({ id, name, slug, count })) });
+  return publicJson({ categories: categories.filter((category) => category.count > 0).map(({ id, name, slug, count }) => ({ id, name: decodeHtmlText(name), slug, count })) });
 }
 
 const xmlEscape = (value) => String(value).replace(/[<>&'\"]/g, (character) => ({ '<': '&lt;', '>': '&gt;', '&': '&amp;', "'": '&apos;', '"': '&quot;' }[character]));
