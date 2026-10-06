@@ -689,9 +689,11 @@ async function handlePublicHome(request, env) {
         category: post.category ? { ...post.category, name: decodeHtmlText(post.category.name) } : null,
         featuredImage: safeImageUrl(post.featuredImage)
       }));
+      const totalCount = Number(response.headers.get('x-wp-total')) || posts.length;
+      const totalPages = Number(response.headers.get('x-wp-totalpages')) || Math.max(1, Math.ceil(totalCount / HOMEPAGE_SSR_BLOG_LIMIT));
       const serialized = JSON.stringify({
         posts: hydrationPosts,
-        pagination: { page: 1, total: posts.length, totalPages: 1 }
+        pagination: { page: 1, total: totalCount, totalPages }
       }).replace(/</g, '\\u003c');
       html = html.replace(
         '<!-- Rendered dynamically by renderPublicBlog() -->',
@@ -870,8 +872,6 @@ const rewriteLeanActions = (html) => html
   .replace(/onclick="openValueStoryModal\((\d+)\)"/g, 'data-melsou-resume="value-$1"')
   .replace(/onkeydown="[^"]*openValueStoryModal\((\d+)\)"/g, 'data-melsou-resume-keyboard="value-$1"')
   .replace(/onclick="handleOpenWriteReview\(\)"/g, 'data-melsou-action="review"')
-  .replace(/\s+oninput="handleBlogSearch\(this\.value\)"/g, ' data-melsou-resume="blog-search-query"')
-  .replace(/onclick="(?:clearBlogSearch|filterBlogCategory|scrollBlogCarousel)\([^\"]*\)"/g, 'data-melsou-resume="blog-section"')
   .replace(/onclick="open(?:Privacy|Warranty)PolicyModal\(event\)"/g, '')
   .replace(/onclick="close(?:Privacy|Warranty)PolicyModal\(\)"/g, 'onclick="location.href=\'/\'"')
   .replace(/onclick="toggleMobileNavMenu\(\)"/g, 'onclick="document.getElementById(\'mobileNavDrawer\')?.classList.toggle(\'open\')"')
@@ -933,6 +933,7 @@ const projectPublicDocument = (html, kind, fragment) => {
     + cleanMobileNav
     + '<main id="melsou-public-route-main" data-static-route="' + htmlEscape(kind) + '">' + fragment + '</main>'
     + footer.html
+    + (kind === 'home' ? '<script src="/blog-runtime.js" defer></script>' : '')
     + leanNavigationScript
     + '</body></html>');
 };

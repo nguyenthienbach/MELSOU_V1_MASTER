@@ -368,12 +368,13 @@
 
       <!-- Dynamic Blog Carousel / Feed Container (FB47) -->
       <div class="blog-carousel-container">
-        <button class="blog-carousel-arrow blog-arrow-prev" id="blogCarouselPrevBtn" onclick="scrollBlogCarousel(-1)" aria-label="Bài trước" title="Bài trước">‹</button>
+        <button class="blog-carousel-arrow blog-arrow-prev" type="button" id="blogCarouselPrevBtn" onclick="scrollBlogCarousel(-1)" aria-label="Bài trước" title="Bài trước">‹</button>
         <div class="blog-feed-track" id="publicBlogList">
           <!-- Rendered dynamically by renderPublicBlog() -->
         </div>
-        <button class="blog-carousel-arrow blog-arrow-next" id="blogCarouselNextBtn" onclick="scrollBlogCarousel(1)" aria-label="Bài tiếp" title="Bài tiếp">›</button>
+        <button class="blog-carousel-arrow blog-arrow-next" type="button" id="blogCarouselNextBtn" onclick="scrollBlogCarousel(1)" aria-label="Bài tiếp" title="Bài tiếp">›</button>
       </div>
+      <div id="blogPagination" class="blog-pagination" style="display:none;justify-content:center;align-items:center;gap:8px;margin-top:32px"></div>
       <div id="blogLoadMoreWrap" style="text-align:center;margin-top:28px;display:none"></div>
     </div>
   </section>
@@ -2274,6 +2275,7 @@
 <!-- 🌟 MELSOU CONTEXT MENU (CANVA-STYLE RIGHT-CLICK & MORE) 🌟 -->
 <div id="melsouContextMenu" class="melsou-context-menu"></div>
 
+<script src="/blog-runtime.js" defer></script>
 <script src="/app.js" defer></script>
 <script src="/auth-client.js" defer></script>
 
